@@ -1175,6 +1175,14 @@ a.w3w-link:active { opacity: 0.7; }
   font-size: 22px; color: #2a3a26; flex-shrink: 0;
 }
 .choice-option-primary .choice-option-arrow { color: rgba(229,90,0,0.45); }
+.choice-back-btn {
+  position: absolute; top: 52px; left: 20px;
+  background: none; border: none; padding: 8px 4px;
+  font-size: 22px; color: #555; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.5px;
+}
+.choice-back-btn:active { color: var(--accent); }
 
 /* ── LANDING SCREEN ─────────────────────── */
 .landing {
@@ -1943,6 +1951,7 @@ a.w3w-link:active { opacity: 0.7; }
 
 <!-- CHOICE SCREEN -->
 <div class="choice-screen" id="choiceScreen" style="display:none">
+  <button class="choice-back-btn" onclick="backToLanding()">&#8592; Change Event</button>
   <div class="choice-logo">ofCourse</div>
   <div class="choice-tagline">Event Day Setup</div>
   <div class="choice-meta">
@@ -1952,15 +1961,7 @@ a.w3w-link:active { opacity: 0.7; }
     <div id="choiceProgressPill" style="display:none"><span class="choice-progress-pill" id="choiceProgressText"></span></div>
   </div>
   <div class="choice-options">
-    <button class="choice-option choice-option-primary" onclick="goToSetup()">
-      <div class="choice-option-icon">&#10003;</div>
-      <div class="choice-option-body">
-        <div class="choice-option-title">Course Setup</div>
-        <div class="choice-option-desc">Walk the course · check off each point</div>
-      </div>
-      <div class="choice-option-arrow">&#8594;</div>
-    </button>
-    <button class="choice-option" onclick="goToMap()">
+    <button class="choice-option choice-option-primary" onclick="goToMap()">
       <div class="choice-option-icon">&#x2316;</div>
       <div class="choice-option-body">
         <div class="choice-option-title">View Map</div>
@@ -1968,19 +1969,19 @@ a.w3w-link:active { opacity: 0.7; }
       </div>
       <div class="choice-option-arrow">&#8594;</div>
     </button>
-    <button class="choice-option" onclick="hideChoiceScreen(() => openObstaclePanel())">
-      <div class="choice-option-icon" style="color:#c0392b">&#9888;</div>
+    <button class="choice-option" onclick="goToSetup()">
+      <div class="choice-option-icon">&#10003;</div>
       <div class="choice-option-body">
-        <div class="choice-option-title">Obstacle Checks</div>
-        <div class="choice-option-desc">Log capacity status at each obstacle</div>
+        <div class="choice-option-title">Course Management</div>
+        <div class="choice-option-desc">Walk the course · check off each point</div>
       </div>
       <div class="choice-option-arrow">&#8594;</div>
     </button>
-    <button class="choice-option" onclick="backToLanding()">
-      <div class="choice-option-icon">&#8592;</div>
+    <button class="choice-option" onclick="hideChoiceScreen(() => openObstaclePanel())">
+      <div class="choice-option-icon" style="color:#c0392b">&#9888;</div>
       <div class="choice-option-body">
-        <div class="choice-option-title">Change Event</div>
-        <div class="choice-option-desc">Switch event or update your details</div>
+        <div class="choice-option-title">Obstacle Management</div>
+        <div class="choice-option-desc">Log capacity status at each obstacle</div>
       </div>
       <div class="choice-option-arrow">&#8594;</div>
     </button>
@@ -2105,7 +2106,7 @@ a.w3w-link:active { opacity: 0.7; }
       </button>
       <button class="menu-option" onclick="closeMenu(); openObstaclePanel()">
         <span class="menu-option-icon" style="color:#c0392b">&#9888;</span>
-        <span class="menu-option-text">Obstacle Checks</span>
+        <span class="menu-option-text">Obstacle Management</span>
         <span class="menu-option-arrow">&#8594;</span>
       </button>
       <button class="menu-option" onclick="closeMenu(); openOverview()">
