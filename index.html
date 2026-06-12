@@ -1647,6 +1647,110 @@ a.w3w-link:active { opacity: 0.7; }
   padding: 2px 0; margin-left: 6px;
 }
 
+/* ── OBSTACLE PANEL ─────────────────────────────────────────────────────── */
+.obstacle-panel {
+  position: fixed; inset: 0; background: var(--bg); z-index: 150;
+  display: flex; flex-direction: column; overflow: hidden;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.32,1,0.6,1);
+}
+.obstacle-panel.open { transform: translateX(0); }
+.obstacle-panel-head {
+  padding: 52px 12px 12px; background: var(--surface);
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1.5px solid var(--border); flex-shrink: 0;
+}
+.obstacle-panel-title {
+  flex: 1; font-family: 'Bebas Neue', cursive;
+  font-size: 22px; letter-spacing: 2px; color: var(--text);
+}
+.obstacle-list-wrap { flex: 1; overflow-y: auto; }
+.obstacle-item {
+  display: flex; align-items: center; padding: 14px 16px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+  background: var(--card); transition: background 0.1s; gap: 12px;
+}
+.obstacle-item:active { background: var(--surface); }
+.obstacle-item-ref {
+  font-family: 'Bebas Neue', cursive; font-size: 24px; letter-spacing: 1px;
+  color: #e55a00; flex-shrink: 0; width: 44px;
+}
+.obstacle-item-body { flex: 1; min-width: 0; }
+.obstacle-item-name {
+  font-size: 14px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.obstacle-item-meta {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #888; margin-top: 3px; display: flex; align-items: center; gap: 6px;
+}
+.obs-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.obs-dot-under { background: #2a8a3a; }
+.obs-dot-at    { background: #c07800; }
+.obs-dot-over  { background: #c0392b; }
+.obs-dot-none  { background: #bbb; }
+.obstacle-cap-tag {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.3px;
+  background: rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 5px; padding: 2px 7px; color: #666; flex-shrink: 0; cursor: pointer;
+}
+
+/* Quick-check sub-view (slides in from right inside the panel) */
+.obstacle-check-view {
+  position: absolute; inset: 0; background: var(--bg);
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(0.32,1,0.6,1);
+}
+.obstacle-check-view.open { transform: translateX(0); }
+.obstacle-check-head {
+  padding: 52px 12px 12px; background: var(--surface);
+  border-bottom: 1.5px solid var(--border); flex-shrink: 0;
+}
+.obstacle-check-body {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+  align-items: center; padding: 32px 20px 24px; gap: 18px;
+}
+.obstacle-check-ref {
+  font-family: 'Bebas Neue', cursive; font-size: 40px;
+  letter-spacing: 3px; color: #e55a00;
+}
+.obstacle-check-name {
+  font-size: 20px; font-weight: 700; color: var(--text); text-align: center;
+}
+.obstacle-check-cap {
+  font-family: 'DM Mono', monospace; font-size: 12px; color: #888;
+  text-align: center; letter-spacing: 0.5px;
+}
+.obstacle-check-cap strong { font-size: 28px; color: var(--text); display: block; margin-top: 2px; }
+.obstacle-check-btns { display: flex; gap: 10px; width: 100%; }
+.ocb {
+  flex: 1; padding: 22px 0; border-radius: 14px; border: none; cursor: pointer;
+  font-family: 'Bebas Neue', cursive; font-size: 17px; letter-spacing: 1.5px; color: #fff;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.2); transition: transform 0.1s, opacity 0.1s;
+}
+.ocb:active { transform: scale(0.96); opacity: 0.85; }
+.ocb-icon { font-size: 28px; }
+.ocb-under { background: #2a8a3a; }
+.ocb-at    { background: #c07800; }
+.ocb-over  { background: #c0392b; }
+.obstacle-recent { width: 100%; }
+.obstacle-recent-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase;
+  letter-spacing: 1.5px; color: #888; margin-bottom: 8px;
+}
+.obstacle-recent-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.obstacle-recent-row-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.obstacle-recent-time { font-family: 'DM Mono', monospace; font-size: 10px; color: #888; flex-shrink: 0; }
+.obstacle-recent-user { flex: 1; font-size: 12px; font-weight: 500; color: var(--text); }
+.obstacle-recent-status { font-size: 11px; font-family: 'DM Mono', monospace; }
+
 /* ── PHOTOS & TAGS ──────────────────────────────────────────────────────── */
 .card-media-section {
   padding: 0 0 10px;
@@ -1842,6 +1946,14 @@ a.w3w-link:active { opacity: 0.7; }
       </div>
       <div class="choice-option-arrow">&#8594;</div>
     </button>
+    <button class="choice-option" onclick="hideChoiceScreen(() => openObstaclePanel())">
+      <div class="choice-option-icon" style="color:#c0392b">&#9888;</div>
+      <div class="choice-option-body">
+        <div class="choice-option-title">Obstacle Checks</div>
+        <div class="choice-option-desc">Log capacity status at each obstacle</div>
+      </div>
+      <div class="choice-option-arrow">&#8594;</div>
+    </button>
     <button class="choice-option" onclick="backToLanding()">
       <div class="choice-option-icon">&#8592;</div>
       <div class="choice-option-body">
@@ -1967,6 +2079,11 @@ a.w3w-link:active { opacity: 0.7; }
       <button class="menu-option" onclick="closeMenu(); openMap()">
         <span class="menu-option-icon">&#x2316;</span>
         <span class="menu-option-text">Course Map</span>
+        <span class="menu-option-arrow">&#8594;</span>
+      </button>
+      <button class="menu-option" onclick="closeMenu(); openObstaclePanel()">
+        <span class="menu-option-icon" style="color:#c0392b">&#9888;</span>
+        <span class="menu-option-text">Obstacle Checks</span>
         <span class="menu-option-arrow">&#8594;</span>
       </button>
       <button class="menu-option" onclick="closeMenu(); openOverview()">
@@ -2796,12 +2913,12 @@ function confirmDeleteEvent() {
 }
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {} };
+let state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, obstacleCapacity: {} };
 
 function loadState() {
   try {
     const saved = localStorage.getItem(LS_KEY);
-    if (saved) state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, ...JSON.parse(saved) };
+    if (saved) state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, obstacleCapacity: {}, ...JSON.parse(saved) };
   } catch(e) {}
 }
 function saveState() {
@@ -3418,7 +3535,7 @@ function exportData() {
 
 function confirmReset() {
   if (confirm('Reset all progress and notes? This cannot be undone.')) {
-    state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {} };
+    state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, obstacleCapacity: {} };
     saveState();
     hideAllDone();
     closeOverview();
@@ -4892,6 +5009,166 @@ document.getElementById('cardMiniMap').addEventListener('touchstart', e => {
   });
 })();
 
+// ── OBSTACLE CHECKS ───────────────────────────────────────────────────────────
+
+let obstacleChecks = [];
+let _currentObstacleRef = null;
+
+function getObstacleCards() {
+  return ALLCARDS.filter(c => c.obstacle);
+}
+
+function getObstacleName(card) {
+  const loc = effectiveCard(card).loc || '';
+  if (loc.startsWith('OBSTACLE: ')) {
+    const rest = loc.slice(10);
+    const sep = rest.indexOf(' — ');
+    return sep !== -1 ? rest.slice(0, sep) : rest.replace(/\.$/, '');
+  }
+  return loc || card.ref;
+}
+
+function openObstaclePanel() {
+  document.getElementById('obstaclePanel').classList.add('open');
+  syncAndRenderObstacles();
+}
+
+function closeObstaclePanel() {
+  closeObstacleCheck();
+  setTimeout(() => document.getElementById('obstaclePanel').classList.remove('open'), 50);
+}
+
+async function syncAndRenderObstacles() {
+  try {
+    const res = await fetch(`/api/checks/${activeEventId}`);
+    if (res.ok) obstacleChecks = await res.json();
+  } catch(e) {}
+  renderObstacleList();
+}
+
+function renderObstacleList() {
+  const list = document.getElementById('obstacleList');
+  if (!list) return;
+  const obstacles = getObstacleCards();
+  if (!obstacles.length) {
+    list.innerHTML = `<div style="padding:48px 24px;text-align:center;color:#888;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.5px">No obstacle cards found for this event.</div>`;
+    return;
+  }
+  list.innerHTML = obstacles.map(card => {
+    const name = getObstacleName(card);
+    const cap = state.obstacleCapacity[card.ref];
+    const cardChecks = obstacleChecks.filter(c => c.cardRef === card.ref);
+    const last = cardChecks.length ? cardChecks[cardChecks.length - 1] : null;
+    const dotCls = last ? `obs-dot-${last.status}` : 'obs-dot-none';
+    const statusLabel = last
+      ? `${new Date(last.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · ${escHtml(last.user || 'Unknown')}`
+      : 'Not yet checked';
+    const capLabel = cap ? `Cap: ${cap}` : 'Set cap';
+    return `<div class="obstacle-item" onclick="openObstacleCheck('${escHtml(card.ref)}')">
+      <div class="obstacle-item-ref">${escHtml(card.ref)}</div>
+      <div class="obstacle-item-body">
+        <div class="obstacle-item-name">${escHtml(name)}</div>
+        <div class="obstacle-item-meta">
+          <div class="obs-dot ${dotCls}"></div>
+          <span>${statusLabel}</span>
+        </div>
+      </div>
+      <div class="obstacle-cap-tag" onclick="event.stopPropagation();editObstacleCapacity('${escHtml(card.ref)}')">${escHtml(capLabel)}</div>
+      <div style="color:#ccc;font-size:20px;padding-left:4px">&#8250;</div>
+    </div>`;
+  }).join('');
+}
+
+function openObstacleCheck(cardRef) {
+  _currentObstacleRef = cardRef;
+  const card = ALLCARDS.find(c => c.ref === cardRef);
+  if (!card) return;
+  const name = getObstacleName(card);
+  const cap = state.obstacleCapacity[cardRef];
+  const cardChecks = obstacleChecks.filter(c => c.cardRef === cardRef);
+  const recent = [...cardChecks].reverse().slice(0, 5);
+  const STATUS = { under: { label: 'Under', col: '#2a8a3a' }, at: { label: 'At capacity', col: '#c07800' }, over: { label: 'Over', col: '#c0392b' } };
+  const recentHtml = recent.length
+    ? recent.map(c => {
+        const s = STATUS[c.status] || { label: c.status, col: '#aaa' };
+        const time = new Date(c.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+        return `<div class="obstacle-recent-row">
+          <div class="obstacle-recent-row-dot" style="background:${s.col}"></div>
+          <span class="obstacle-recent-time">${time}</span>
+          <span class="obstacle-recent-user">${escHtml(c.user || 'Unknown')}</span>
+          <span class="obstacle-recent-status" style="color:${s.col}">${s.label}</span>
+        </div>`;
+      }).join('')
+    : `<div style="color:#aaa;font-family:'DM Mono',monospace;font-size:11px;padding:6px 0">No checks yet</div>`;
+
+  document.getElementById('obstacleCheckBody').innerHTML = `
+    <div class="obstacle-check-ref">${escHtml(cardRef)}</div>
+    <div class="obstacle-check-name">${escHtml(name)}</div>
+    <div class="obstacle-check-cap">
+      Max capacity
+      ${cap ? `<strong>${cap}</strong>` : `<strong style="color:#c06000;font-size:16px">Not set</strong>`}
+    </div>
+    <div class="obstacle-check-btns">
+      <button class="ocb ocb-under" onclick="submitObstacleCheck('${escHtml(cardRef)}','under')">
+        <span class="ocb-icon">✓</span>Under
+      </button>
+      <button class="ocb ocb-at" onclick="submitObstacleCheck('${escHtml(cardRef)}','at')">
+        <span class="ocb-icon">~</span>At cap
+      </button>
+      <button class="ocb ocb-over" onclick="submitObstacleCheck('${escHtml(cardRef)}','over')">
+        <span class="ocb-icon">!</span>Over
+      </button>
+    </div>
+    <div class="obstacle-recent">
+      <div class="obstacle-recent-label">Recent checks</div>
+      ${recentHtml}
+    </div>`;
+
+  document.getElementById('obstacleCheckView').classList.add('open');
+}
+
+function closeObstacleCheck() {
+  document.getElementById('obstacleCheckView').classList.remove('open');
+  _currentObstacleRef = null;
+}
+
+async function submitObstacleCheck(cardRef, status) {
+  const check = {
+    id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36),
+    eventId: activeEventId,
+    cardRef,
+    ts: new Date().toISOString(),
+    user: currentUser.name || 'Unknown',
+    role: currentUser.role || '',
+    status,
+    capacity: state.obstacleCapacity[cardRef] || null,
+  };
+
+  obstacleChecks.push(check);
+  closeObstacleCheck();
+  renderObstacleList();
+
+  try {
+    await fetch(`/api/checks/${activeEventId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(check),
+    });
+  } catch(e) {}
+}
+
+function editObstacleCapacity(cardRef) {
+  const current = state.obstacleCapacity[cardRef];
+  const input = prompt(`Max capacity for ${cardRef}:`, current || '');
+  if (input === null) return;
+  const n = parseInt(input.trim(), 10);
+  if (!isNaN(n) && n > 0) {
+    state.obstacleCapacity[cardRef] = n;
+    saveState();
+    renderObstacleList();
+  }
+}
+
 // ── PHOTOS & TAGS ─────────────────────────────────────────────────────────────
 
 let _photoDB = null;
@@ -5122,6 +5399,25 @@ if (currentUser.name && activeEventId) {
   showLanding();
 }
 </script>
+
+<!-- OBSTACLE CHECKS PANEL -->
+<div class="obstacle-panel" id="obstaclePanel">
+  <div class="obstacle-panel-head">
+    <button class="header-btn" onclick="closeObstaclePanel()">&#8592;</button>
+    <span class="obstacle-panel-title">Obstacle Checks</span>
+    <button class="header-btn" onclick="syncAndRenderObstacles()" title="Refresh" style="font-size:16px">&#8635;</button>
+  </div>
+  <div class="obstacle-list-wrap">
+    <div class="obstacle-list" id="obstacleList"></div>
+  </div>
+  <!-- Quick-check sub-view -->
+  <div class="obstacle-check-view" id="obstacleCheckView">
+    <div class="obstacle-check-head">
+      <button class="header-btn" onclick="closeObstacleCheck()">&#8592;</button>
+    </div>
+    <div class="obstacle-check-body" id="obstacleCheckBody"></div>
+  </div>
+</div>
 
 <!-- PHOTO UPLOAD INPUT (hidden) -->
 <input type="file" id="photoFileInput" accept="image/*" style="display:none"
