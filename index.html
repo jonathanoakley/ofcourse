@@ -1704,6 +1704,7 @@ a.w3w-link:active { opacity: 0.7; }
 .card.editing {
   border: 4px solid #f5c518 !important;
   box-shadow: 0 0 0 2px rgba(245,197,24,0.18), 0 16px 48px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3) !important;
+  touch-action: auto;
 }
 .card-draft-watermark {
   position: absolute; inset: 0; z-index: 3; pointer-events: none;
@@ -3810,7 +3811,7 @@ function confirmReset() {
   card.addEventListener('mousedown', e => {
     mouseDown = true;
     onStart(e.clientX, e.clientY);
-    e.preventDefault();
+    if (!_cardMode) e.preventDefault();
   });
   document.addEventListener('mousemove', e => {
     if (!mouseDown) return;
@@ -4640,6 +4641,7 @@ function _renderCardInlineEdit(idx) {
     html += `<div class="card-edit-section">
       <div class="card-edit-label">Signage</div>
       ${signPickerHtml(ec.signs || [], 'inlinedit')}
+      <textarea class="card-edit-textarea" data-field="sig" rows="2" placeholder="Signage notes…" style="margin-top:6px">${safe(ec.sig)}</textarea>
     </div>`;
     html += `<div class="card-edit-section">
       <div class="card-edit-label">Risk Level</div>
