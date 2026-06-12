@@ -1750,6 +1750,28 @@ a.w3w-link:active { opacity: 0.7; }
 .obstacle-recent-time { font-family: 'DM Mono', monospace; font-size: 10px; color: #888; flex-shrink: 0; }
 .obstacle-recent-user { flex: 1; font-size: 12px; font-weight: 500; color: var(--text); }
 .obstacle-recent-status { font-size: 11px; font-family: 'DM Mono', monospace; }
+.obstacle-recent-notes { font-size: 11px; color: #777; font-style: italic; padding: 2px 0 6px 24px; border-bottom: 1px solid var(--border); }
+.obs-field-row { width: 100%; }
+.obs-field-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase;
+  letter-spacing: 1.5px; color: #888; margin-bottom: 6px;
+}
+.obs-queue-input {
+  width: 100%; text-align: center; font-size: 32px; font-family: 'DM Mono', monospace;
+  font-weight: 600; color: var(--text); background: var(--surface);
+  border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 0;
+  outline: none; -moz-appearance: textfield;
+}
+.obs-queue-input::-webkit-inner-spin-button,
+.obs-queue-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.obs-queue-input:focus { border-color: var(--accent); }
+.obs-notes-input {
+  width: 100%; background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--text);
+  font-family: inherit; resize: none; outline: none; line-height: 1.45;
+  box-sizing: border-box;
+}
+.obs-notes-input:focus { border-color: var(--accent); }
 
 /* ── PHOTOS & TAGS ──────────────────────────────────────────────────────── */
 .card-media-section {
@@ -5061,7 +5083,7 @@ function renderObstacleList() {
     const last = cardChecks.length ? cardChecks[cardChecks.length - 1] : null;
     const dotCls = last ? `obs-dot-${last.status}` : 'obs-dot-none';
     const statusLabel = last
-      ? `${new Date(last.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · ${escHtml(last.user || 'Unknown')}`
+      ? `${new Date(last.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · ${escHtml(last.user || 'Unknown')}${last.queueLength != null ? ' · Q:' + last.queueLength : ''}`
       : 'Not yet checked';
     const capLabel = cap ? `Cap: ${cap}` : 'Set cap';
     return `<div class="obstacle-item" onclick="openObstacleCheck('${escHtml(card.ref)}')">
@@ -5092,12 +5114,14 @@ function openObstacleCheck(cardRef) {
     ? recent.map(c => {
         const s = STATUS[c.status] || { label: c.status, col: '#aaa' };
         const time = new Date(c.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+        const queueStr = c.queueLength != null ? ` · Queue: ${c.queueLength}` : '';
+        const notesRow = c.notes ? `<div class="obstacle-recent-notes">${escHtml(c.notes)}</div>` : '';
         return `<div class="obstacle-recent-row">
           <div class="obstacle-recent-row-dot" style="background:${s.col}"></div>
           <span class="obstacle-recent-time">${time}</span>
           <span class="obstacle-recent-user">${escHtml(c.user || 'Unknown')}</span>
-          <span class="obstacle-recent-status" style="color:${s.col}">${s.label}</span>
-        </div>`;
+          <span class="obstacle-recent-status" style="color:${s.col}">${s.label}${escHtml(queueStr)}</span>
+        </div>${notesRow}`;
       }).join('')
     : `<div style="color:#aaa;font-family:'DM Mono',monospace;font-size:11px;padding:6px 0">No checks yet</div>`;
 
@@ -5107,6 +5131,14 @@ function openObstacleCheck(cardRef) {
     <div class="obstacle-check-cap">
       Max capacity
       ${cap ? `<strong>${cap}</strong>` : `<strong style="color:#c06000;font-size:16px">Not set</strong>`}
+    </div>
+    <div class="obs-field-row">
+      <div class="obs-field-label">Queue length</div>
+      <input id="obsQueueInput" class="obs-queue-input" type="number" min="0" max="9999" placeholder="0">
+    </div>
+    <div class="obs-field-row">
+      <div class="obs-field-label">Notes</div>
+      <textarea id="obsNotesInput" class="obs-notes-input" rows="2" placeholder="Any observations…"></textarea>
     </div>
     <div class="obstacle-check-btns">
       <button class="ocb ocb-under" onclick="submitObstacleCheck('${escHtml(cardRef)}','under')">
@@ -5133,6 +5165,9 @@ function closeObstacleCheck() {
 }
 
 async function submitObstacleCheck(cardRef, status) {
+  const queueRaw = document.getElementById('obsQueueInput')?.value;
+  const queueLength = queueRaw !== '' && queueRaw != null ? parseInt(queueRaw, 10) : null;
+  const notes = document.getElementById('obsNotesInput')?.value.trim() || '';
   const check = {
     id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36),
     eventId: activeEventId,
@@ -5142,6 +5177,8 @@ async function submitObstacleCheck(cardRef, status) {
     role: currentUser.role || '',
     status,
     capacity: state.obstacleCapacity[cardRef] || null,
+    queueLength: (!isNaN(queueLength) && queueLength !== null) ? queueLength : null,
+    notes: notes || null,
   };
 
   obstacleChecks.push(check);
