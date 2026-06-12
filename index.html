@@ -1193,6 +1193,69 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .choice-config-btn:active { color: var(--accent); }
 
+/* ── LIVE STATUS PANEL ───────────────────────────────────────────────────── */
+.live-panel {
+  position: fixed; inset: 0; background: var(--bg); z-index: 150;
+  display: flex; flex-direction: column; overflow: hidden;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.32,1,0.6,1);
+}
+.live-panel.open { transform: translateX(0); }
+.live-panel-head {
+  padding: 52px 16px 14px; background: var(--surface);
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1.5px solid var(--border); flex-shrink: 0;
+}
+.live-panel-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px; letter-spacing: 2px; color: #e55a00;
+}
+.live-panel-body { flex: 1; overflow-y: auto; }
+.live-feed-empty {
+  padding: 60px 24px; text-align: center;
+  font-family: 'DM Mono', monospace; font-size: 12px;
+  color: #555; letter-spacing: 0.3px;
+}
+.live-feed-list { display: flex; flex-direction: column; }
+.live-feed-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 13px 16px; border-bottom: 1px solid var(--border);
+}
+.live-feed-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  margin-top: 5px;
+}
+.live-feed-dot-complete { background: #2a8a3a; }
+.live-feed-dot-undo { background: #888; }
+.live-feed-dot-note { background: #c07800; }
+.live-feed-dot-obstacle-under { background: #2a8a3a; }
+.live-feed-dot-obstacle-at { background: #c07800; }
+.live-feed-dot-obstacle-over { background: #c0392b; }
+.live-feed-dot-edit { background: #5580cc; }
+.live-feed-dot-field { background: #8855cc; }
+.live-feed-body { flex: 1; min-width: 0; }
+.live-feed-ref {
+  font-family: 'Bebas Neue', cursive; font-size: 15px;
+  letter-spacing: 1px; color: #e55a00; line-height: 1;
+}
+.live-feed-desc {
+  font-size: 13px; font-weight: 600; color: #ddd;
+  line-height: 1.35; margin-top: 1px;
+}
+.live-feed-meta {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 0.4px; color: #555; margin-top: 3px;
+}
+.live-feed-note-text {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: #999; margin-top: 4px; font-style: italic;
+  white-space: pre-wrap; word-break: break-word;
+}
+.live-feed-time {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #444; flex-shrink: 0; padding-top: 3px;
+}
+
 /* ── CONFIG PANEL ─────────────────────────────────────────────────────────── */
 .config-panel {
   position: fixed; inset: 0; background: var(--bg); z-index: 150;
@@ -2115,6 +2178,14 @@ a.w3w-link:active { opacity: 0.7; }
       <div class="choice-option-body">
         <div class="choice-option-title">Obstacle Management</div>
         <div class="choice-option-desc">Log capacity status at each obstacle</div>
+      </div>
+      <div class="choice-option-arrow">&#8594;</div>
+    </button>
+    <button class="choice-option" onclick="goToLive()">
+      <div class="choice-option-icon" style="color:#5580cc">&#9679;</div>
+      <div class="choice-option-body">
+        <div class="choice-option-title">Live Status Updates</div>
+        <div class="choice-option-desc">Full activity feed for this event</div>
       </div>
       <div class="choice-option-arrow">&#8594;</div>
     </button>
@@ -5171,6 +5242,110 @@ document.getElementById('cardMiniMap').addEventListener('touchstart', e => {
 
 // ── CONFIGURATION ─────────────────────────────────────────────────────────────
 
+// ── LIVE STATUS ───────────────────────────────────────────────────────────────
+
+function goToLive() {
+  _pushRoute('live');
+  const el = document.getElementById('liveBreadcrumb');
+  if (el) el.textContent = getActiveEventName() + ' / Live Status';
+  renderLiveFeed();
+  hideChoiceScreen(() => { document.getElementById('livePanel').classList.add('open'); });
+}
+
+function closeLivePanel() {
+  document.getElementById('livePanel').classList.remove('open');
+  showChoiceScreen();
+}
+
+function renderLiveFeed() {
+  const list = document.getElementById('liveFeedList');
+  if (!list) return;
+
+  // Build unified event list from audit log + obstacle checks
+  const events = [];
+
+  // Audit entries
+  (state.audit || []).forEach(e => {
+    const card = ALLCARDS.find(c => c.ref === e.ref);
+    const ec = card ? effectiveCard(card) : null;
+    const locName = ec ? (ec.loc || e.ref) : e.ref;
+    let desc = '', dotCls = 'live-feed-dot-edit', noteText = '';
+
+    if (e.action === 'complete') {
+      desc = 'Marked complete';
+      dotCls = 'live-feed-dot-complete';
+    } else if (e.action === 'undo') {
+      desc = 'Completion undone';
+      dotCls = 'live-feed-dot-undo';
+    } else if (e.action === 'note') {
+      desc = 'Note saved';
+      dotCls = 'live-feed-dot-note';
+      noteText = e.text || '';
+    } else if (e.action === 'note_delete') {
+      desc = 'Note deleted';
+      dotCls = 'live-feed-dot-undo';
+    } else if (e.action === 'card_edit') {
+      desc = 'Card edited' + (e.fields ? ' (' + e.fields + ')' : '');
+      dotCls = 'live-feed-dot-edit';
+    } else if (e.action === 'card_edit_revert') {
+      desc = 'Card edits reverted';
+      dotCls = 'live-feed-dot-undo';
+    } else if (e.action === 'field_addition') {
+      desc = 'Field addition added';
+      if (e.loc) noteText = e.loc;
+      dotCls = 'live-feed-dot-field';
+    } else {
+      desc = e.action;
+    }
+
+    events.push({ ts: e.ts, ref: e.ref, locName, desc, dotCls, noteText, user: e.user || 'Unknown', role: e.role || '' });
+  });
+
+  // Obstacle checks
+  obstacleChecks.forEach(c => {
+    const card = ALLCARDS.find(x => x.ref === c.cardRef);
+    const name = card ? getObstacleName(card) : c.cardRef;
+    const STATUS = { under: 'Under capacity', at: 'At capacity', over: 'Over capacity' };
+    const dotMap = { under: 'live-feed-dot-obstacle-under', at: 'live-feed-dot-obstacle-at', over: 'live-feed-dot-obstacle-over' };
+    const capStr = c.capacity != null ? ' · Cap ' + c.capacity : '';
+    const qStr = c.queueLength != null ? ' · Queue ' + c.queueLength : '';
+    events.push({
+      ts: c.ts, ref: c.cardRef, locName: name,
+      desc: (STATUS[c.status] || c.status) + capStr + qStr,
+      dotCls: dotMap[c.status] || 'live-feed-dot-edit',
+      noteText: c.notes || '',
+      user: c.user || 'Unknown', role: c.role || '',
+    });
+  });
+
+  if (!events.length) {
+    list.innerHTML = `<div class="live-feed-empty">No activity yet for this event.</div>`;
+    return;
+  }
+
+  // Sort newest first
+  events.sort((a, b) => new Date(b.ts) - new Date(a.ts));
+
+  list.innerHTML = events.map(e => {
+    const t = new Date(e.ts);
+    const timeStr = t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const metaStr = [e.user, e.role].filter(Boolean).join(' · ');
+    const noteHtml = e.noteText ? `<div class="live-feed-note-text">${escHtml(e.noteText)}</div>` : '';
+    return `<div class="live-feed-item">
+      <div class="live-feed-dot ${escHtml(e.dotCls)}"></div>
+      <div class="live-feed-body">
+        <div class="live-feed-ref">${escHtml(e.ref)}</div>
+        <div class="live-feed-desc">${escHtml(e.locName)}</div>
+        <div class="live-feed-desc" style="font-weight:400;font-size:12px;color:#aaa;margin-top:2px">${escHtml(e.desc)}</div>
+        ${noteHtml}
+        <div class="live-feed-meta">${escHtml(metaStr)}</div>
+      </div>
+      <div class="live-feed-time">${timeStr}<br><span style="color:#333">${dateStr}</span></div>
+    </div>`;
+  }).join('');
+}
+
 function openConfigPanel() {
   _pushRoute('config');
   _updateConfigBreadcrumb();
@@ -5738,7 +5913,7 @@ function _routeFromPath() {
   const section = segs[1] || '';
   const sub = decodeURIComponent(segs[2] || '');
 
-  ['obstaclePanel', 'obstacleCheckView', 'configPanel'].forEach(function(id) {
+  ['obstaclePanel', 'obstacleCheckView', 'configPanel', 'livePanel'].forEach(function(id) {
     const el = document.getElementById(id);
     if (el) el.classList.remove('open');
   });
@@ -5775,6 +5950,12 @@ function _routeFromPath() {
     renderObstacleConfig();
     document.getElementById('configPanel').classList.add('open');
     _updateConfigBreadcrumb();
+  } else if (section === 'live') {
+    cs.style.display = 'none';
+    const el = document.getElementById('liveBreadcrumb');
+    if (el) el.textContent = getActiveEventName() + ' / Live Status';
+    renderLiveFeed();
+    document.getElementById('livePanel').classList.add('open');
   }
 }
 
@@ -5792,6 +5973,21 @@ if (currentUser.name && activeEventId) {
   showLanding();
 }
 </script>
+
+<!-- LIVE STATUS PANEL -->
+<div class="live-panel" id="livePanel">
+  <div class="live-panel-head">
+    <button class="header-btn" onclick="closeLivePanel()">&#8592;</button>
+    <div class="panel-head-center">
+      <span class="live-panel-title">Live Status Updates</span>
+      <div class="panel-breadcrumb" id="liveBreadcrumb"></div>
+    </div>
+    <button class="header-btn" onclick="renderLiveFeed()" title="Refresh" style="font-size:16px">&#8635;</button>
+  </div>
+  <div class="live-panel-body">
+    <div id="liveFeedList" class="live-feed-list"></div>
+  </div>
+</div>
 
 <!-- CONFIGURATION PANEL -->
 <div class="config-panel" id="configPanel">
