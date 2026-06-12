@@ -1178,11 +1178,77 @@ a.w3w-link:active { opacity: 0.7; }
 .choice-back-btn {
   position: absolute; top: 52px; left: 20px;
   background: none; border: none; padding: 8px 4px;
-  font-size: 22px; color: #555; cursor: pointer;
+  color: #555; cursor: pointer;
   display: flex; align-items: center; gap: 6px;
   font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.5px;
 }
 .choice-back-btn:active { color: var(--accent); }
+.choice-config-btn {
+  width: 100%; max-width: 360px;
+  background: none; border: none; padding: 14px 4px;
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: #444; letter-spacing: 0.5px;
+  border-top: 1px solid rgba(255,255,255,0.05); margin-top: 4px;
+}
+.choice-config-btn:active { color: var(--accent); }
+
+/* ── CONFIG PANEL ─────────────────────────────────────────────────────────── */
+.config-panel {
+  position: fixed; inset: 0; background: var(--bg); z-index: 150;
+  display: flex; flex-direction: column; overflow: hidden;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.32,1,0.6,1);
+}
+.config-panel.open { transform: translateX(0); }
+.config-panel-head {
+  padding: 52px 16px 14px; background: var(--surface);
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1.5px solid var(--border); flex-shrink: 0;
+}
+.config-panel-title {
+  flex: 1; font-family: 'Bebas Neue', cursive;
+  font-size: 22px; letter-spacing: 2px; color: var(--text);
+}
+.config-body { flex: 1; overflow-y: auto; }
+.config-section-head {
+  padding: 20px 16px 10px;
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  text-transform: uppercase; letter-spacing: 2px; color: #888;
+  border-bottom: 1px solid var(--border);
+}
+.obs-config-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.obs-config-ref {
+  font-family: 'Bebas Neue', cursive; font-size: 22px;
+  letter-spacing: 1px; color: #e55a00; flex-shrink: 0; width: 44px;
+}
+.obs-config-name {
+  flex: 1; font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.obs-config-cap-wrap {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.obs-config-cap-label {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  text-transform: uppercase; letter-spacing: 1px; color: #888;
+}
+.obs-config-cap-input {
+  width: 68px; text-align: center;
+  font-family: 'DM Mono', monospace; font-size: 16px; font-weight: 600;
+  color: var(--text); background: var(--surface);
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 6px 4px; outline: none;
+  -moz-appearance: textfield;
+}
+.obs-config-cap-input::-webkit-inner-spin-button,
+.obs-config-cap-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.obs-config-cap-input:focus { border-color: var(--accent); }
+.obs-config-cap-input.saved { border-color: #2a8a3a; transition: border-color 0s; }
 
 /* ── LANDING SCREEN ─────────────────────── */
 .landing {
@@ -1986,6 +2052,10 @@ a.w3w-link:active { opacity: 0.7; }
       <div class="choice-option-arrow">&#8594;</div>
     </button>
   </div>
+  <button class="choice-config-btn" onclick="hideChoiceScreen(() => openConfigPanel())">
+    <span style="font-size:15px">&#9881;</span> Configuration
+    <span style="margin-left:auto;font-size:15px;color:#333">&#8250;</span>
+  </button>
 </div>
 
 <!-- HEADER -->
@@ -5032,6 +5102,56 @@ document.getElementById('cardMiniMap').addEventListener('touchstart', e => {
   });
 })();
 
+// ── CONFIGURATION ─────────────────────────────────────────────────────────────
+
+function openConfigPanel() {
+  renderObstacleConfig();
+  document.getElementById('configPanel').classList.add('open');
+}
+
+function closeConfigPanel() {
+  document.getElementById('configPanel').classList.remove('open');
+  showChoiceScreen();
+}
+
+function renderObstacleConfig() {
+  const list = document.getElementById('obstacleConfigList');
+  if (!list) return;
+  const obstacles = ALLCARDS.filter(c => c.obstacle);
+  if (!obstacles.length) {
+    list.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#888;font-family:'DM Mono',monospace;font-size:12px">No obstacle cards found for this event.</div>`;
+    return;
+  }
+  list.innerHTML = obstacles.map(card => {
+    const name = getObstacleName(card);
+    const cap = state.obstacleCapacity[card.ref] || '';
+    return `<div class="obs-config-item">
+      <div class="obs-config-ref">${escHtml(card.ref)}</div>
+      <div class="obs-config-name">${escHtml(name)}</div>
+      <div class="obs-config-cap-wrap">
+        <div class="obs-config-cap-label">Cap</div>
+        <input class="obs-config-cap-input" type="number" min="1" max="9999"
+          value="${cap}" placeholder="—"
+          onchange="saveObstacleCapConfig('${escHtml(card.ref)}', this)"
+          onblur="saveObstacleCapConfig('${escHtml(card.ref)}', this)">
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function saveObstacleCapConfig(cardRef, input) {
+  const n = parseInt(input.value, 10);
+  if (!isNaN(n) && n > 0) {
+    state.obstacleCapacity[cardRef] = n;
+    saveState();
+    input.classList.add('saved');
+    setTimeout(() => input.classList.remove('saved'), 1200);
+  } else if (input.value === '') {
+    delete state.obstacleCapacity[cardRef];
+    saveState();
+  }
+}
+
 // ── OBSTACLE CHECKS ───────────────────────────────────────────────────────────
 
 let obstacleChecks = [];
@@ -5437,6 +5557,18 @@ if (currentUser.name && activeEventId) {
   showLanding();
 }
 </script>
+
+<!-- CONFIGURATION PANEL -->
+<div class="config-panel" id="configPanel">
+  <div class="config-panel-head">
+    <button class="header-btn" onclick="closeConfigPanel()">&#8592;</button>
+    <span class="config-panel-title">Configuration</span>
+  </div>
+  <div class="config-body">
+    <div class="config-section-head">Obstacle Configuration</div>
+    <div id="obstacleConfigList"></div>
+  </div>
+</div>
 
 <!-- OBSTACLE CHECKS PANEL -->
 <div class="obstacle-panel" id="obstaclePanel">
