@@ -1207,7 +1207,7 @@ a.w3w-link:active { opacity: 0.7; }
   border-bottom: 1.5px solid var(--border); flex-shrink: 0;
 }
 .config-panel-title {
-  flex: 1; font-family: 'Bebas Neue', cursive;
+  font-family: 'Bebas Neue', cursive;
   font-size: 22px; letter-spacing: 2px; color: var(--text);
 }
 .config-body { flex: 1; overflow-y: auto; }
@@ -1785,8 +1785,16 @@ a.w3w-link:active { opacity: 0.7; }
   border-bottom: 1.5px solid var(--border); flex-shrink: 0;
 }
 .obstacle-panel-title {
-  flex: 1; font-family: 'Bebas Neue', cursive;
+  font-family: 'Bebas Neue', cursive;
   font-size: 22px; letter-spacing: 2px; color: var(--text);
+}
+.panel-head-center {
+  flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0;
+}
+.panel-breadcrumb {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.5px;
+  color: #666; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 220px;
 }
 .obstacle-list-wrap { flex: 1; overflow-y: auto; }
 .obstacle-item {
@@ -1832,6 +1840,7 @@ a.w3w-link:active { opacity: 0.7; }
 .obstacle-check-head {
   padding: 52px 12px 12px; background: var(--surface);
   border-bottom: 1.5px solid var(--border); flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px;
 }
 .obstacle-check-body {
   flex: 1; overflow-y: auto; display: flex; flex-direction: column;
@@ -2684,7 +2693,11 @@ function startSession() {
   updateHeader();
   const el = document.getElementById('landingScreen');
   el.classList.add('out');
-  setTimeout(() => { el.style.display = 'none'; showChoiceScreen(); }, 350);
+  setTimeout(() => {
+    el.style.display = 'none';
+    const _initSegs = location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+    if (_initSegs.length && _initSegs[0] === _eventSlug()) { _routeFromPath(); } else { showChoiceScreen(); }
+  }, 350);
 }
 
 function updateHeader() {
@@ -2707,6 +2720,7 @@ function showChoiceScreen() {
   const el = document.getElementById('choiceScreen');
   el.style.display = 'flex';
   el.classList.remove('out');
+  _replaceRoute('');
 }
 
 function hideChoiceScreen(cb) {
@@ -2716,10 +2730,12 @@ function hideChoiceScreen(cb) {
 }
 
 function goToSetup() {
+  _pushRoute('course');
   hideChoiceScreen(() => { renderCard(state.currentIndex); updateProgress(); });
 }
 
 function goToMap() {
+  _pushRoute('map');
   hideChoiceScreen(() => { openMap(); });
 }
 
@@ -2741,6 +2757,7 @@ function showLanding() {
   if (currentUser.role) document.getElementById('inputRole').value = currentUser.role;
   renderEventsList();
   onLandingInput();
+  history.replaceState({}, '', '/');
 }
 
 // ── NEW EVENT FORM ────────────────────────────────────────────────────────────
@@ -5155,6 +5172,8 @@ document.getElementById('cardMiniMap').addEventListener('touchstart', e => {
 // ── CONFIGURATION ─────────────────────────────────────────────────────────────
 
 function openConfigPanel() {
+  _pushRoute('config');
+  _updateConfigBreadcrumb();
   renderObstacleConfig();
   document.getElementById('configPanel').classList.add('open');
 }
@@ -5286,13 +5305,18 @@ function getObstacleName(card) {
 }
 
 function openObstaclePanel() {
+  _pushRoute('obstacles');
+  _updateObstBreadcrumb();
   document.getElementById('obstaclePanel').classList.add('open');
   syncAndRenderObstacles();
 }
 
 function closeObstaclePanel() {
   closeObstacleCheck();
-  setTimeout(() => document.getElementById('obstaclePanel').classList.remove('open'), 50);
+  setTimeout(() => {
+    document.getElementById('obstaclePanel').classList.remove('open');
+    showChoiceScreen();
+  }, 50);
 }
 
 async function syncAndRenderObstacles() {
@@ -5339,6 +5363,8 @@ function renderObstacleList() {
 
 function openObstacleCheck(cardRef) {
   _currentObstacleRef = cardRef;
+  _pushRoute('obstacles/' + encodeURIComponent(cardRef));
+  _updateObstCheckBreadcrumb(cardRef);
   const card = ALLCARDS.find(c => c.ref === cardRef);
   if (!card) return;
   const name = getObstacleName(card);
@@ -5400,7 +5426,11 @@ function openObstacleCheck(cardRef) {
 }
 
 function closeObstacleCheck() {
-  document.getElementById('obstacleCheckView').classList.remove('open');
+  const view = document.getElementById('obstacleCheckView');
+  if (view.classList.contains('open')) {
+    _replaceRoute('obstacles');
+    view.classList.remove('open');
+  }
   _currentObstacleRef = null;
 }
 
@@ -5658,9 +5688,99 @@ function startAddTag(cardRef) {
   inp.focus();
 }
 
+// ── URL ROUTING ────────────────────────────────────────────────────────────────
+
+function _eventSlug() {
+  if (!activeEventId) return '';
+  const name = getActiveEventName();
+  const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return slug || activeEventId.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function _pushRoute(sub) {
+  if (!activeEventId) return;
+  const url = '/' + _eventSlug() + (sub ? '/' + sub : '');
+  if (location.pathname !== url) history.pushState({ r: sub || '' }, '', url);
+}
+
+function _replaceRoute(sub) {
+  if (!activeEventId) return;
+  const url = '/' + _eventSlug() + (sub ? '/' + sub : '');
+  history.replaceState({ r: sub || '' }, '', url);
+}
+
+function _updateObstBreadcrumb() {
+  const el = document.getElementById('obstBreadcrumb');
+  if (el) el.textContent = getActiveEventName() + ' / Obstacles';
+}
+
+function _updateConfigBreadcrumb() {
+  const el = document.getElementById('configBreadcrumb');
+  if (el) el.textContent = getActiveEventName() + ' / Configuration';
+}
+
+function _updateObstCheckBreadcrumb(ref) {
+  const el = document.getElementById('obstCheckBreadcrumb');
+  if (el) el.textContent = getActiveEventName() + ' / Obstacles / ' + ref;
+}
+
+function _routeFromPath() {
+  const segs = location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+
+  if (!segs.length || !activeEventId || segs[0] !== _eventSlug()) {
+    showChoiceScreen();
+    return;
+  }
+
+  const section = segs[1] || '';
+  const sub = decodeURIComponent(segs[2] || '');
+
+  ['obstaclePanel', 'obstacleCheckView', 'configPanel'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('open');
+  });
+  const mapPanel = document.getElementById('mapPanel');
+  if (mapPanel) mapPanel.classList.remove('open');
+
+  const cs = document.getElementById('choiceScreen');
+
+  if (!section) {
+    showChoiceScreen();
+  } else if (section === 'course') {
+    cs.style.display = 'none';
+    renderCard(state.currentIndex);
+    updateProgress();
+  } else if (section === 'map') {
+    cs.style.display = 'none';
+    openMap();
+  } else if (section === 'obstacles') {
+    cs.style.display = 'none';
+    if (sub) {
+      history.replaceState({ r: 'obstacles' }, '', '/' + _eventSlug() + '/obstacles');
+      history.pushState({ r: 'obstacles/' + encodeURIComponent(sub) }, '', '/' + _eventSlug() + '/obstacles/' + encodeURIComponent(sub));
+    }
+    document.getElementById('obstaclePanel').classList.add('open');
+    _updateObstBreadcrumb();
+    syncAndRenderObstacles();
+    if (sub) setTimeout(function() { openObstacleCheck(sub); }, 200);
+  } else if (section === 'config') {
+    cs.style.display = 'none';
+    renderObstacleConfig();
+    document.getElementById('configPanel').classList.add('open');
+    _updateConfigBreadcrumb();
+  }
+}
+
+window.addEventListener('popstate', _routeFromPath);
+
 if (currentUser.name && activeEventId) {
   document.getElementById('landingScreen').style.display = 'none';
-  showChoiceScreen();
+  const _segs = location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+  if (_segs.length && _segs[0] === _eventSlug()) {
+    _routeFromPath();
+  } else {
+    showChoiceScreen();
+  }
 } else {
   showLanding();
 }
@@ -5670,7 +5790,10 @@ if (currentUser.name && activeEventId) {
 <div class="config-panel" id="configPanel">
   <div class="config-panel-head">
     <button class="header-btn" onclick="closeConfigPanel()">&#8592;</button>
-    <span class="config-panel-title">Configuration</span>
+    <div class="panel-head-center">
+      <span class="config-panel-title">Configuration</span>
+      <div class="panel-breadcrumb" id="configBreadcrumb"></div>
+    </div>
   </div>
   <div class="config-body">
     <div class="config-section-head">Obstacle Configuration</div>
@@ -5682,7 +5805,10 @@ if (currentUser.name && activeEventId) {
 <div class="obstacle-panel" id="obstaclePanel">
   <div class="obstacle-panel-head">
     <button class="header-btn" onclick="closeObstaclePanel()">&#8592;</button>
-    <span class="obstacle-panel-title">Obstacle Checks</span>
+    <div class="panel-head-center">
+      <span class="obstacle-panel-title">Obstacle Management</span>
+      <div class="panel-breadcrumb" id="obstBreadcrumb"></div>
+    </div>
     <button class="header-btn" onclick="syncAndRenderObstacles()" title="Refresh" style="font-size:16px">&#8635;</button>
   </div>
   <div class="obstacle-list-wrap">
@@ -5692,6 +5818,7 @@ if (currentUser.name && activeEventId) {
   <div class="obstacle-check-view" id="obstacleCheckView">
     <div class="obstacle-check-head">
       <button class="header-btn" onclick="closeObstacleCheck()">&#8592;</button>
+      <div class="panel-breadcrumb" id="obstCheckBreadcrumb"></div>
     </div>
     <div class="obstacle-check-body" id="obstacleCheckBody"></div>
   </div>
