@@ -3276,6 +3276,7 @@ function renderCard(idx) {
 
   // Update buttons
   updateActionBar(isDone);
+  _replaceRoute('course/' + encodeURIComponent(card.ref));
 }
 
 function updateActionBar(isDone) {
@@ -3747,25 +3748,9 @@ function confirmReset() {
 
     card.classList.add('is-dragging');
 
-    if (swipeAxis === 'vertical') {
-      currentY = dy;
-      card.style.transform = `translateY(${dy * 0.6}px) rotate(${dy * 0.02}deg)`;
-      const progress = Math.min(Math.abs(dy) / V_THRESHOLD, 1);
-      if (dy > 20) {
-        doneOverlay.style.opacity = progress * 0.9;
-        notesOverlay.style.opacity = 0;
-      } else if (dy < -20) {
-        notesOverlay.style.opacity = progress * 0.9;
-        doneOverlay.style.opacity = 0;
-      } else {
-        doneOverlay.style.opacity = 0;
-        notesOverlay.style.opacity = 0;
-      }
-    } else {
+    if (swipeAxis === 'horizontal') {
       currentX = dx;
       card.style.transform = `translateX(${dx * 0.45}px) rotate(${dx * 0.01}deg)`;
-      doneOverlay.style.opacity = 0;
-      notesOverlay.style.opacity = 0;
     }
   }
 
@@ -3777,23 +3762,7 @@ function confirmReset() {
 
     const elapsed = Date.now() - startTime;
 
-    if (swipeAxis === 'vertical') {
-      const velocity = Math.abs(currentY) / elapsed;
-      const triggered = Math.abs(currentY) > V_THRESHOLD || velocity > VELOCITY_THRESHOLD;
-      if (triggered) {
-        if (currentY > 0) {
-          markDone();
-          card.style.transform = '';
-        } else {
-          card.classList.add('snap-back');
-          card.style.transform = '';
-          setTimeout(openNotes, 150);
-        }
-      } else {
-        card.classList.add('snap-back');
-        card.style.transform = '';
-      }
-    } else if (swipeAxis === 'horizontal') {
+    if (swipeAxis === 'horizontal') {
       const velocity = Math.abs(currentX) / elapsed;
       const triggered = Math.abs(currentX) > H_THRESHOLD || velocity > VELOCITY_THRESHOLD;
       if (triggered) {
@@ -4261,8 +4230,7 @@ function rebuildRouteLines() {
     const isLast = i === routePoints.length - 1;
     if (nextTerrain !== runTerrain || isLast) {
       const pts = routePoints.slice(runStart, i + 1).map(p => [p.lat, p.lng]);
-      const col = TERRAINS[runTerrain]?.color || '#888';
-      const pl  = L.polyline(pts, { color: col, weight: 3.5, opacity: 0.85, lineJoin: 'round' }).addTo(lmap);
+      const pl  = L.polyline(pts, { color: '#ff2d78', weight: 3.5, opacity: 0.85, lineJoin: 'round' }).addTo(lmap);
       pl.bringToBack(); lRouteLines.push(pl);
       runStart = i;
     }
@@ -5748,6 +5716,10 @@ function _routeFromPath() {
     showChoiceScreen();
   } else if (section === 'course') {
     cs.style.display = 'none';
+    if (sub) {
+      const targetIdx = ALLCARDS.findIndex(function(c) { return c.ref === sub; });
+      if (targetIdx >= 0) { state.currentIndex = targetIdx; saveState(); }
+    }
     renderCard(state.currentIndex);
     updateProgress();
   } else if (section === 'map') {
