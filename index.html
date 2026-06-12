@@ -847,6 +847,9 @@ a.w3w-link:active { opacity: 0.7; }
 .map-layer-bar { display: flex; gap: 5px; padding: 6px 12px 7px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .map-layer-btn { flex: 1; height: 28px; background: transparent; border: 1.5px solid var(--border); border-radius: 6px; color: #555; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.5px; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
 .map-layer-btn.active { background: rgba(229,90,0,0.1); color: var(--accent); border-color: rgba(229,90,0,0.35); }
+.minimap-layer-bar { display: flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.48); border-radius: 7px; backdrop-filter: blur(6px); }
+.minimap-layer-btn { height: 22px; padding: 0 9px; background: transparent; border: none; border-radius: 5px; color: rgba(255,255,255,0.65); font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.6px; text-transform: uppercase; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.minimap-layer-btn.active { background: rgba(255,255,255,0.22); color: #fff; }
 .map-card-info { flex: 1; min-width: 0; }
 .map-card-ref {
   font-family: 'Bebas Neue', cursive;
@@ -3893,12 +3896,33 @@ function setMapSubMode(mode) {
 }
 
 // ── Leaflet init ──────────────────────────────────────────────────────────────
+function _addMiniMapLayerControl() {
+  const MiniLayerCtrl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function() {
+      const div = L.DomUtil.create('div', 'minimap-layer-bar');
+      ['map', 'satellite', 'terrain'].forEach(l => {
+        const labels = { map: 'Map', satellite: 'Sat', terrain: 'Topo' };
+        const btn = L.DomUtil.create('button', 'minimap-layer-btn' + (activeLayer === l ? ' active' : ''), div);
+        btn.textContent = labels[l];
+        btn.dataset.layer = l;
+        L.DomEvent.on(btn, 'click', e => { L.DomEvent.stop(e); setMapLayer(l); });
+      });
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.disableScrollPropagation(div);
+      return div;
+    }
+  });
+  new MiniLayerCtrl().addTo(cardMiniLmap);
+}
+
 function setMapLayer(layer) {
   activeLayer = layer;
   localStorage.setItem(LAYER_KEY, layer);
   document.querySelectorAll('.map-layer-btn').forEach(b => b.classList.remove('active'));
   const btnId = { map: 'layerBtnMap', satellite: 'layerBtnSatellite', terrain: 'layerBtnTerrain' }[layer];
   if (btnId) document.getElementById(btnId).classList.add('active');
+  document.querySelectorAll('.minimap-layer-btn').forEach(b => b.classList.toggle('active', b.dataset.layer === layer));
   if (!lmap) return;
   if (lTileLayer) { lTileLayer.remove(); lTileLayer = null; }
   const cfg = TILE_LAYERS[layer] || TILE_LAYERS.map;
@@ -4216,6 +4240,7 @@ function updateCardMiniMap(idx) {
     }).setView([pin.lat, pin.lng], 17);
     const cfg = TILE_LAYERS[activeLayer] || TILE_LAYERS.map;
     cardMiniTileLayer = L.tileLayer(cfg.url, { maxZoom: 19 }).addTo(cardMiniLmap);
+    _addMiniMapLayerControl();
   }
 
   requestAnimationFrame(() => {
