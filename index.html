@@ -1257,6 +1257,13 @@ a.w3w-link:active { opacity: 0.7; }
   padding: 11px 16px; background: var(--surface);
 }
 .obs-config-zones { background: var(--card); padding: 8px 16px 12px; display: flex; flex-direction: column; gap: 6px; }
+.obs-zone-col-headers {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.8px;
+  text-transform: uppercase; color: #999; padding-bottom: 2px;
+}
+.obs-zone-col-headers span:first-child { flex: 1; }
+.obs-zone-col-headers span:last-child { width: 58px; text-align: center; }
 .obs-config-zone-row { display: flex; align-items: center; gap: 7px; }
 .obs-zone-name-input {
   flex: 1; padding: 7px 10px;
@@ -2565,6 +2572,27 @@ const BUILTIN_EVENT_META = {
   lat: 55.823, lng: -4.298, builtIn: true,
 };
 const EVENTS_LIST_KEY = 'ofcourse_events';
+
+const BUILTIN_OBSTACLE_CAPS = {
+  'C12': [{ name: 'Per tunnel', cap: 1 }],
+  'C14': [{ name: 'Net 1', cap: 6 }, { name: 'Net 2', cap: 6 }],
+  'C20': [{ name: 'Net 1', cap: 6 }, { name: 'Net 2', cap: 6 }],
+  'C23': [{ name: 'Per hurdle', cap: 4 }],
+  'C28': [{ name: 'Mud pit', cap: 4 }, { name: 'Approach', cap: 4 }],
+  'C30': [{ name: 'Max participants', cap: 4 }],
+  'C32': [{ name: 'Per section', cap: 1 }],
+  'C37': [{ name: 'Max participants', cap: 6 }],
+  'C55': [{ name: 'Starting', cap: 3 }, { name: 'Inside', cap: 3 }],
+  'C59': [{ name: 'Adults', cap: 6 }, { name: 'Children', cap: 4 }],
+};
+
+function _applyBuiltinObstacleCaps() {
+  Object.entries(BUILTIN_OBSTACLE_CAPS).forEach(([ref, zones]) => {
+    if (!state.obstacleCapacity[ref]) {
+      state.obstacleCapacity[ref] = { zones };
+    }
+  });
+}
 let userEvents = [];
 let activeEventId = null;
 
@@ -2612,8 +2640,10 @@ function activateEvent(id) {
   if (lmap) { lmap.remove(); lmap = null; lTileLayer = null; lMarkers = {}; lFeatLine = null; lRouteLines = []; lRouteNodes = []; }
   mapPins = {};
   routes = {}; activeRouteId = null; routePoints = [];
-  state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {} };
-  loadState(); loadMapPins(); loadRoutes(); refreshAllCards();
+  state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, obstacleCapacity: {} };
+  loadState();
+  if (id === BUILTIN_EVENT_ID) _applyBuiltinObstacleCaps();
+  loadMapPins(); loadRoutes(); refreshAllCards();
 }
 
 function renderEventsList() {
@@ -5197,10 +5227,13 @@ function renderObstacleConfig() {
 
 function _zonesHtml(ref) {
   const zones = getObstacleZones(ref);
+  const header = zones.length
+    ? `<div class="obs-zone-col-headers"><span>Zone label</span><span>Cap</span></div>`
+    : '';
   const rows = zones.map((z, i) => `
     <div class="obs-config-zone-row">
       <input class="obs-zone-name-input" type="text" value="${escHtml(z.name || '')}"
-        placeholder="Zone name (e.g. Lane 1, Top…)"
+        placeholder="e.g. Lane 1, Top…"
         onblur="saveObstacleZoneField('${escHtml(ref)}',${i},'name',this.value)">
       <input class="obs-zone-cap-input" type="number" min="1" max="9999"
         value="${z.cap || ''}" placeholder="—"
@@ -5211,7 +5244,7 @@ function _zonesHtml(ref) {
   const totalRow = zones.length > 1 && total
     ? `<div class="obs-cap-total-row">Total capacity <strong>${total}</strong></div>`
     : '';
-  return rows
+  return header + rows
     + `<button class="obs-zone-add-btn" onclick="addObstacleZone('${escHtml(ref)}')">+ Add zone</button>`
     + totalRow;
 }
