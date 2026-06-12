@@ -1211,6 +1211,33 @@ a.w3w-link:active { opacity: 0.7; }
   font-size: 22px; letter-spacing: 2px; color: #e55a00;
 }
 .live-panel-body { flex: 1; overflow-y: auto; }
+.live-filter-bar {
+  background: var(--surface); border-bottom: 1.5px solid var(--border);
+  padding: 10px 16px 12px; flex-shrink: 0; display: flex; flex-direction: column; gap: 7px;
+}
+.live-filter-row { display: flex; align-items: center; gap: 10px; }
+.live-filter-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: #666; width: 30px; flex-shrink: 0;
+}
+.live-dt-input {
+  flex: 1; padding: 7px 10px;
+  font-family: 'DM Mono', monospace; font-size: 12px; color: #e8e4d8;
+  background: rgba(255,255,255,0.05); border: 1.5px solid var(--border);
+  border-radius: 7px; outline: none; color-scheme: dark;
+}
+.live-dt-input:focus { border-color: var(--accent); }
+.live-filter-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 1px; }
+.live-filter-count {
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #555; letter-spacing: 0.3px;
+}
+.live-share-btn {
+  background: rgba(229,90,0,0.12); border: 1.5px solid rgba(229,90,0,0.3);
+  border-radius: 7px; padding: 7px 16px;
+  font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.3px;
+  color: #e55a00; cursor: pointer; transition: background 0.12s;
+}
+.live-share-btn:active { background: rgba(229,90,0,0.25); }
 .live-feed-empty {
   padding: 60px 24px; text-align: center;
   font-family: 'DM Mono', monospace; font-size: 12px;
@@ -5248,6 +5275,7 @@ function goToLive() {
   _pushRoute('live');
   const el = document.getElementById('liveBreadcrumb');
   if (el) el.textContent = getActiveEventName() + ' / Live Status';
+  _applyLiveQueryParams();
   renderLiveFeed();
   hideChoiceScreen(() => { document.getElementById('livePanel').classList.add('open'); });
 }
@@ -5257,14 +5285,19 @@ function closeLivePanel() {
   showChoiceScreen();
 }
 
-function renderLiveFeed() {
-  const list = document.getElementById('liveFeedList');
-  if (!list) return;
+function _applyLiveQueryParams() {
+  const params = new URLSearchParams(location.search);
+  const from = params.get('from');
+  const to = params.get('to');
+  const fi = document.getElementById('liveFromDt');
+  const ti = document.getElementById('liveToDt');
+  if (fi && from) fi.value = from;
+  if (ti && to) ti.value = to;
+}
 
-  // Build unified event list from audit log + obstacle checks
+function _buildLiveEvents() {
   const events = [];
 
-  // Audit entries
   (state.audit || []).forEach(e => {
     const card = ALLCARDS.find(c => c.ref === e.ref);
     const ec = card ? effectiveCard(card) : null;
@@ -5272,28 +5305,19 @@ function renderLiveFeed() {
     let desc = '', dotCls = 'live-feed-dot-edit', noteText = '';
 
     if (e.action === 'complete') {
-      desc = 'Marked complete';
-      dotCls = 'live-feed-dot-complete';
+      desc = 'Marked complete'; dotCls = 'live-feed-dot-complete';
     } else if (e.action === 'undo') {
-      desc = 'Completion undone';
-      dotCls = 'live-feed-dot-undo';
+      desc = 'Completion undone'; dotCls = 'live-feed-dot-undo';
     } else if (e.action === 'note') {
-      desc = 'Note saved';
-      dotCls = 'live-feed-dot-note';
-      noteText = e.text || '';
+      desc = 'Note saved'; dotCls = 'live-feed-dot-note'; noteText = e.text || '';
     } else if (e.action === 'note_delete') {
-      desc = 'Note deleted';
-      dotCls = 'live-feed-dot-undo';
+      desc = 'Note deleted'; dotCls = 'live-feed-dot-undo';
     } else if (e.action === 'card_edit') {
-      desc = 'Card edited' + (e.fields ? ' (' + e.fields + ')' : '');
-      dotCls = 'live-feed-dot-edit';
+      desc = 'Card edited' + (e.fields ? ' (' + e.fields + ')' : ''); dotCls = 'live-feed-dot-edit';
     } else if (e.action === 'card_edit_revert') {
-      desc = 'Card edits reverted';
-      dotCls = 'live-feed-dot-undo';
+      desc = 'Card edits reverted'; dotCls = 'live-feed-dot-undo';
     } else if (e.action === 'field_addition') {
-      desc = 'Field addition added';
-      if (e.loc) noteText = e.loc;
-      dotCls = 'live-feed-dot-field';
+      desc = 'Field addition added'; if (e.loc) noteText = e.loc; dotCls = 'live-feed-dot-field';
     } else {
       desc = e.action;
     }
@@ -5301,7 +5325,6 @@ function renderLiveFeed() {
     events.push({ ts: e.ts, ref: e.ref, locName, desc, dotCls, noteText, user: e.user || 'Unknown', role: e.role || '' });
   });
 
-  // Obstacle checks
   obstacleChecks.forEach(c => {
     const card = ALLCARDS.find(x => x.ref === c.cardRef);
     const name = card ? getObstacleName(card) : c.cardRef;
@@ -5318,15 +5341,41 @@ function renderLiveFeed() {
     });
   });
 
-  if (!events.length) {
-    list.innerHTML = `<div class="live-feed-empty">No activity yet for this event.</div>`;
+  return events;
+}
+
+function renderLiveFeed() {
+  const list = document.getElementById('liveFeedList');
+  if (!list) return;
+
+  const fromVal = document.getElementById('liveFromDt')?.value;
+  const toVal = document.getElementById('liveToDt')?.value;
+  const fromTs = fromVal ? new Date(fromVal).getTime() : null;
+  const toTs = toVal ? new Date(toVal).getTime() + 59999 : null;
+
+  const all = _buildLiveEvents();
+  const filtered = (fromTs || toTs) ? all.filter(e => {
+    const t = new Date(e.ts).getTime();
+    if (fromTs && t < fromTs) return false;
+    if (toTs && t > toTs) return false;
+    return true;
+  }) : all;
+
+  const countEl = document.getElementById('liveFilterCount');
+  if (countEl) {
+    countEl.textContent = (fromTs || toTs)
+      ? filtered.length + ' of ' + all.length + ' events'
+      : all.length + ' event' + (all.length === 1 ? '' : 's');
+  }
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="live-feed-empty">${all.length ? 'No events in selected range.' : 'No activity yet for this event.'}</div>`;
     return;
   }
 
-  // Sort newest first
-  events.sort((a, b) => new Date(b.ts) - new Date(a.ts));
+  filtered.sort((a, b) => new Date(b.ts) - new Date(a.ts));
 
-  list.innerHTML = events.map(e => {
+  list.innerHTML = filtered.map(e => {
     const t = new Date(e.ts);
     const timeStr = t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     const dateStr = t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -5344,6 +5393,29 @@ function renderLiveFeed() {
       <div class="live-feed-time">${timeStr}<br><span style="color:#333">${dateStr}</span></div>
     </div>`;
   }).join('');
+}
+
+function shareLiveFeed() {
+  const fromVal = document.getElementById('liveFromDt')?.value || '';
+  const toVal = document.getElementById('liveToDt')?.value || '';
+  const params = new URLSearchParams();
+  if (fromVal) params.set('from', fromVal);
+  if (toVal) params.set('to', toVal);
+  const qs = params.toString();
+  const url = window.location.origin + '/' + _eventSlug() + '/live' + (qs ? '?' + qs : '');
+
+  history.replaceState({}, '', url);
+
+  const btn = document.getElementById('liveShareBtn');
+  if (navigator.share) {
+    navigator.share({ title: getActiveEventName() + ' · Live Status', url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url).then(() => {
+      if (btn) { const orig = btn.innerHTML; btn.innerHTML = '✓ Copied!'; setTimeout(() => { btn.innerHTML = orig; }, 1800); }
+    }).catch(() => {
+      if (btn) { const orig = btn.innerHTML; btn.innerHTML = '✗ Failed'; setTimeout(() => { btn.innerHTML = orig; }, 1800); }
+    });
+  }
 }
 
 function openConfigPanel() {
@@ -5954,6 +6026,7 @@ function _routeFromPath() {
     cs.style.display = 'none';
     const el = document.getElementById('liveBreadcrumb');
     if (el) el.textContent = getActiveEventName() + ' / Live Status';
+    _applyLiveQueryParams();
     renderLiveFeed();
     document.getElementById('livePanel').classList.add('open');
   }
@@ -5983,6 +6056,20 @@ if (currentUser.name && activeEventId) {
       <div class="panel-breadcrumb" id="liveBreadcrumb"></div>
     </div>
     <button class="header-btn" onclick="renderLiveFeed()" title="Refresh" style="font-size:16px">&#8635;</button>
+  </div>
+  <div class="live-filter-bar">
+    <div class="live-filter-row">
+      <span class="live-filter-label">From</span>
+      <input type="datetime-local" id="liveFromDt" class="live-dt-input" oninput="renderLiveFeed()">
+    </div>
+    <div class="live-filter-row">
+      <span class="live-filter-label">To</span>
+      <input type="datetime-local" id="liveToDt" class="live-dt-input" oninput="renderLiveFeed()">
+    </div>
+    <div class="live-filter-actions">
+      <span class="live-filter-count" id="liveFilterCount"></span>
+      <button class="live-share-btn" id="liveShareBtn" onclick="shareLiveFeed()">&#8679; Share</button>
+    </div>
   </div>
   <div class="live-panel-body">
     <div id="liveFeedList" class="live-feed-list"></div>
