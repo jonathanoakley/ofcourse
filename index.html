@@ -1250,6 +1250,56 @@ a.w3w-link:active { opacity: 0.7; }
 .obs-config-cap-input:focus { border-color: var(--accent); }
 .obs-config-cap-input.saved { border-color: #2a8a3a; transition: border-color 0s; }
 
+/* Zone editor (replaces single cap input) */
+.obs-config-obstacle { border-bottom: 2px solid var(--border); }
+.obs-config-obstacle-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px; background: var(--surface);
+}
+.obs-config-zones { background: var(--card); padding: 8px 16px 12px; display: flex; flex-direction: column; gap: 6px; }
+.obs-config-zone-row { display: flex; align-items: center; gap: 7px; }
+.obs-zone-name-input {
+  flex: 1; padding: 7px 10px;
+  font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.2px;
+  color: #1a1a14; background: #f0ece0;
+  border: 1.5px solid rgba(0,0,0,0.15); border-radius: 7px; outline: none;
+}
+.obs-zone-name-input:focus { border-color: var(--accent); }
+.obs-zone-cap-input {
+  width: 58px; text-align: center;
+  font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 600;
+  color: #1a1a14; background: #f0ece0;
+  border: 1.5px solid rgba(0,0,0,0.15); border-radius: 7px;
+  padding: 7px 4px; outline: none; -moz-appearance: textfield;
+}
+.obs-zone-cap-input::-webkit-inner-spin-button,
+.obs-zone-cap-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.obs-zone-cap-input:focus { border-color: var(--accent); }
+.obs-zone-remove {
+  background: none; border: none; color: #b03030; font-size: 19px;
+  line-height: 1; padding: 4px 2px; cursor: pointer; flex-shrink: 0;
+}
+.obs-zone-add-btn {
+  background: none; border: 1.5px dashed rgba(0,0,0,0.15); border-radius: 7px;
+  padding: 8px 14px; font-family: 'DM Mono', monospace; font-size: 11px;
+  color: #888; cursor: pointer; width: 100%; text-align: left; margin-top: 2px;
+}
+.obs-zone-add-btn:active { border-color: var(--accent); color: var(--accent); }
+.obs-cap-total-row {
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-top: 6px; gap: 6px;
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #888; letter-spacing: 0.5px;
+}
+.obs-cap-total-row strong { color: #1a1a14; font-size: 13px; }
+
+/* Zone breakdown pills on the check screen */
+.obs-zones-display { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.obs-zone-pill {
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px; padding: 4px 12px;
+  font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa;
+}
+
 /* ── LANDING SCREEN ─────────────────────── */
 .landing {
   position: fixed; inset: 0; z-index: 999;
@@ -5114,6 +5164,28 @@ function closeConfigPanel() {
   showChoiceScreen();
 }
 
+// Zone helpers — obstacleCapacity[ref] is now { zones:[{name,cap}] }
+// Legacy number values are transparently migrated on read.
+function getObstacleZones(ref) {
+  const raw = state.obstacleCapacity[ref];
+  if (!raw) return [];
+  if (typeof raw === 'number') return [{ name: '', cap: raw }];
+  return (raw.zones || []);
+}
+
+function getObstacleCapTotal(ref) {
+  const zones = getObstacleZones(ref);
+  if (!zones.length) return null;
+  const total = zones.reduce((s, z) => s + (Number(z.cap) || 0), 0);
+  return total || null;
+}
+
+function _saveZones(ref, zones) {
+  if (!zones.length) { delete state.obstacleCapacity[ref]; }
+  else { state.obstacleCapacity[ref] = { zones }; }
+  saveState();
+}
+
 function renderObstacleConfig() {
   const list = document.getElementById('obstacleConfigList');
   if (!list) return;
@@ -5122,34 +5194,76 @@ function renderObstacleConfig() {
     list.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#888;font-family:'DM Mono',monospace;font-size:12px">No obstacle cards found for this event.</div>`;
     return;
   }
-  list.innerHTML = obstacles.map(card => {
-    const name = getObstacleName(card);
-    const cap = state.obstacleCapacity[card.ref] || '';
-    return `<div class="obs-config-item">
-      <div class="obs-config-ref">${escHtml(card.ref)}</div>
-      <div class="obs-config-name">${escHtml(name)}</div>
-      <div class="obs-config-cap-wrap">
-        <div class="obs-config-cap-label">Cap</div>
-        <input class="obs-config-cap-input" type="number" min="1" max="9999"
-          value="${cap}" placeholder="—"
-          onchange="saveObstacleCapConfig('${escHtml(card.ref)}', this)"
-          onblur="saveObstacleCapConfig('${escHtml(card.ref)}', this)">
+  list.innerHTML = obstacles.map(card => `
+    <div class="obs-config-obstacle">
+      <div class="obs-config-obstacle-head">
+        <div class="obs-config-ref">${escHtml(card.ref)}</div>
+        <div class="obs-config-name">${escHtml(getObstacleName(card))}</div>
       </div>
-    </div>`;
-  }).join('');
+      <div class="obs-config-zones" id="obs-zones-${escHtml(card.ref)}">
+        ${_zonesHtml(card.ref)}
+      </div>
+    </div>`).join('');
 }
 
-function saveObstacleCapConfig(cardRef, input) {
-  const n = parseInt(input.value, 10);
-  if (!isNaN(n) && n > 0) {
-    state.obstacleCapacity[cardRef] = n;
-    saveState();
-    input.classList.add('saved');
-    setTimeout(() => input.classList.remove('saved'), 1200);
-  } else if (input.value === '') {
-    delete state.obstacleCapacity[cardRef];
-    saveState();
+function _zonesHtml(ref) {
+  const zones = getObstacleZones(ref);
+  const rows = zones.map((z, i) => `
+    <div class="obs-config-zone-row">
+      <input class="obs-zone-name-input" type="text" value="${escHtml(z.name || '')}"
+        placeholder="Zone name (e.g. Lane 1, Top…)"
+        onblur="saveObstacleZoneField('${escHtml(ref)}',${i},'name',this.value)">
+      <input class="obs-zone-cap-input" type="number" min="1" max="9999"
+        value="${z.cap || ''}" placeholder="—"
+        onblur="saveObstacleZoneField('${escHtml(ref)}',${i},'cap',this.value)">
+      <button class="obs-zone-remove" onclick="removeObstacleZone('${escHtml(ref)}',${i})" title="Remove zone">×</button>
+    </div>`).join('');
+  const total = getObstacleCapTotal(ref);
+  const totalRow = zones.length > 1 && total
+    ? `<div class="obs-cap-total-row">Total capacity <strong>${total}</strong></div>`
+    : '';
+  return rows
+    + `<button class="obs-zone-add-btn" onclick="addObstacleZone('${escHtml(ref)}')">+ Add zone</button>`
+    + totalRow;
+}
+
+function saveObstacleZoneField(ref, idx, field, value) {
+  const zones = getObstacleZones(ref);
+  if (!zones[idx]) return;
+  if (field === 'cap') {
+    const n = parseInt(value, 10);
+    zones[idx].cap = (!isNaN(n) && n > 0) ? n : 0;
+  } else {
+    zones[idx].name = value.trim();
   }
+  _saveZones(ref, zones.filter(z => z.cap > 0 || z.name));
+  _rerenderZones(ref);
+}
+
+function addObstacleZone(ref) {
+  const zones = getObstacleZones(ref);
+  zones.push({ name: '', cap: 0 });
+  _saveZones(ref, zones);
+  _rerenderZones(ref);
+  // Focus the new name input
+  requestAnimationFrame(() => {
+    const container = document.getElementById(`obs-zones-${ref}`);
+    if (!container) return;
+    const inputs = container.querySelectorAll('.obs-zone-name-input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  });
+}
+
+function removeObstacleZone(ref, idx) {
+  const zones = getObstacleZones(ref);
+  zones.splice(idx, 1);
+  _saveZones(ref, zones);
+  _rerenderZones(ref);
+}
+
+function _rerenderZones(ref) {
+  const container = document.getElementById(`obs-zones-${ref}`);
+  if (container) container.innerHTML = _zonesHtml(ref);
 }
 
 // ── OBSTACLE CHECKS ───────────────────────────────────────────────────────────
@@ -5206,7 +5320,8 @@ function renderObstacleList() {
     const statusLabel = last
       ? `${new Date(last.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · ${escHtml(last.user || 'Unknown')}${last.queueLength != null ? ' · Q:' + last.queueLength : ''}`
       : 'Not yet checked';
-    const capLabel = cap ? `Cap: ${cap}` : 'Set cap';
+    const total = getObstacleCapTotal(card.ref);
+    const capLabel = total != null ? `Cap: ${total}` : 'No cap set';
     return `<div class="obstacle-item" onclick="openObstacleCheck('${escHtml(card.ref)}')">
       <div class="obstacle-item-ref">${escHtml(card.ref)}</div>
       <div class="obstacle-item-body">
@@ -5216,7 +5331,7 @@ function renderObstacleList() {
           <span>${statusLabel}</span>
         </div>
       </div>
-      <div class="obstacle-cap-tag" onclick="event.stopPropagation();editObstacleCapacity('${escHtml(card.ref)}')">${escHtml(capLabel)}</div>
+      <div class="obstacle-cap-tag">${escHtml(capLabel)}</div>
       <div style="color:#ccc;font-size:20px;padding-left:4px">&#8250;</div>
     </div>`;
   }).join('');
@@ -5227,7 +5342,8 @@ function openObstacleCheck(cardRef) {
   const card = ALLCARDS.find(c => c.ref === cardRef);
   if (!card) return;
   const name = getObstacleName(card);
-  const cap = state.obstacleCapacity[cardRef];
+  const zones = getObstacleZones(cardRef);
+  const total = getObstacleCapTotal(cardRef);
   const cardChecks = obstacleChecks.filter(c => c.cardRef === cardRef);
   const recent = [...cardChecks].reverse().slice(0, 5);
   const STATUS = { under: { label: 'Under', col: '#2a8a3a' }, at: { label: 'At capacity', col: '#c07800' }, over: { label: 'Over', col: '#c0392b' } };
@@ -5250,8 +5366,11 @@ function openObstacleCheck(cardRef) {
     <div class="obstacle-check-ref">${escHtml(cardRef)}</div>
     <div class="obstacle-check-name">${escHtml(name)}</div>
     <div class="obstacle-check-cap">
-      Max capacity
-      ${cap ? `<strong>${cap}</strong>` : `<strong style="color:#c06000;font-size:16px">Not set</strong>`}
+      ${zones.length > 1
+        ? `<div class="obs-zones-display">${zones.map(z =>
+            `<span class="obs-zone-pill">${z.name ? escHtml(z.name) + ' · ' : ''}${z.cap}</span>`
+          ).join('')}</div>Total capacity<strong>${total}</strong>`
+        : `Max capacity${total ? `<strong>${total}</strong>` : `<strong style="color:#c06000;font-size:16px">Not set</strong>`}`}
     </div>
     <div class="obs-field-row">
       <div class="obs-field-label">Queue length</div>
@@ -5297,7 +5416,7 @@ async function submitObstacleCheck(cardRef, status) {
     user: currentUser.name || 'Unknown',
     role: currentUser.role || '',
     status,
-    capacity: state.obstacleCapacity[cardRef] || null,
+    capacity: getObstacleCapTotal(cardRef),
     queueLength: (!isNaN(queueLength) && queueLength !== null) ? queueLength : null,
     notes: notes || null,
   };
@@ -5315,17 +5434,6 @@ async function submitObstacleCheck(cardRef, status) {
   } catch(e) {}
 }
 
-function editObstacleCapacity(cardRef) {
-  const current = state.obstacleCapacity[cardRef];
-  const input = prompt(`Max capacity for ${cardRef}:`, current || '');
-  if (input === null) return;
-  const n = parseInt(input.trim(), 10);
-  if (!isNaN(n) && n > 0) {
-    state.obstacleCapacity[cardRef] = n;
-    saveState();
-    renderObstacleList();
-  }
-}
 
 // ── PHOTOS & TAGS ─────────────────────────────────────────────────────────────
 
