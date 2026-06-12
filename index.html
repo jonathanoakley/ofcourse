@@ -1,0 +1,2397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ofCourse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --bg: #0d1209;
+  --surface: #141a10;
+  --card: #f5f0e3;
+  --card2: #ede8db;
+  --card3: #e5e0d3;
+  --accent: #e55a00;
+  --accent-dim: rgba(229,90,0,0.15);
+  --green: #2a7a3a;
+  --green-dim: rgba(42,122,58,0.15);
+  --blue: #1a5c8a;
+  --blue-dim: rgba(26,92,138,0.15);
+  --text: #1a1a14;
+  --muted: #6b6b5e;
+  --border: #1e2a1a;
+  --r-high: #c0392b;
+  --r-med: #e67e22;
+  --r-low: #c8a400;
+  --r-ok: #2a7a3a;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%; width: 100%;
+  overflow: hidden;
+  font-family: 'Barlow Condensed', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── HEADER ─────────────────────────────── */
+.header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 58px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 12px;
+  z-index: 100;
+  border-bottom: 1px solid var(--border);
+}
+.header-logo {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 18px;
+  color: var(--accent);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+.progress-wrap { flex: 1; min-width: 0; }
+.progress-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: #555;
+  margin-bottom: 4px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+.progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.header-btn {
+  width: 34px; height: 34px;
+  background: none; border: none;
+  color: #666;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.header-btn:active { background: var(--border); color: #aaa; }
+
+/* ── STAGE ──────────────────────────────── */
+.stage {
+  position: fixed;
+  top: 58px; left: 0; right: 0; bottom: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  overflow: hidden;
+}
+
+/* ── CARD STACK ─────────────────────────── */
+.card-stack {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+}
+.card-shadow {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+}
+.card-behind-2 {
+  position: absolute; inset: 0;
+  background: var(--card3);
+  border-radius: 20px;
+  transform: translateY(14px) scale(0.93);
+  z-index: 1;
+}
+.card-behind-1 {
+  position: absolute; inset: 0;
+  background: var(--card2);
+  border-radius: 20px;
+  transform: translateY(7px) scale(0.965);
+  z-index: 2;
+}
+.card {
+  position: absolute; inset: 0;
+  background: var(--card);
+  border-radius: 20px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+  will-change: transform;
+  touch-action: pan-y;
+}
+.card.is-dragging {
+  transition: none !important;
+}
+.card.snap-back {
+  transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1) !important;
+  transform: translateY(0) rotate(0deg) !important;
+}
+.card.fly-down {
+  transition: transform 0.38s cubic-bezier(0.55, 0, 0.85, 0.06) !important;
+  transform: translateY(130%) rotate(4deg) !important;
+  pointer-events: none;
+}
+.card.fly-up {
+  transition: transform 0.32s cubic-bezier(0.55, 0, 0.85, 0.06) !important;
+  transform: translateY(-110%) !important;
+  pointer-events: none;
+}
+
+/* Action overlays during drag */
+.drag-overlay {
+  position: absolute; inset: 0;
+  border-radius: 20px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.1s;
+}
+.drag-overlay .overlay-icon { font-size: 52px; }
+.drag-overlay .overlay-label {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px;
+  letter-spacing: 4px;
+}
+.drag-overlay.done-overlay {
+  background: rgba(42,122,58,0.88);
+  color: white;
+}
+.drag-overlay.notes-overlay {
+  background: rgba(26,92,138,0.88);
+  color: white;
+}
+
+/* ── CARD HEADER ────────────────────────── */
+.card-head {
+  padding: 14px 16px 11px;
+  background: var(--card);
+  border-bottom: 1.5px solid rgba(0,0,0,0.08);
+  flex-shrink: 0;
+}
+.card-ref-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card-ref {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 52px;
+  line-height: 0.9;
+  color: var(--accent);
+  letter-spacing: 2px;
+}
+.card-ref-meta { text-align: right; padding-top: 4px; }
+.card-dist {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  color: var(--muted);
+  display: block;
+  font-weight: 500;
+}
+.card-w3w {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  color: #aaa;
+  display: block;
+  margin-top: 3px;
+  letter-spacing: 0.5px;
+}
+.card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  padding: 3px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+.badge-type { background: rgba(0,0,0,0.06); color: var(--muted); }
+.badge-obstacle { background: var(--accent); color: white; }
+.badge-complete { background: var(--green); color: white; }
+.badge-note { background: var(--blue); color: white; }
+.badge-r0 { background: #bbb; color: white; }
+.badge-rlow { background: var(--r-ok); color: white; }
+.badge-rmed { background: var(--r-low); color: #333; }
+.badge-rhi { background: var(--r-med); color: white; }
+.badge-rcrit { background: var(--r-high); color: white; }
+
+/* ── CARD MINI-MAP ──────────────────────── */
+#cardMiniMap {
+  height: 360px;
+  flex-shrink: 0;
+  display: none;
+  background: #1a2a1a;
+  border-bottom: 1.5px solid rgba(0,0,0,0.14);
+}
+.geo-user-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #4a90e2; border: 2.5px solid #fff;
+  box-shadow: 0 0 0 0 rgba(74,144,226,.4);
+  animation: geo-pulse 2s infinite;
+}
+@keyframes geo-pulse {
+  0%   { box-shadow: 0 0 0 0px rgba(74,144,226,.4); }
+  70%  { box-shadow: 0 0 0 8px rgba(74,144,226,0);  }
+  100% { box-shadow: 0 0 0 0px rgba(74,144,226,0);  }
+}
+
+/* ── CARD BODY ──────────────────────────── */
+.card-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 16px 16px;
+  overscroll-behavior: contain;
+}
+.section { margin-bottom: 13px; }
+.section:last-child { margin-bottom: 0; }
+.section-label {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  color: #aaa;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  display: flex; align-items: center; gap: 7px;
+}
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(0,0,0,0.07);
+}
+.loc-text {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text);
+}
+.hazard-box {
+  background: rgba(192,57,43,0.07);
+  border-left: 3px solid var(--r-high);
+  padding: 9px 11px;
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: #3a1010;
+}
+.mit-list { display: flex; flex-direction: column; gap: 7px; }
+.mit-row { display: flex; gap: 9px; align-items: flex-start; }
+.mit-icon { font-size: 15px; flex-shrink: 0; margin-top: 0; line-height: 1.4; }
+.mit-content { flex: 1; }
+.mit-label {
+  font-size: 9px;
+  font-family: 'DM Mono', monospace;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 1px;
+}
+.mit-text {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #333;
+  white-space: pre-wrap;
+}
+.info-box {
+  background: rgba(229,90,0,0.07);
+  border-left: 3px solid var(--accent);
+  padding: 8px 11px;
+  border-radius: 0 8px 8px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #4a2a0a;
+  font-weight: 500;
+}
+.action-box {
+  background: rgba(0,0,0,0.04);
+  border-left: 3px solid #ccc;
+  padding: 8px 11px;
+  border-radius: 0 8px 8px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  font-style: italic;
+}
+.my-note-box {
+  background: rgba(26,92,138,0.08);
+  border-left: 3px solid var(--blue);
+  padding: 8px 11px;
+  border-radius: 0 8px 8px 0;
+}
+.my-note-label {
+  font-size: 9px;
+  font-family: 'DM Mono', monospace;
+  color: var(--blue);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 3px;
+}
+.my-note-text {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #1a2a3a;
+  font-weight: 500;
+  white-space: pre-wrap;
+}
+.complete-strip {
+  background: var(--green);
+  color: white;
+  text-align: center;
+  padding: 7px;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 13px;
+  letter-spacing: 4px;
+  flex-shrink: 0;
+}
+
+/* Residual risk row */
+.res-risk-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+.res-risk-label {
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  color: #aaa;
+  letter-spacing: 0.5px;
+}
+
+/* ── SWIPE HINTS ────────────────────────── */
+.swipe-hint {
+  position: absolute;
+  left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Bebas Neue', cursive;
+  letter-spacing: 2px;
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 50;
+  transition: opacity 0.12s;
+}
+.swipe-hint-up { top: -30px; color: #5aabef; }
+.swipe-hint-down { bottom: -30px; color: #5adf7a; }
+
+/* ── ACTION BAR ─────────────────────────── */
+.actions {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 84px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-top: 1px solid var(--border);
+  z-index: 100;
+}
+.nav-btn {
+  width: 42px; height: 42px;
+  background: var(--border);
+  border: 1px solid #2a3a26;
+  color: #666;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+  font-family: 'Bebas Neue', cursive;
+}
+.nav-btn:active { background: #2a3a26; color: #aaa; }
+.action-btn {
+  flex: 1;
+  max-width: 175px;
+  height: 54px;
+  border: none;
+  border-radius: 14px;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 19px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  gap: 7px;
+  transition: transform 0.1s, filter 0.1s;
+}
+.action-btn:active { transform: scale(0.95); filter: brightness(1.1); }
+.btn-notes {
+  background: #0e1e30;
+  color: #5aabef;
+  border: 1.5px solid #1a3a5a;
+}
+.btn-done {
+  background: #0e2018;
+  color: #5adf7a;
+  border: 1.5px solid #1a4028;
+}
+.btn-undo {
+  background: #200e0a;
+  color: #efa05a;
+  border: 1.5px solid #502010;
+}
+
+/* ── MODAL ──────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.78);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s;
+}
+.modal-backdrop.open {
+  opacity: 1;
+  pointer-events: all;
+}
+.modal {
+  background: #141a10;
+  border-radius: 22px 22px 0 0;
+  padding: 18px 18px 32px;
+  width: 100%;
+  max-width: 500px;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.32, 1.1, 0.6, 1);
+}
+.modal-backdrop.open .modal { transform: translateY(0); }
+.modal-handle {
+  width: 38px; height: 4px;
+  background: #333;
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+.modal-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 26px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin-bottom: 3px;
+}
+.modal-sub {
+  font-size: 13px;
+  color: #666;
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 14px;
+}
+.notes-area {
+  width: 100%;
+  min-height: 130px;
+  background: #0d1209;
+  border: 1.5px solid #2a3a26;
+  border-radius: 12px;
+  padding: 13px;
+  color: #d8d5c8;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  margin-bottom: 13px;
+}
+.notes-area:focus { border-color: var(--accent); }
+.modal-actions { display: flex; gap: 10px; }
+.modal-btn {
+  flex: 1; height: 50px;
+  border: none; border-radius: 12px;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 19px; letter-spacing: 2px;
+  cursor: pointer;
+  transition: filter 0.12s;
+}
+.modal-btn:active { filter: brightness(1.1); }
+.modal-btn.primary { background: var(--accent); color: white; }
+.modal-btn.secondary { background: #1e2a1a; color: #666; }
+.modal-btn.complete { background: var(--green); color: white; }
+.modal-btn.log-only { background: transparent; border: 1.5px solid #2a3a26; color: #aaa; }
+.modal-actions-stack { display: flex; flex-direction: column; gap: 8px; }
+.modal-cancel-link {
+  background: none; border: none; color: #444;
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  letter-spacing: 1px; text-align: center; cursor: pointer;
+  padding: 6px; width: 100%;
+}
+
+/* ── OVERVIEW ───────────────────────────── */
+.overview {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 150;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.32, 1, 0.6, 1);
+}
+.overview.open { transform: translateX(0); }
+.overview-head {
+  padding: 60px 16px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.overview-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 26px;
+  letter-spacing: 3px;
+  color: var(--accent);
+  flex: 1;
+}
+.overview-stats {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: #555;
+}
+.ov-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.ov-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #141a10;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.ov-item:active, .ov-item.current { background: #141a10; }
+.ov-dot {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; flex-shrink: 0;
+}
+.ov-dot.done { background: var(--green); color: white; }
+.ov-dot.has-note { background: var(--blue); color: white; }
+.ov-dot.current-item { background: var(--accent); color: white; }
+.ov-dot.pending { background: #1e2a1a; color: #444; font-size: 10px; font-family: 'DM Mono', monospace; }
+.ov-ref {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px;
+  color: var(--accent);
+  letter-spacing: 1px;
+  min-width: 38px;
+  line-height: 1;
+}
+.ov-info { flex: 1; min-width: 0; }
+.ov-loc {
+  font-size: 13px; font-weight: 600;
+  color: #ccc;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ov-dist {
+  font-size: 10px; color: #555;
+  font-family: 'DM Mono', monospace;
+  margin-top: 1px;
+}
+.ov-note-snip {
+  font-size: 10px; color: #5aabef;
+  margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.overview-foot {
+  padding: 14px 16px 28px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 10px;
+}
+.export-btn {
+  flex: 1; height: 50px;
+  background: var(--accent); border: none;
+  border-radius: 12px; color: white;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 19px; letter-spacing: 2px;
+  cursor: pointer;
+}
+.reset-btn {
+  height: 50px; padding: 0 16px;
+  background: #200e0a; border: 1px solid #502010;
+  border-radius: 12px; color: #ef9a5a;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 19px; letter-spacing: 2px;
+  cursor: pointer;
+}
+
+/* ── DISTANCE BAR ───────────────────────── */
+.count-pill {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  background: rgba(0,0,0,0.25);
+  color: #888;
+  padding: 3px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--border);
+}
+.dist-bar { flex: 1; min-width: 0; padding: 1px 0; }
+.dist-track {
+  position: relative;
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  margin-bottom: 4px;
+  overflow: visible;
+}
+.dist-dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: #2a3a26;
+  pointer-events: none;
+}
+.dist-dot.obs { background: var(--accent); width: 4px; height: 4px; }
+.dist-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: #f5f0e3;
+  border: 2px solid var(--accent);
+  z-index: 2;
+  transition: left 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+  pointer-events: none;
+}
+.dist-ticks { position: relative; height: 9px; }
+.dist-ticks span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-family: 'DM Mono', monospace;
+  font-size: 7px;
+  color: #333;
+  white-space: nowrap;
+}
+
+/* ── OBSTACLE NAME ──────────────────────── */
+.obstacle-name {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 30px;
+  color: var(--accent);
+  letter-spacing: 2px;
+  line-height: 1.1;
+}
+
+/* ── W3W LINK ────────────────────────────── */
+a.w3w-link { color: #7a9abf; text-decoration: none; }
+a.w3w-link:active { opacity: 0.7; }
+
+/* ── SECTION TOGGLE ─────────────────────── */
+.section-toggle { cursor: pointer; -webkit-user-select: none; user-select: none; }
+.section-toggle::after { display: none; }
+.section-toggle-line { flex: 1; height: 1px; background: rgba(0,0,0,0.07); }
+.section-chevron { font-size: 9px; color: #bbb; flex-shrink: 0; transition: transform 0.18s; line-height: 1; }
+.section.collapsed .section-chevron { transform: rotate(-90deg); }
+.section.collapsed .section-body { display: none; }
+
+/* ── MAP PANEL ──────────────────────────── */
+.map-panel {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 150;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.32, 1, 0.6, 1);
+}
+.map-panel.open { transform: translateX(0); }
+.map-head {
+  padding: 52px 12px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+}
+.map-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px; letter-spacing: 3px;
+  color: var(--accent); flex: 1;
+}
+.map-count {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: #555;
+}
+.map-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.map-nav-btn {
+  width: 34px; height: 34px;
+  background: var(--border); border: 1px solid #2a3a26;
+  color: #666; border-radius: 50%; font-size: 16px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background 0.1s, color 0.1s;
+}
+.map-nav-btn:disabled { opacity: 0.3; pointer-events: none; }
+.map-nav-btn:active { background: #2a3a26; color: #aaa; }
+.map-layer-bar { display: flex; gap: 5px; padding: 6px 12px 7px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.map-layer-btn { flex: 1; height: 28px; background: transparent; border: 1.5px solid var(--border); border-radius: 6px; color: #555; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.5px; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
+.map-layer-btn.active { background: rgba(229,90,0,0.1); color: var(--accent); border-color: rgba(229,90,0,0.35); }
+.map-card-info { flex: 1; min-width: 0; }
+.map-card-ref {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px; color: var(--accent);
+  letter-spacing: 2px; line-height: 1; display: block;
+}
+.map-card-desc {
+  font-size: 11px; color: #666; display: block;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 1px;
+}
+.map-pin-status {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: #555; white-space: nowrap; flex-shrink: 0;
+}
+.map-unpin-btn {
+  width: 28px; height: 28px;
+  background: #200e0a; border: 1px solid #502010;
+  color: #ef9a5a; border-radius: 7px; font-size: 13px;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.map-edit-btn {
+  padding: 5px 13px;
+  background: rgba(229,90,0,0.1);
+  color: var(--accent);
+  border: 1.5px solid rgba(229,90,0,0.3);
+  border-radius: 8px;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 16px; letter-spacing: 2px;
+  cursor: pointer; flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.map-edit-btn.editing {
+  background: rgba(90,223,122,0.1);
+  color: #5adf7a;
+  border-color: rgba(90,223,122,0.3);
+}
+.map-submode-bar {
+  display: flex; gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.map-submode-btn {
+  flex: 1; height: 36px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  color: #555;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 13px; letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.map-submode-btn.active {
+  background: rgba(229,90,0,0.1);
+  color: var(--accent);
+  border-color: rgba(229,90,0,0.3);
+}
+.map-route-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.map-route-hint {
+  flex: 1;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: #555;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* ── TERRAIN SELECTOR ─────────────────── */
+.terrain-row {
+  display: flex; gap: 5px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0; overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.terrain-btn {
+  flex: 1; min-width: 48px; height: 30px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 6px; color: #555;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 0.5px;
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.terrain-btn[data-t="tarmac"].active { background: rgba(136,136,136,.15); color: #aaa; border-color: #888; }
+.terrain-btn[data-t="grass"].active  { background: rgba(90,154,106,.15);  color: #5a9a6a; border-color: #5a9a6a; }
+.terrain-btn[data-t="gravel"].active { background: rgba(196,160,96,.15);  color: #c4a060; border-color: #c4a060; }
+.terrain-btn[data-t="trail"].active  { background: rgba(138,101,64,.15);  color: #8a6540; border-color: #8a6540; }
+.terrain-btn[data-t="mud"].active    { background: rgba(106,132,64,.15);  color: #6a8440; border-color: #6a8440; }
+
+/* ── NODE EDITOR ──────────────────────── */
+.node-editor {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 10px 14px 28px;
+  z-index: 1000;
+  transform: translateY(100%);
+  transition: transform 0.25s cubic-bezier(0.32, 1, 0.6, 1);
+}
+.node-editor.open { transform: translateY(0); }
+.ne-bar { display: flex; align-items: center; margin-bottom: 12px; }
+.ne-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 18px; letter-spacing: 2px;
+  color: var(--accent); flex: 1;
+}
+.ne-close {
+  padding: 4px 12px;
+  background: rgba(229,90,0,0.1); color: var(--accent);
+  border: 1.5px solid rgba(229,90,0,0.3); border-radius: 7px;
+  font-family: 'Bebas Neue', cursive; font-size: 14px; letter-spacing: 2px;
+  cursor: pointer;
+}
+.ne-section { margin-bottom: 10px; }
+.ne-section:last-child { margin-bottom: 0; }
+.ne-label {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  color: #555; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px;
+}
+.ne-opts { display: flex; gap: 5px; flex-wrap: wrap; }
+.ne-opt {
+  height: 30px; padding: 0 10px;
+  background: transparent; border: 1.5px solid var(--border);
+  border-radius: 6px; color: #555;
+  font-family: 'Bebas Neue', cursive; font-size: 13px; letter-spacing: 1px;
+  cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.ne-opt.active { background: rgba(229,90,0,0.1); color: var(--accent); border-color: rgba(229,90,0,0.3); }
+.ne-terrain-btn[data-terrain="tarmac"].active { background: rgba(136,136,136,.15); color: #aaa;    border-color: #888; }
+.ne-terrain-btn[data-terrain="grass"].active  { background: rgba(90,154,106,.15);  color: #5a9a6a; border-color: #5a9a6a; }
+.ne-terrain-btn[data-terrain="gravel"].active { background: rgba(196,160,96,.15);  color: #c4a060; border-color: #c4a060; }
+.ne-terrain-btn[data-terrain="trail"].active  { background: rgba(138,101,64,.15);  color: #8a6540; border-color: #8a6540; }
+.ne-terrain-btn[data-terrain="mud"].active    { background: rgba(106,132,64,.15);  color: #6a8440; border-color: #6a8440; }
+.ne-type-btn[data-type="start"].active  { background: rgba(42,122,58,.15);  color: #2a7a3a; border-color: #2a7a3a; }
+.ne-type-btn[data-type="finish"].active { background: rgba(192,57,43,.15);  color: #c0392b; border-color: #c0392b; }
+
+#leafletMap { flex: 1; min-height: 0; }
+.leaflet-container { background: #1a2a16; font-family: 'Barlow Condensed', sans-serif; }
+
+/* ── ALL DONE ───────────────────────────── */
+.all-done-screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 32px;
+  gap: 12px;
+}
+.all-done-screen.visible { display: flex; }
+.all-done-icon { font-size: 64px; line-height: 1; }
+.all-done-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 38px;
+  letter-spacing: 4px;
+  color: var(--green);
+}
+.all-done-sub { color: #666; font-size: 16px; line-height: 1.5; }
+.all-done-export {
+  margin-top: 12px;
+  height: 52px; padding: 0 32px;
+  background: var(--accent); border: none;
+  border-radius: 14px; color: white;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 20px; letter-spacing: 2px;
+  cursor: pointer;
+}
+
+/* ── LANDING SCREEN ─────────────────────── */
+.landing {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px 24px 48px;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.landing.out {
+  opacity: 0; transform: scale(0.97); pointer-events: none;
+}
+.landing-logo {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 72px; letter-spacing: 6px;
+  color: var(--accent); line-height: 1;
+  margin-bottom: 4px;
+}
+.landing-tagline {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 3px;
+  color: #444; text-transform: uppercase;
+  margin-bottom: 40px;
+}
+.landing-form { width: 100%; max-width: 360px; margin-bottom: 28px; }
+.landing-field { margin-bottom: 14px; }
+.landing-label {
+  display: block;
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: #555; margin-bottom: 6px;
+}
+.landing-input {
+  width: 100%; height: 46px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 10px; color: #ddd;
+  font-family: 'Barlow Condensed', sans-serif; font-size: 17px;
+  padding: 0 14px; outline: none;
+  transition: border-color 0.15s;
+}
+.landing-input:focus { border-color: rgba(229,90,0,0.5); }
+.landing-input::placeholder { color: #333; }
+.landing-section-label {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: #555; margin-bottom: 10px;
+  width: 100%; max-width: 360px;
+}
+.event-card {
+  width: 100%; max-width: 360px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 16px 18px;
+  cursor: pointer; margin-bottom: 32px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.event-card.selected {
+  border-color: var(--accent);
+  background: rgba(229,90,0,0.07);
+}
+.event-badge {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: 2px; color: var(--accent);
+  text-transform: uppercase; margin-bottom: 4px;
+}
+.event-name {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 28px; letter-spacing: 3px; color: #ddd; line-height: 1;
+}
+.event-detail {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #444; margin-top: 4px;
+}
+.landing-btn {
+  width: 100%; max-width: 360px; height: 52px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 12px;
+  font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 3px;
+  cursor: pointer; opacity: 0.35;
+  transition: opacity 0.15s;
+}
+.landing-btn.ready { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- LANDING SCREEN -->
+<div class="landing" id="landingScreen">
+  <div class="landing-logo">ofCourse</div>
+  <div class="landing-tagline">Event Day Setup</div>
+  <div class="landing-form">
+    <div class="landing-field">
+      <label class="landing-label" for="inputName">Your Name</label>
+      <input class="landing-input" id="inputName" type="text" placeholder="e.g. Jamie Smith" autocomplete="name" oninput="onLandingInput()">
+    </div>
+    <div class="landing-field">
+      <label class="landing-label" for="inputRole">Role</label>
+      <input class="landing-input" id="inputRole" type="text" placeholder="e.g. Course Manager" autocomplete="organization-title" oninput="onLandingInput()">
+    </div>
+  </div>
+  <div class="landing-section-label">Select Event</div>
+  <div class="event-card" id="evtCard" onclick="selectEvent('Glasgow Pretty Muddy 2026')">
+    <div class="event-badge">Pretty Muddy</div>
+    <div class="event-name">Glasgow 2026</div>
+    <div class="event-detail">Pollok Country Park · June 2026</div>
+  </div>
+  <button class="landing-btn" id="landingBtn" onclick="startSession()">Let's Go →</button>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-logo">PM GLA 2026</div>
+  <div class="count-pill" id="countPill">0 / 61</div>
+  <div class="dist-bar">
+    <div class="dist-track" id="distTrack">
+      <div class="dist-marker" id="distMarker" style="left:0%"></div>
+    </div>
+    <div class="dist-ticks">
+      <span style="left:0%">0</span>
+      <span style="left:19.88%">1k</span>
+      <span style="left:39.76%">2k</span>
+      <span style="left:59.64%">3k</span>
+      <span style="left:79.52%">4k</span>
+      <span style="left:99.4%">5k</span>
+    </div>
+  </div>
+  <button class="header-btn" onclick="openMap()" title="Course Map" style="font-size:16px">&#x2316;</button>
+  <button class="header-btn" onclick="openOverview()" title="Overview">&#9776;</button>
+</header>
+
+<!-- STAGE -->
+<div class="stage" id="stage">
+  <div class="card-stack" id="cardStack">
+    <div class="card-behind-2" id="behind2"></div>
+    <div class="card-behind-1" id="behind1"></div>
+    <div class="card" id="mainCard">
+      <div class="drag-overlay done-overlay" id="doneOverlay">
+        <div class="overlay-icon">✓</div>
+        <div class="overlay-label">Complete</div>
+      </div>
+      <div class="drag-overlay notes-overlay" id="notesOverlay">
+        <div class="overlay-icon">✎</div>
+        <div class="overlay-label">Add Note</div>
+      </div>
+      <div class="card-head" id="cardHead"></div>
+      <div id="cardMiniMap"></div>
+      <div class="card-body" id="cardBody"></div>
+      <div class="complete-strip" id="completeStrip" style="display:none">✓ COMPLETE</div>
+    </div>
+    <div class="all-done-screen" id="allDoneScreen">
+      <div class="all-done-icon">🏁</div>
+      <div class="all-done-title">Course Set!</div>
+      <div class="all-done-sub">All 61 checkpoints reviewed.<br>Glasgow Pretty Muddy 2026 is ready to go.</div>
+      <button class="all-done-export" onclick="exportData()">Export Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACTION BAR -->
+<div class="actions" id="actionsBar">
+  <button class="nav-btn" onclick="navigate(-1)" title="Previous">&#8592;</button>
+  <button class="action-btn btn-notes" id="btnNotes" onclick="openNotes()">&#9998; Note</button>
+  <button class="action-btn btn-done" id="btnDone" onclick="markDone()">&#10003; Done</button>
+  <button class="nav-btn" onclick="navigate(1)" title="Next">&#8594;</button>
+</div>
+
+<!-- NOTES MODAL -->
+<div class="modal-backdrop" id="notesModal" onclick="closeNotesOnBackdrop(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-sub" id="modalSub"></div>
+    <textarea class="notes-area" id="notesTextarea" placeholder="Type your notes here…" rows="5"></textarea>
+    <div class="modal-actions-stack">
+      <button class="modal-btn complete" onclick="saveNote(true)">Done with Note</button>
+      <button class="modal-btn log-only" onclick="saveNote(false)">Log Note Only</button>
+      <button class="modal-cancel-link" onclick="closeNotes()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- OVERVIEW PANEL -->
+<div class="overview" id="overviewPanel">
+  <div class="overview-head">
+    <div>
+      <div class="overview-title">Course Overview</div>
+      <div class="overview-stats" id="overviewStats"></div>
+    </div>
+    <button class="header-btn" onclick="closeOverview()" style="color:#666;font-size:22px">&#10005;</button>
+  </div>
+  <div class="ov-list" id="ovList"></div>
+  <div class="overview-foot">
+    <button class="export-btn" onclick="exportData()">&#8659; Export CSV</button>
+    <button class="reset-btn" onclick="confirmReset()">Reset</button>
+  </div>
+</div>
+
+<!-- COURSE MAP PANEL -->
+<div class="map-panel" id="mapPanel">
+  <div class="map-head">
+    <button class="header-btn" onclick="closeMap()">&#8592;</button>
+    <span class="map-title">Course Map</span>
+    <span class="map-count" id="mapCount">0 / 61 pinned</span>
+    <button class="header-btn" onclick="mapFitBounds()" title="Fit all" style="font-size:14px">&#x26F6;</button>
+    <button class="map-edit-btn" id="mapEditBtn" onclick="toggleMapEdit()">Edit</button>
+  </div>
+  <!-- Base layer switcher (always visible) -->
+  <div class="map-layer-bar">
+    <button class="map-layer-btn active" id="layerBtnMap"       onclick="setMapLayer('map')">Map</button>
+    <button class="map-layer-btn"        id="layerBtnSatellite" onclick="setMapLayer('satellite')">Satellite</button>
+    <button class="map-layer-btn"        id="layerBtnTerrain"   onclick="setMapLayer('terrain')">Terrain</button>
+  </div>
+  <!-- Edit sub-mode selector (shown in edit mode only) -->
+  <div class="map-submode-bar" id="mapSubmodeBar" style="display:none">
+    <button class="map-submode-btn" id="btnRouteMode" onclick="setMapSubMode('route')">Edit Course Route</button>
+    <button class="map-submode-btn" id="btnFeatMode" onclick="setMapSubMode('features')">Place Course Features</button>
+  </div>
+  <!-- Route editing toolbar (shown in route sub-mode) -->
+  <div class="map-route-toolbar" id="mapRouteToolbar" style="display:none">
+    <button class="map-nav-btn" onclick="undoRouteNode()" title="Undo last node">&#x21A9;</button>
+    <span class="map-route-hint">Tap map to add · tap node to edit</span>
+    <span class="map-count" id="mapRouteCount">0 nodes</span>
+    <button class="map-unpin-btn" onclick="confirmClearRoute()">Clear</button>
+  </div>
+  <!-- Terrain selector (shown in route sub-mode, below toolbar) -->
+  <div class="terrain-row" id="terrainRow" style="display:none">
+    <button class="terrain-btn active" data-t="tarmac" onclick="setActiveTerrain('tarmac')">Tarmac</button>
+    <button class="terrain-btn" data-t="grass"  onclick="setActiveTerrain('grass')">Grass</button>
+    <button class="terrain-btn" data-t="gravel" onclick="setActiveTerrain('gravel')">Gravel</button>
+    <button class="terrain-btn" data-t="trail"  onclick="setActiveTerrain('trail')">Trail</button>
+    <button class="terrain-btn" data-t="mud"    onclick="setActiveTerrain('mud')">Mud</button>
+  </div>
+  <!-- Feature placing toolbar (shown in features sub-mode) -->
+  <div class="map-toolbar" id="mapToolbar" style="display:none">
+    <button class="map-nav-btn" id="mapPrev" onclick="mapNav(-1)">&#8592;</button>
+    <div class="map-card-info">
+      <span class="map-card-ref" id="mapRef">C1</span>
+      <span class="map-card-desc" id="mapDesc"></span>
+    </div>
+    <span class="map-pin-status" id="mapPinStatus">tap map to pin</span>
+    <button class="map-unpin-btn" id="mapUnpin" onclick="unpinCard()" style="display:none">&#x2715;</button>
+    <button class="map-nav-btn" id="mapNext" onclick="mapNav(1)">&#8594;</button>
+  </div>
+  <!-- Map canvas -->
+  <div id="leafletMap"></div>
+  <!-- Node editor (slides up from bottom when a route node is selected) -->
+  <div class="node-editor" id="nodeEditor">
+    <div class="ne-bar">
+      <span class="ne-title" id="nodeEditorTitle">Node</span>
+      <button class="ne-close" onclick="closeNodeEditor()">Done</button>
+    </div>
+    <div class="ne-section">
+      <div class="ne-label">Type</div>
+      <div class="ne-opts">
+        <button class="ne-opt ne-type-btn" data-type="waypoint"    onclick="setNodeType('waypoint')">Waypoint</button>
+        <button class="ne-opt ne-type-btn" data-type="directional" onclick="setNodeType('directional')">&#8594; Direction</button>
+        <button class="ne-opt ne-type-btn" data-type="start"       onclick="setNodeType('start')">Start</button>
+        <button class="ne-opt ne-type-btn" data-type="finish"      onclick="setNodeType('finish')">Finish</button>
+      </div>
+    </div>
+    <div class="ne-section">
+      <div class="ne-label">Terrain from here</div>
+      <div class="ne-opts">
+        <button class="ne-opt ne-terrain-btn" data-terrain="tarmac" onclick="setNodeTerrain('tarmac')">Tarmac</button>
+        <button class="ne-opt ne-terrain-btn" data-terrain="grass"  onclick="setNodeTerrain('grass')">Grass</button>
+        <button class="ne-opt ne-terrain-btn" data-terrain="gravel" onclick="setNodeTerrain('gravel')">Gravel</button>
+        <button class="ne-opt ne-terrain-btn" data-terrain="trail"  onclick="setNodeTerrain('trail')">Trail</button>
+        <button class="ne-opt ne-terrain-btn" data-terrain="mud"    onclick="setNodeTerrain('mud')">Mud</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const CARDS = [
+  { ref:"C1",  dist:"0m",     w3w:"///each.critic.pigs",       loc:"Course starts on the red ash path, just before the first corner.", hazard:"Overcrowding leading to: Bruising/minor cuts; Strains/sprains; Fractures; Concussions", netR:9, sig:"2×PM RULES\n1×KIDS HEIGHT\n(between gantry and 1st corner)", equip:"Barriers / gantry", staff:"", info:"", resR:3, action:"", obstacle:false },
+  { ref:"C2",  dist:"8m",     w3w:"",                          loc:"Course turns left onto main tarmac path.", hazard:"Collision hazard with park users", netR:9, sig:"Caution runners ahead (S3)", equip:"Barriers to create a curve. Steward to keep a gap open for public to pass through, and only close over 2 minutes before a wave start, until wave passes.", staff:"S3 — manage public access to course route", info:"", resR:3, action:"", obstacle:false },
+  { ref:"C3",  dist:"53m",    w3w:"",                          loc:"At green gates on the path, route moves through gates and heads towards grass.", hazard:"Collision hazard with park users", netR:9, sig:"S4", equip:"Barriers to create a channel towards the grass. Public to be allowed access until 2 mins before each wave, until the wave passes.", staff:"S4 — manage public access to course route", info:"", resR:3, action:"", obstacle:false },
+  { ref:"C4",  dist:"76m",    w3w:"",                          loc:"Route moves onto grass and runs parallel to footpath and car parks.", hazard:"", netR:0, sig:"", equip:"Stake & tape intermittent channel", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C5",  dist:"155m",   w3w:"",                          loc:"Cross over first path leading to car park 1 then continue straight on the grass.", hazard:"Collision hazard with pedestrians leaving car parks", netR:9, sig:"Caution runners ahead", equip:"Stake & tape intermittent channel", staff:"", info:"Signage to be placed at exit of car park before path splits in two, to cover both this line and the line below.", resR:6, action:"", obstacle:false },
+  { ref:"C6",  dist:"196m",   w3w:"",                          loc:"Crossover second path leading to car park, then continue straight on the grass.", hazard:"Collision hazard with pedestrians leaving car parks", netR:9, sig:"", equip:"Stake & tape intermittent channel", staff:"", info:"", resR:6, action:"", obstacle:false },
+  { ref:"C7",  dist:"286m",   w3w:"",                          loc:"At the end of the grass, move onto footpath to run past car park 4.", hazard:"", netR:0, sig:"", equip:"Stake and tape route onto path", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C8",  dist:"297m",   w3w:"",                          loc:"Route continues on footpath, past car park 4.", hazard:"", netR:0, sig:"↙ (keep left)", equip:"", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C9",  dist:"414m",   w3w:"///pinks.brings.wishes",    loc:"At the end of the car park, route continues on footpath.", hazard:"Pinch point / collision hazard with park users", netR:9, sig:"M1", equip:"", staff:"M1 — ask park users to keep to the left of the path when runners approaching", info:"", resR:4, action:"", obstacle:false },
+  { ref:"C10", dist:"436m",   w3w:"",                          loc:"As the tarmac opens up to the left, route takes a left turn, heads across the path and onto the grass.", hazard:"Collision hazard — fast moving bikes entering from road and vehicle access point", netR:12, sig:"↗ Caution runners ahead (S5)", equip:"", staff:"S5 — restrict vehicle access and slow down fast moving bikes", info:"", resR:4, action:"", obstacle:false },
+  { ref:"C11", dist:"461m",   w3w:"",                          loc:"Once on the grass, route heads down the hill and to the right. Route runs on the flat section of the grass, parallel to the upper footpath.", hazard:"Caution hazard — hill; Slip/Trip hazard", netR:6, sig:"Slip/Trip Hazard →", equip:"Stake and tape route onto flat section of grass (avoiding concrete square) then intermittent channels to mark route", staff:"", info:"CM to ensure the route taken down the hill is gradual", resR:4, action:"", obstacle:false },
+  { ref:"C12", dist:"550m",   w3w:"///closed.shell.giving",    loc:"OBSTACLE: Light at the End of the Tunnels — on flat section of grass, in line with first bench on footpath.", hazard:"Overcrowding, climbing injuries leading to: Bruising/minor cuts; Strains/sprains; Fractures; Concussions", netR:9, sig:"1×NO JUMPING\n1×HELP FELLOW PMers\n1×PM PARTICIPANTS ONLY", equip:"2×Supersoakers\n2×Buckets\n1×Brush\nStake and tape queue lanes\nProtective foam on tunnel entrance/exit", staff:"2×Marshal\n— Monitor and control flow\n— Monitor inside tunnel; keep crawler area free of debris\n— Brush steps as required", info:"Max 1 per tunnel", resR:4, action:"Obstacle Manager to check crawl area in front, behind and inside tunnel prior to event to ensure it is clear of debris", obstacle:true },
+  { ref:"C13", dist:"570m",   w3w:"",                          loc:"After obstacle, route continues straight along grass.", hazard:"", netR:0, sig:"↙ (keep left)", equip:"Stake and tape intermittent channels to mark route", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C14", dist:"",       w3w:"///slate.decide.truly",     loc:"OBSTACLE: Mud crawl / net obstacle.", hazard:"Abrasions from sharp objects on the ground/poles and pegs; overcrowding leading to: Bruising/minor cuts; Lacerations; Strains/sprains; Fractures; Concussions", netR:9, sig:"1×HELP FELLOW PMers\n1×PM PARTICIPANTS ONLY", equip:"2×Supersoakers\n2×Buckets", staff:"1×Marshal\n— Monitor and control flow; remove sharp items\n2×Arena staff to add mud to groundsheets", info:"Max 12 in obstacle. 6 per net", resR:2, action:"Obstacle Manager to check area to be used prior to event to ensure it is clear of debris", obstacle:true },
+  { ref:"C15", dist:"1km",    w3w:"",                          loc:"Route continues straight on grass after obstacle.", hazard:"", netR:0, sig:"1KM ↙", equip:"Stake and tape intermittent channels to mark route", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C16", dist:"1,509m", w3w:"///legs.output.punt",       loc:"OBSTACLE: Mission Inflatable — on flat straight area of grass, right before the grass narrows before the bridge.", hazard:"Abrasions from sharp objects; overcrowding leading to: Bruising/minor cuts; Lacerations; Strains/sprains; Fractures; Concussions", netR:9, sig:"1×GO AT YOUR OWN PACE\n1×PM PARTICIPANTS ONLY", equip:"Stake and tape to close off climb over during PM Kids\n1×Bucket", staff:"1×Marshal\n— Monitor and control flow; remove sharp items", info:"", resR:6, action:"Obstacle Manager to check area to be used prior to event to ensure it is clear of debris", obstacle:true },
+  { ref:"C17", dist:"1,668m", w3w:"",                          loc:"After obstacle, route continues straight to end of grass, then turns right up the grass hill between the bin and the bridge.", hazard:"", netR:0, sig:"→", equip:"Stake and tape route up onto path", staff:"", info:"CM to choose the least steep route up the hill", resR:0, action:"", obstacle:false },
+  { ref:"C18", dist:"1,686m", w3w:"///count.middle.punks",     loc:"Once route is on the path, route turns left to head over the bridge.", hazard:"Pinch point / collision hazard with park users; trip hazard with raised kerb", netR:9, sig:"Keep left ↗ M2", equip:"Stake and tape route up hill onto path to eliminate the raised kerb on the left hand side of the grass", staff:"M2 — keep participants to the left of the path and park users to the right", info:"", resR:3, action:"", obstacle:false },
+  { ref:"C19", dist:"1,715m", w3w:"",                          loc:"Once over the bridge turn left back onto the grass. Head down the slope to the flattest section of grass to run alongside the bushes.", hazard:"Trip hazard — raised kerb", netR:6, sig:"↗ (keep right onto grass)", equip:"Stake and tape the kerb so participants turn onto the grass on the flat section", staff:"", info:"", resR:2, action:"", obstacle:false },
+  { ref:"C20", dist:"1,896m", w3w:"///retail.market.lease",    loc:"OBSTACLE: Vertigo — on the grass where it widens out in the corner.", hazard:"Fall from height, overcrowding leading to: Bruising/minor cuts; Strains/sprains; Fractures; Concussions", netR:12, sig:"2×NO JUMPING\n1×LISTEN TO THE MARSHAL\n1×CONCENTRATE WHEN CLIMBING\n1×DON'T FANCY\n1×PM PARTICIPANTS ONLY", equip:"1×Megaphone\nStake and tape queue lanes\nStake and tape to close off high part during PM Kids\nMatting at base of obstacle", staff:"4×Marshals (2 per net)\n— Control numbers; advise to take time and care\n2×Arena staff to complete strap checks", info:"Per net: max 3 up side, max 3 down side\nPM Kids to complete lower side of obstacle only", resR:8, action:"1×Tarp required", obstacle:true },
+  { ref:"C21", dist:"1,928m", w3w:"",                          loc:"After obstacle, route takes a slight right to head back up towards the path. Route to hug tree light on left-hand side.", hazard:"Trip hazard with uneven grass", netR:0, sig:"", equip:"Stake and tape intermittently to mark route and avoid bump in grass", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C22", dist:"2km",    w3w:"///luck.bills.highs",       loc:"Route re-joins footpath and turns left.", hazard:"Collision hazard / pinch point with park users", netR:6, sig:"2KM ↗\nKeep left M3", equip:"", staff:"M3 — keep participants to the left and public to the right of the path", info:"", resR:3, action:"", obstacle:false },
+  { ref:"C23", dist:"2,070m", w3w:"///staple.rating.hotels",   loc:"OBSTACLE: Durdles (hurdles) — grass opens up to left-hand side in line with the life ring. Rejoin footpath after obstacle.", hazard:"Slips, trips, injury from hurdle leading to: Bruising/minor cuts; Lacerations; Strains/sprains; Fractures", netR:9, sig:"1×HELP FELLOW PMers\n1×PM PARTICIPANTS ONLY", equip:"Protective foam on top of hurdle\n2×Supersoakers\n2×Buckets", staff:"1×Marshal\n— Monitor and control flow of participants", info:"Max 4 per hurdle", resR:6, action:"Obstacle Manager to check control measures in place and monitor", obstacle:true },
+  { ref:"C24", dist:"2,134m", w3w:"",                          loc:"Route crosses over internal road and heads up the hill on the path.", hazard:"", netR:0, sig:"→ Motivational signs on path in trees", equip:"", staff:"", info:"Road not live — gate at end of road to remain locked throughout event", resR:0, action:"", obstacle:false },
+  { ref:"C25", dist:"2,286m", w3w:"",                          loc:"At the path veering off to the left, route continues slight right.", hazard:"Collision hazard — pedestrian entrance to park", netR:6, sig:"Caution runners ahead ↙", equip:"", staff:"", info:"Signage placed to face pedestrians entering from this path", resR:3, action:"", obstacle:false },
+  { ref:"C26", dist:"2,353m", w3w:"",                          loc:"At Y junction in the path, route takes left-hand, wider path.", hazard:"", netR:0, sig:"↗ (turn left)", equip:"", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C27", dist:"2,438m", w3w:"",                          loc:"Once past the gravel path adjoining from the left, route moves left onto the grass. Then continues straight along the grass parallel to the tarmac path.", hazard:"", netR:0, sig:"↗ (onto grass)", equip:"Stake and tape intermittent channels to mark route", staff:"", info:"Compact Disco Defender between here and The Journey — keep out of the way of course route.", resR:0, action:"", obstacle:false },
+  { ref:"C28", dist:"2,494m", w3w:"///unfair.spoken.manual",   loc:"OBSTACLE: Down & Dirty (mud pit) — on grass just before Boulder distance marker at the Lochside.", hazard:"Bruising/minor cuts; Strains/sprains; Fractures", netR:9, sig:"1×NO DIVING\n1×DON'T FANCY\n1×PM PARTICIPANTS ONLY", equip:"Matting at pit exit\n2×Supersoakers", staff:"1×Marshal\n2×Arena staff\n— Monitor and control flow of participants", info:"Max 8 in obstacle\nNet covering removed for PM Kids", resR:6, action:"Arena staff to monitor and clear matting at exit as required", obstacle:true },
+  { ref:"C29", dist:"2,515m", w3w:"",                          loc:"After obstacle, route heads back onto footpath.", hazard:"", netR:0, sig:"", equip:"Tape route back onto footpath", staff:"", info:"Course set-up team 1 ends here", resR:0, action:"", obstacle:false },
+  { ref:"C30", dist:"",       w3w:"///fell.movies.lasts",      loc:"OBSTACLE: Ex Squeeze Me — on flattest section of grass beside footpath, after large clump of trees.", hazard:"Overcrowding leading to: Bruising/minor cuts; Strains/sprains; Fractures; Concussions", netR:9, sig:"1×EX-SQUEEZE ME\n1×NO DIVING\n1×REMEMBER! OVER, UNDER, OVER!\n1×HELP FELLOW PMers\n1×PM PARTICIPANTS ONLY", equip:"Stake and tape queue lanes", staff:"2×Marshal\n— Monitor and control flow; prevent anyone trying to climb over the top", info:"Max 4 in obstacle", resR:3, action:"", obstacle:true },
+  { ref:"C31", dist:"",       w3w:"",                          loc:"After obstacle, route returns to footpath.", hazard:"", netR:0, sig:"", equip:"Tape route back onto footpath", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C32", dist:"2,950m", w3w:"///bridge.spine.ranch",     loc:"OBSTACLE: Wall of Fame — just after 2nd gravel path that crosses the grass fields.", hazard:"Fall from height, overcrowding leading to: Bruising/minor cuts; Strains/sprains; Fractures; Concussions", netR:12, sig:"2×NO JUMPING\n1×CONCENTRATE WHEN CLIMBING\n1×DON'T FANCY\n1×PM PARTICIPANTS ONLY", equip:"1×Megaphone\nStake and tape queue lanes\nMatting at base of obstacle", staff:"2×Marshals (1 per double frame)\n— Control numbers; advise participants to take time and care", info:"Max 1 per wall section", resR:6, action:"1×Tarp required", obstacle:true },
+  { ref:"C33", dist:"3km",    w3w:"3km: ///making.lied.tree\nM4: ///shop.film.fast", loc:"Route heads back onto tarmac path and continues over at the silver bridge.", hazard:"Collision hazard / pinch point with park users", netR:6, sig:"3KM ↙\nKeep left M4", equip:"", staff:"M4 — keep participants to left hand side of path, and public to the right", info:"", resR:3, action:"", obstacle:false },
+  { ref:"C34", dist:"3,065m", w3w:"",                          loc:"Where footpath veers off to the left, route continues on main, wider footpath to the right.", hazard:"", netR:0, sig:"↙ (keep right on main path)", equip:"", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C35", dist:"3,106m", w3w:"",                          loc:"As smaller footpath to the left rejoins main path, continue straight on main path.", hazard:"", netR:0, sig:"↙ (straight on)", equip:"", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C36", dist:"3,154m", w3w:"",                          loc:"Junction from gravel footpaths joining from the car park to the left — route continues straight on main path past the bandstand.", hazard:"", netR:0, sig:"↙ (straight past bandstand)", equip:"", staff:"", info:"🎵 Choir positioned here", resR:0, action:"", obstacle:false },
+  { ref:"C37", dist:"3,165m", w3w:"///alarm.salads.fills",     loc:"OBSTACLE: Scottish Powerball — in line with bandstand, on grass at other side of the path.", hazard:"Slips and trips leading to: Bruising/minor cuts; Strains/sprains; Fractures; Concussions", netR:9, sig:"", equip:"1×Megaphone", staff:"1×Marshal — monitor and control flow\n2×Arena Staff", info:"Max 6 in obstacle", resR:3, action:"Obstacle Manager to check area to be used prior to event to ensure it is clear of debris under the obstacle", obstacle:true },
+  { ref:"C38", dist:"3,185m", w3w:"",                          loc:"After obstacle, route heads back onto path.", hazard:"", netR:0, sig:"", equip:"Tape route back onto footpath", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C39", dist:"3,347m", w3w:"///grades.ashes.late",      loc:"Route continues over 2nd silver bridge and up the hill on the footpath.", hazard:"Collision hazard / pinch point with park users", netR:6, sig:"Keep left M5", equip:"", staff:"M5 — keep participants to left hand side of path, and public to the right", info:"", resR:3, action:"", obstacle:false },
+  { ref:"C40", dist:"3,500m", w3w:"///wash.muddy.forced",      loc:"At junction in paths, route turns right to cross footpath bridge.", hazard:"", netR:0, sig:"M6 →", equip:"", staff:"M6 — directional", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C41", dist:"3,610m", w3w:"///gently.vets.bills",      loc:"At crossroads in paths after the footbridge, route continues straight up the wooded hill.", hazard:"", netR:0, sig:"M7 ↙", equip:"", staff:"M7 — directional", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C42", dist:"3,900m", w3w:"",                          loc:"At red ash car park (unused) — route stays on tarmac path and follows it round the bend.", hazard:"", netR:0, sig:"↙ (after path to car park)", equip:"", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C43", dist:"3,960m", w3w:"///orders.offer.invent",    loc:"Compact Disco Defender — positioned in red ash car park.", hazard:"", netR:0, sig:"", equip:"", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C44", dist:"4km",    w3w:"///blur.repay.paper",       loc:"On footpath in woods — continue straight ahead.", hazard:"", netR:0, sig:"4KM", equip:"", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C45", dist:"4,080m", w3w:"",                          loc:"As path leaves the woods, continue to follow footpath alongside the road.", hazard:"Danger — participants may enter live road; low hanging branches", netR:12, sig:"", equip:"Stake and tape the bend to keep participants on the path", staff:"", info:"", resR:4, action:"", obstacle:false },
+  { ref:"C46", dist:"4,095m", w3w:"",                          loc:"At junction in paths, where footpath becomes more uneven, continue on footpath.", hazard:"", netR:0, sig:"Uneven surface ahead ↙", equip:"", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C47", dist:"4,150m", w3w:"(positioned on grass)",     loc:"OBSTACLE: Body Bounce (space hoppers) — on grass beside footpath, right before the grass runs out where it is flattest.", hazard:"Fall from space hopper leading to: Bruising/minor cuts; Strains/sprains; Fractures", netR:9, sig:"1×LISTEN TO THE MARSHAL\n1×PM PARTICIPANTS ONLY", equip:"Space hoppers", staff:"1×Marshal\n— Monitor and control flow of participants", info:"", resR:6, action:"", obstacle:true },
+  { ref:"C48", dist:"4,280m", w3w:"///hike.twin.light",        loc:"Along footpath — continue straight ahead.", hazard:"", netR:0, sig:"Motivational sign", equip:"", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C49", dist:"4,320m", w3w:"",                          loc:"At Y junction in paths, take right hand path (red ash) to continue straight.", hazard:"", netR:0, sig:"↙ (right-hand path)", equip:"", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C50", dist:"4,510m", w3w:"",                          loc:"Low hanging branches over red ash path.", hazard:"Collision hazard with low hanging branches", netR:6, sig:"Caution Hazard Ahead\n500m to go!", equip:"", staff:"", info:"Council to cut pre-event if possible", resR:3, action:"", obstacle:false },
+  { ref:"C51", dist:"4,520m", w3w:"///moral.good.props",       loc:"Red ash path veers to the left and becomes tarmac — continue to follow path.", hazard:"", netR:0, sig:"M8 ↗", equip:"", staff:"M8 — directional", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C52", dist:"4,540m", w3w:"",                          loc:"Just after left turn, path splits — take right hand path to continue downhill.", hazard:"", netR:0, sig:"→ (right, downhill)", equip:"", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C53", dist:"4,640m", w3w:"///cave.cubes.tanks",       loc:"At the next junction, take the left hand path.", hazard:"", netR:0, sig:"M9 ↗", equip:"", staff:"M9 — directional", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C54", dist:"4,880m", w3w:"",                          loc:"After passing group of trees on the left on the grass, head up onto the grass towards playpark.", hazard:"", netR:0, sig:"↗ (onto grass)", equip:"Intermittent stake and tape — flattest route up slight hill", staff:"", info:"", resR:2, action:"", obstacle:false },
+  { ref:"C55", dist:"4,910m", w3w:"///native.above.evenly",    loc:"OBSTACLE: Muddy Mayhem — on the flat section of grass.", hazard:"Slips and trips leading to: Bruising/friction burns/minor cuts; Strains/sprains; Fractures; Concussions", netR:12, sig:"1×LISTEN TO THE MARSHAL\n1×PM PARTICIPANTS ONLY", equip:"Stake and tape queue lanes\nStake and tape escape lanes\n2×Supersoakers\nMatting underneath obstacle\nGenerator — cordoned off", staff:"2×Marshal\n— Monitor and control flow of participants", info:"Max 8 in obstacle. Max 4 at start. Next set can go once rope swing is cleared. Participants can exit through side space if needed.", resR:6, action:"Obstacle Manager to check obstacle is pegged, secure and inflated properly. Air flow monitored throughout the events", obstacle:true },
+  { ref:"C56", dist:"",       w3w:"",                          loc:"After obstacle, route heads back onto footpath before bench.", hazard:"", netR:0, sig:"↗ (back to path)", equip:"Tape route back onto path", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C57", dist:"4,950m", w3w:"///stacks.picked.tried",    loc:"After passing the car park, take the first left up the small footpath.", hazard:"", netR:0, sig:"↗ M10", equip:"", staff:"M10 — directional", info:"⚠ Make this junction very clear — participants missed the turn in 2022", resR:0, action:"", obstacle:false },
+  { ref:"C58", dist:"4,980m", w3w:"Mud pit end: ///gossip.drives.dine", loc:"At the start of the fence around the cabin snack bar, route to head onto the grass towards Mudchute.", hazard:"", netR:0, sig:"S6", equip:"Stake and tape route onto grass, staying parallel to the fence line", staff:"S6 — restrict vehicle access", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C59", dist:"5,015m", w3w:"Mud pit end: ///glaze.punk.rift",    loc:"OBSTACLE: Mud Chute (inflatable slide) — placed parallel to the fence, with stairs just before the end of the fence.", hazard:"Slips and trips, deflation leading to: Bruising/minor cuts; Strains/sprains; Fractures; Concussions", netR:12, sig:"1×MUD CHUTE RULES\n1×LISTEN TO THE MARSHAL\n1×PM PARTICIPANTS ONLY", equip:"2×Megaphone\n1×Portable PA\nStake and tape queue lanes", staff:"1×Marshal\n4×Arena staff to control numbers", info:"Max 6 adults / 4 kids climbing\nMax 6 adults / 4 kids sliding", resR:6, action:"1×Tarp required", obstacle:true },
+  { ref:"C60", dist:"5,020m", w3w:"",                          loc:"After obstacle, immediately turn right toward finish line.", hazard:"", netR:0, sig:"", equip:"Stake and tape route to finish", staff:"", info:"", resR:0, action:"", obstacle:false },
+  { ref:"C61", dist:"5,030m", w3w:"///closes.coach.kinds",     loc:"FINISH LINE — placed at a 90 degree angle to mud chute, 10m after the right turn.", hazard:"", netR:0, sig:"", equip:"Finish Gantry", staff:"", info:"", resR:0, action:"", obstacle:false },
+];
+
+// ── DISTANCE BAR ─────────────────────────────────────────────────────────────
+const TOTAL_DIST = 5030;
+
+function parseDist(str) {
+  if (!str) return null;
+  const s = str.replace(/,/g, '').trim().toLowerCase();
+  const km = s.match(/^(\d+(?:\.\d+)?)km$/);
+  if (km) return Math.round(parseFloat(km[1]) * 1000);
+  const m = s.match(/^(\d+)m$/);
+  if (m) return parseInt(m[1], 10);
+  return null;
+}
+
+const RESOLVED_DISTS = (function() {
+  let last = 0;
+  return CARDS.map(c => { const d = parseDist(c.dist); if (d !== null) last = d; return last; });
+})();
+
+function initDistBar() {
+  const track = document.getElementById('distTrack');
+  const marker = track.querySelector('.dist-marker');
+  CARDS.forEach((c, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'dist-dot' + (c.obstacle ? ' obs' : '');
+    dot.style.left = ((RESOLVED_DISTS[i] / TOTAL_DIST) * 100) + '%';
+    track.insertBefore(dot, marker);
+  });
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const LS_KEY = 'pmg2026';
+// ── USER SESSION ──────────────────────────────────────────────────────────────
+const USER_KEY = 'ofcourse_user';
+let currentUser = { name: '', role: '', event: '' };
+let selectedEventId = '';
+
+function loadUser() {
+  try {
+    const s = localStorage.getItem(USER_KEY);
+    if (s) currentUser = { ...currentUser, ...JSON.parse(s) };
+  } catch(e) {}
+}
+function saveUser() { localStorage.setItem(USER_KEY, JSON.stringify(currentUser)); }
+
+function onLandingInput() {
+  const name = document.getElementById('inputName').value.trim();
+  const ready = name.length > 0 && selectedEventId.length > 0;
+  document.getElementById('landingBtn').classList.toggle('ready', ready);
+}
+
+function selectEvent(id) {
+  selectedEventId = id;
+  document.getElementById('evtCard').classList.add('selected');
+  onLandingInput();
+}
+
+function startSession() {
+  const name = document.getElementById('inputName').value.trim();
+  if (!name || !selectedEventId) return;
+  currentUser = {
+    name,
+    role: document.getElementById('inputRole').value.trim(),
+    event: selectedEventId,
+  };
+  saveUser();
+  const el = document.getElementById('landingScreen');
+  el.classList.add('out');
+  setTimeout(() => { el.style.display = 'none'; }, 350);
+  renderCard(state.currentIndex);
+  updateProgress();
+}
+
+function showLanding() {
+  const el = document.getElementById('landingScreen');
+  el.style.display = 'flex';
+  el.classList.remove('out');
+  if (currentUser.name) document.getElementById('inputName').value = currentUser.name;
+  if (currentUser.role) document.getElementById('inputRole').value = currentUser.role;
+  if (currentUser.event) {
+    selectedEventId = currentUser.event;
+    document.getElementById('evtCard').classList.add('selected');
+  }
+  onLandingInput();
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let state = { currentIndex: 0, completed: {}, notes: {}, audit: [] };
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) state = { currentIndex: 0, completed: {}, notes: {}, audit: [], ...JSON.parse(saved) };
+  } catch(e) {}
+}
+function saveState() {
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+}
+
+function auditEntry(ref, action, extra = {}) {
+  state.audit.push({
+    ref, action,
+    user: currentUser.name,
+    role: currentUser.role,
+    event: currentUser.event,
+    ts: new Date().toISOString(),
+    ...extra,
+  });
+}
+
+// ── RISK HELPERS ──────────────────────────────────────────────────────────────
+function riskClass(r) {
+  if (!r || r === 0) return 'badge-r0';
+  if (r <= 4) return 'badge-rlow';
+  if (r <= 6) return 'badge-rmed';
+  if (r <= 9) return 'badge-rhi';
+  return 'badge-rcrit';
+}
+function riskLabel(r) {
+  if (!r || r === 0) return 'No Hazard';
+  if (r <= 4) return 'LOW';
+  if (r <= 6) return 'MEDIUM';
+  if (r <= 9) return 'HIGH';
+  return 'CRITICAL';
+}
+
+// ── RENDER HELPERS ────────────────────────────────────────────────────────────
+function renderW3W(str) {
+  return str
+    .replace(/\/\/\/([a-z]+\.[a-z]+\.[a-z]+)/g, (_, a) =>
+      `<a href="https://what3words.com/${a}" target="_blank" class="w3w-link">///${a}</a>`)
+    .replace(/\n/g, '<br>');
+}
+
+const sectionOpen = {};
+function toggleSection(key, el) {
+  sectionOpen[key] = !sectionOpen[key];
+  el.closest('.section').classList.toggle('collapsed', !sectionOpen[key]);
+}
+function secHtml(key, label, content) {
+  const cls = sectionOpen[key] === false ? ' collapsed' : '';
+  return `<div class="section${cls}">
+    <div class="section-label section-toggle" onclick="toggleSection('${key}',this)">
+      <span>${label}</span><span class="section-toggle-line"></span><span class="section-chevron">▾</span>
+    </div>
+    <div class="section-body">${content}</div>
+  </div>`;
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderCard(idx) {
+  if (idx >= CARDS.length) {
+    showAllDone();
+    return;
+  }
+  const card = CARDS[idx];
+  const isDone = !!state.completed[card.ref];
+  const myNote = state.notes[card.ref] || '';
+
+  // Header
+  const head = document.getElementById('cardHead');
+  head.innerHTML = `
+    <div class="card-ref-row">
+      <div class="card-ref">${card.ref}</div>
+      <div class="card-ref-meta">
+        ${card.dist ? `<span class="card-dist">${card.dist}</span>` : ''}
+        ${card.w3w ? `<span class="card-w3w">${renderW3W(card.w3w)}</span>` : ''}
+      </div>
+    </div>
+    <div class="card-badges">
+      ${card.obstacle ? `<span class="badge badge-obstacle">OBSTACLE</span>` : ''}
+      ${card.netR > 0 ? `<span class="badge ${riskClass(card.netR)}">NET RISK ${card.netR}</span>` : ''}
+      ${card.resR > 0 ? `<span class="badge badge-type">RES ${card.resR}</span>` : ''}
+      ${isDone ? `<span class="badge badge-complete">✓ DONE</span>` : ''}
+      ${myNote ? `<span class="badge badge-note">✎ NOTE</span>` : ''}
+    </div>
+  `;
+
+  // Body
+  const body = document.getElementById('cardBody');
+  let html = '';
+
+  // Obstacle name + Location
+  let locText = card.loc;
+  let obstacleName = null;
+  if (card.loc.startsWith('OBSTACLE: ')) {
+    const rest = card.loc.slice(10);
+    const sep = rest.indexOf(' — ');
+    if (sep !== -1) {
+      obstacleName = rest.slice(0, sep);
+      locText = rest.slice(sep + 3);
+    } else {
+      obstacleName = rest.replace(/\.$/, '');
+      locText = '';
+    }
+  }
+  if (obstacleName) {
+    html += `<div class="section">
+      <div class="section-label">Obstacle</div>
+      <div class="obstacle-name">${obstacleName}</div>
+    </div>`;
+  }
+  if (locText) {
+    html += `<div class="section">
+      <div class="section-label">Location</div>
+      <div class="loc-text">${locText}</div>
+    </div>`;
+  }
+
+  // Hazard (collapsible)
+  if (card.hazard) {
+    html += secHtml('hazard', 'Hazard / Threat', `<div class="hazard-box">${card.hazard}</div>`);
+  }
+
+  // Mitigation (collapsible)
+  const hasMit = card.sig || card.equip || card.staff;
+  if (hasMit) {
+    let mc = '<div class="mit-list">';
+    if (card.sig)   mc += `<div class="mit-row"><div class="mit-icon">🪧</div><div class="mit-content"><div class="mit-label">Signage</div><div class="mit-text">${card.sig}</div></div></div>`;
+    if (card.equip) mc += `<div class="mit-row"><div class="mit-icon">🔧</div><div class="mit-content"><div class="mit-label">Equipment</div><div class="mit-text">${card.equip}</div></div></div>`;
+    if (card.staff) mc += `<div class="mit-row"><div class="mit-icon">👤</div><div class="mit-content"><div class="mit-label">Staff</div><div class="mit-text">${card.staff}</div></div></div>`;
+    mc += '</div>';
+    html += secHtml('mitigation', 'Mitigation', mc);
+  }
+
+  // Further info (collapsible)
+  if (card.info) {
+    html += secHtml('info', 'Further Info', `<div class="info-box">${card.info}</div>`);
+  }
+
+  // Further action (collapsible)
+  if (card.action) {
+    html += secHtml('action', 'Further Action', `<div class="action-box">${card.action}</div>`);
+  }
+
+  // My notes
+  if (myNote) {
+    html += `<div class="section">
+      <div class="section-label">My Notes</div>
+      <div class="my-note-box">
+        <div class="my-note-label">✎ Field Note</div>
+        <div class="my-note-text">${myNote}</div>
+      </div>
+    </div>`;
+  }
+
+  body.innerHTML = html;
+  body.scrollTop = 0;
+  updateCardMiniMap(idx);
+
+  // Complete strip
+  const strip = document.getElementById('completeStrip');
+  strip.style.display = isDone ? 'block' : 'none';
+
+  // Update buttons
+  updateActionBar(isDone);
+}
+
+function updateActionBar(isDone) {
+  const btnDone = document.getElementById('btnDone');
+  if (isDone) {
+    btnDone.className = 'action-btn btn-undo';
+    btnDone.innerHTML = '&#8617; Undo';
+  } else {
+    btnDone.className = 'action-btn btn-done';
+    btnDone.innerHTML = '&#10003; Done';
+  }
+}
+
+function updateProgress() {
+  const total = CARDS.length;
+  const done = Object.keys(state.completed).filter(k => state.completed[k]).length;
+  document.getElementById('countPill').textContent = `${done} / ${total}`;
+  const idx = Math.min(state.currentIndex, CARDS.length - 1);
+  document.getElementById('distMarker').style.left = ((RESOLVED_DISTS[idx] / TOTAL_DIST) * 100) + '%';
+}
+
+function showAllDone() {
+  document.getElementById('cardStack').querySelector('.card-behind-2').style.display = 'none';
+  document.getElementById('cardStack').querySelector('.card-behind-1').style.display = 'none';
+  document.getElementById('mainCard').style.display = 'none';
+  document.getElementById('allDoneScreen').classList.add('visible');
+  document.getElementById('actionsBar').style.display = 'none';
+}
+function hideAllDone() {
+  document.getElementById('cardStack').querySelector('.card-behind-2').style.display = '';
+  document.getElementById('cardStack').querySelector('.card-behind-1').style.display = '';
+  document.getElementById('mainCard').style.display = '';
+  document.getElementById('allDoneScreen').classList.remove('visible');
+  document.getElementById('actionsBar').style.display = '';
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+function navigate(dir) {
+  const newIdx = state.currentIndex + dir;
+  if (newIdx < 0 || newIdx >= CARDS.length) return;
+  state.currentIndex = newIdx;
+  saveState();
+  hideAllDone();
+  renderCard(state.currentIndex);
+  updateProgress();
+}
+
+function goToCard(idx) {
+  state.currentIndex = idx;
+  saveState();
+  hideAllDone();
+  renderCard(idx);
+  updateProgress();
+  closeOverview();
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+function markDone() {
+  const card = CARDS[state.currentIndex];
+  if (state.completed[card.ref]) {
+    delete state.completed[card.ref];
+    auditEntry(card.ref, 'undo');
+    saveState();
+    renderCard(state.currentIndex);
+    updateProgress();
+    return;
+  }
+  const el = document.getElementById('mainCard');
+  const doneOverlay = document.getElementById('doneOverlay');
+  doneOverlay.style.opacity = '1';
+  el.classList.add('fly-down');
+  state.completed[card.ref] = true;
+  auditEntry(card.ref, 'complete');
+  saveState();
+  updateProgress();
+  setTimeout(() => {
+    doneOverlay.style.opacity = '0';
+    el.classList.remove('fly-down');
+    el.style.transform = '';
+    if (state.currentIndex < CARDS.length - 1) {
+      state.currentIndex++;
+      saveState();
+      renderCard(state.currentIndex);
+    } else {
+      showAllDone();
+    }
+  }, 420);
+}
+
+// ── NOTES ─────────────────────────────────────────────────────────────────────
+function openNotes() {
+  const card = CARDS[state.currentIndex];
+  document.getElementById('modalTitle').textContent = card.ref;
+  document.getElementById('modalSub').textContent = card.loc.substring(0, 60) + (card.loc.length > 60 ? '…' : '');
+  document.getElementById('notesTextarea').value = state.notes[card.ref] || '';
+  document.getElementById('notesModal').classList.add('open');
+  setTimeout(() => document.getElementById('notesTextarea').focus(), 300);
+}
+function closeNotes() {
+  document.getElementById('notesModal').classList.remove('open');
+}
+function closeNotesOnBackdrop(e) {
+  if (e.target === document.getElementById('notesModal')) closeNotes();
+}
+function saveNote(complete) {
+  const card = CARDS[state.currentIndex];
+  const text = document.getElementById('notesTextarea').value.trim();
+  if (text) {
+    state.notes[card.ref] = text;
+    auditEntry(card.ref, 'note', { text });
+  } else {
+    if (state.notes[card.ref]) auditEntry(card.ref, 'note_delete');
+    delete state.notes[card.ref];
+  }
+  const wasAlreadyDone = !!state.completed[card.ref];
+  if (complete && !wasAlreadyDone) {
+    state.completed[card.ref] = true;
+    auditEntry(card.ref, 'complete');
+  }
+  saveState();
+  closeNotes();
+  if (complete && !wasAlreadyDone && state.currentIndex < CARDS.length - 1) {
+    state.currentIndex++;
+    saveState();
+  }
+  renderCard(state.currentIndex);
+  updateProgress();
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────────────────────────
+function openOverview() {
+  const done = Object.keys(state.completed).filter(k => state.completed[k]).length;
+  const noted = Object.keys(state.notes).length;
+  document.getElementById('overviewStats').textContent = `${done} complete · ${noted} with notes`;
+
+  const list = document.getElementById('ovList');
+  list.innerHTML = CARDS.map((c, i) => {
+    const isDone = !!state.completed[c.ref];
+    const hasNote = !!state.notes[c.ref];
+    const isCurrent = i === state.currentIndex;
+    let dotClass = 'pending', dotContent = String(i+1).padStart(2,'0');
+    if (isCurrent) { dotClass = 'current-item'; dotContent = '►'; }
+    else if (isDone && hasNote) { dotClass = 'done'; dotContent = '✓'; }
+    else if (isDone) { dotClass = 'done'; dotContent = '✓'; }
+    else if (hasNote) { dotClass = 'has-note'; dotContent = '✎'; }
+
+    const noteSnip = hasNote ? `<div class="ov-note-snip">✎ ${state.notes[c.ref].substring(0,40)}${state.notes[c.ref].length>40?'…':''}</div>` : '';
+    const distStr = c.dist ? `${c.dist}` : '—';
+
+    return `<div class="ov-item${isCurrent?' current':''}" onclick="goToCard(${i})">
+      <div class="ov-dot ${dotClass}">${dotContent}</div>
+      <div class="ov-ref">${c.ref}</div>
+      <div class="ov-info">
+        <div class="ov-loc">${c.loc.substring(0,50)}${c.loc.length>50?'…':''}</div>
+        <div class="ov-dist">${distStr}${c.w3w ? ' · ' + c.w3w.substring(0,20) : ''}</div>
+        ${noteSnip}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('overviewPanel').classList.add('open');
+  // Scroll to current
+  setTimeout(() => {
+    const cur = list.querySelector('.current');
+    if (cur) cur.scrollIntoView({ block:'center', behavior:'smooth' });
+  }, 300);
+}
+function closeOverview() {
+  document.getElementById('overviewPanel').classList.remove('open');
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+function exportData() {
+  // Build lookup: last 'complete' audit entry per ref
+  const completions = {};
+  (state.audit || []).forEach(e => {
+    if (e.action === 'complete') completions[e.ref] = e;
+  });
+
+  const rows = [['Ref','Distance','W3W','Location','Obstacle','Net Risk','Residual Risk','Status','Notes','Completed By','Role','Completed At']];
+  CARDS.forEach(c => {
+    const comp = completions[c.ref];
+    rows.push([
+      c.ref, c.dist, c.w3w,
+      '"' + c.loc.replace(/"/g,'""') + '"',
+      c.obstacle ? 'YES' : 'NO',
+      c.netR || '', c.resR || '',
+      state.completed[c.ref] ? 'COMPLETE' : 'PENDING',
+      '"' + (state.notes[c.ref] || '').replace(/"/g,'""') + '"',
+      comp ? '"' + comp.user + '"' : '',
+      comp ? '"' + (comp.role || '') + '"' : '',
+      comp ? comp.ts : '',
+    ]);
+  });
+
+  // Append full audit log
+  rows.push([]);
+  rows.push(['--- AUDIT LOG ---']);
+  rows.push(['Timestamp','Ref','Action','User','Role','Event','Note']);
+  (state.audit || []).forEach(e => {
+    rows.push([e.ts, e.ref, e.action, '"'+(e.user||'')+'"', '"'+(e.role||'')+'"', '"'+(e.event||'')+'"', '"'+(e.text||'').replace(/"/g,'""')+'"']);
+  });
+
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type:'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ofcourse-${(currentUser.event||'export').toLowerCase().replace(/\s+/g,'-')}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function confirmReset() {
+  if (confirm('Reset all progress and notes? This cannot be undone.')) {
+    state = { currentIndex: 0, completed: {}, notes: {}, audit: [] };
+    saveState();
+    hideAllDone();
+    closeOverview();
+    renderCard(0);
+    updateProgress();
+    showLanding();
+  }
+}
+
+// ── SWIPE / DRAG ──────────────────────────────────────────────────────────────
+(function() {
+  const card = document.getElementById('mainCard');
+  const doneOverlay = document.getElementById('doneOverlay');
+  const notesOverlay = document.getElementById('notesOverlay');
+  let startY = null, startX = null, startTime = null, currentY = 0;
+  const THRESHOLD = 80;
+  const VELOCITY_THRESHOLD = 0.35; // px/ms
+
+  function onStart(clientX, clientY) {
+    startY = clientY;
+    startX = clientX;
+    startTime = Date.now();
+    currentY = 0;
+    card.classList.remove('snap-back', 'fly-down', 'fly-up');
+  }
+
+  function onMove(clientX, clientY) {
+    if (startY === null) return;
+    const dy = clientY - startY;
+    const dx = clientX - startX;
+
+    // Only track if more vertical than horizontal
+    if (Math.abs(dy) < Math.abs(dx) * 0.8) return;
+
+    currentY = dy;
+    const rot = dy * 0.02;
+    card.style.transform = `translateY(${dy * 0.6}px) rotate(${rot}deg)`;
+    card.classList.add('is-dragging');
+
+    // Show overlays
+    const progress = Math.min(Math.abs(dy) / THRESHOLD, 1);
+    if (dy > 20) {
+      doneOverlay.style.opacity = progress * 0.9;
+      notesOverlay.style.opacity = 0;
+    } else if (dy < -20) {
+      notesOverlay.style.opacity = progress * 0.9;
+      doneOverlay.style.opacity = 0;
+    } else {
+      doneOverlay.style.opacity = 0;
+      notesOverlay.style.opacity = 0;
+    }
+  }
+
+  function onEnd() {
+    if (startY === null) return;
+    card.classList.remove('is-dragging');
+    doneOverlay.style.opacity = 0;
+    notesOverlay.style.opacity = 0;
+
+    const elapsed = Date.now() - startTime;
+    const velocity = Math.abs(currentY) / elapsed;
+    const triggered = Math.abs(currentY) > THRESHOLD || velocity > VELOCITY_THRESHOLD;
+
+    if (triggered) {
+      if (currentY > 0) {
+        // Swipe down → done
+        markDone();
+        card.style.transform = '';
+      } else {
+        // Swipe up → notes
+        card.classList.add('snap-back');
+        card.style.transform = '';
+        setTimeout(openNotes, 150);
+      }
+    } else {
+      card.classList.add('snap-back');
+      card.style.transform = '';
+    }
+
+    startY = null;
+  }
+
+  // Touch events
+  card.addEventListener('touchstart', e => {
+    onStart(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+
+  card.addEventListener('touchmove', e => {
+    onMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+
+  card.addEventListener('touchend', () => onEnd(), { passive: true });
+  card.addEventListener('touchcancel', () => {
+    card.classList.remove('is-dragging');
+    card.classList.add('snap-back');
+    card.style.transform = '';
+    doneOverlay.style.opacity = 0;
+    notesOverlay.style.opacity = 0;
+    startY = null;
+  }, { passive: true });
+
+  // Mouse events for desktop
+  let mouseDown = false;
+  card.addEventListener('mousedown', e => {
+    mouseDown = true;
+    onStart(e.clientX, e.clientY);
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!mouseDown) return;
+    onMove(e.clientX, e.clientY);
+  });
+  document.addEventListener('mouseup', () => {
+    if (!mouseDown) return;
+    mouseDown = false;
+    onEnd();
+  });
+})();
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (document.getElementById('notesModal').classList.contains('open')) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate(1);
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') navigate(-1);
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); markDone(); }
+  if (e.key === 'n') openNotes();
+});
+
+// ── MAP ───────────────────────────────────────────────────────────────────────
+
+const TERRAINS = {
+  tarmac: { label: 'Tarmac', color: '#888888' },
+  grass:  { label: 'Grass',  color: '#5a9a6a' },
+  gravel: { label: 'Gravel', color: '#c4a060' },
+  trail:  { label: 'Trail',  color: '#8a6540' },
+  mud:    { label: 'Mud',    color: '#6a8440' },
+};
+const NODE_TYPES = {
+  waypoint:    { content: '' },
+  directional: { content: '→' },
+  start:       { content: 'S' },
+  finish:      { content: 'F' },
+};
+
+const MAP_KEY   = 'pmg2026_pins';
+let mapPins = {};
+const ROUTE_KEY = 'pmg2026_route';
+let routePoints = [];
+
+const TILE_LAYERS = {
+  map: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    maxZoom: 19
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri &mdash; Source: Esri, DigitalGlobe, USGS',
+    maxZoom: 19
+  },
+  terrain: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri &mdash; Source: Esri, USGS, NOAA',
+    maxZoom: 19
+  },
+};
+const LAYER_KEY = 'pmg2026_layer';
+let activeLayer = localStorage.getItem(LAYER_KEY) || 'map';
+
+// Leaflet state
+let lmap = null;
+let lTileLayer = null;
+let lMarkers = {};    // ref → L.Marker  (feature pins)
+let lFeatLine = null; // faint connector between feature pins
+let lRouteLines = []; // L.Polyline[] — one per terrain run
+let lRouteNodes = []; // draggable node markers
+
+// UI state
+let mapEditMode = false;
+let mapSubMode = null;    // 'route' | 'features' | null
+let mapPickIdx = 0;
+let activeTerrain = 'tarmac';
+let selectedNodeIdx = null;
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+function loadMapPins() {
+  try { const s = localStorage.getItem(MAP_KEY); if (s) mapPins = JSON.parse(s); } catch(e) {}
+}
+function saveMapPins() { localStorage.setItem(MAP_KEY, JSON.stringify(mapPins)); }
+function loadRoute() {
+  try { const s = localStorage.getItem(ROUTE_KEY); if (s) routePoints = JSON.parse(s); } catch(e) {}
+}
+function saveRoute() { localStorage.setItem(ROUTE_KEY, JSON.stringify(routePoints)); }
+
+// ── Panel open/close ──────────────────────────────────────────────────────────
+function openMap() {
+  mapEditMode = false; mapSubMode = null; selectedNodeIdx = null;
+  mapPickIdx = state.currentIndex;
+  const panel = document.getElementById('mapPanel');
+  panel.classList.add('open');
+  document.getElementById('mapEditBtn').textContent = 'Edit';
+  document.getElementById('mapEditBtn').classList.remove('editing');
+  document.getElementById('mapSubmodeBar').style.display = 'none';
+  document.getElementById('mapRouteToolbar').style.display = 'none';
+  document.getElementById('terrainRow').style.display = 'none';
+  document.getElementById('mapToolbar').style.display = 'none';
+  document.getElementById('nodeEditor').classList.remove('open');
+  document.getElementById('btnRouteMode').classList.remove('active');
+  document.getElementById('btnFeatMode').classList.remove('active');
+  setMapLayer(activeLayer);
+  panel.addEventListener('transitionend', function once() {
+    panel.removeEventListener('transitionend', once);
+    if (!lmap) initLeaflet();
+    else { lmap.invalidateSize(); refreshMapMarkers(); redrawRoute(false); }
+  });
+}
+function closeMap() { document.getElementById('mapPanel').classList.remove('open'); }
+
+// ── Edit toggle ───────────────────────────────────────────────────────────────
+function toggleMapEdit() {
+  mapEditMode = !mapEditMode;
+  document.getElementById('mapEditBtn').textContent = mapEditMode ? 'Done' : 'Edit';
+  document.getElementById('mapEditBtn').classList.toggle('editing', mapEditMode);
+  document.getElementById('mapSubmodeBar').style.display = mapEditMode ? 'flex' : 'none';
+  if (!mapEditMode) {
+    mapSubMode = null; selectedNodeIdx = null;
+    document.getElementById('mapRouteToolbar').style.display = 'none';
+    document.getElementById('terrainRow').style.display = 'none';
+    document.getElementById('mapToolbar').style.display = 'none';
+    document.getElementById('nodeEditor').classList.remove('open');
+    document.getElementById('btnRouteMode').classList.remove('active');
+    document.getElementById('btnFeatMode').classList.remove('active');
+    redrawRoute(false);
+  }
+}
+
+function setMapSubMode(mode) {
+  mapSubMode = mode; selectedNodeIdx = null;
+  document.getElementById('btnRouteMode').classList.toggle('active', mode === 'route');
+  document.getElementById('btnFeatMode').classList.toggle('active', mode === 'features');
+  document.getElementById('mapRouteToolbar').style.display = mode === 'route' ? 'flex' : 'none';
+  document.getElementById('terrainRow').style.display    = mode === 'route' ? 'flex' : 'none';
+  document.getElementById('mapToolbar').style.display    = mode === 'features' ? 'flex' : 'none';
+  document.getElementById('nodeEditor').classList.remove('open');
+  if (mode === 'route') {
+    redrawRoute(true);
+  } else {
+    redrawRoute(false);
+    refreshMapToolbar();
+    const pos = mapPins[CARDS[mapPickIdx].ref];
+    if (pos && lmap) lmap.panTo([pos.lat, pos.lng]);
+  }
+}
+
+// ── Leaflet init ──────────────────────────────────────────────────────────────
+function setMapLayer(layer) {
+  activeLayer = layer;
+  localStorage.setItem(LAYER_KEY, layer);
+  document.querySelectorAll('.map-layer-btn').forEach(b => b.classList.remove('active'));
+  const btnId = { map: 'layerBtnMap', satellite: 'layerBtnSatellite', terrain: 'layerBtnTerrain' }[layer];
+  if (btnId) document.getElementById(btnId).classList.add('active');
+  if (!lmap) return;
+  if (lTileLayer) { lTileLayer.remove(); lTileLayer = null; }
+  const cfg = TILE_LAYERS[layer] || TILE_LAYERS.map;
+  lTileLayer = L.tileLayer(cfg.url, { attribution: cfg.attribution, maxZoom: cfg.maxZoom }).addTo(lmap);
+  lTileLayer.bringToBack();
+  if (cardMiniLmap && cardMiniTileLayer) {
+    cardMiniTileLayer.remove();
+    cardMiniTileLayer = L.tileLayer(cfg.url, { maxZoom: 19 }).addTo(cardMiniLmap);
+  }
+}
+
+function initLeaflet() {
+  lmap = L.map('leafletMap', { zoomControl: true }).setView([55.823, -4.298], 15);
+  setMapLayer(activeLayer);
+  lmap.on('click', e => {
+    if (selectedNodeIdx !== null) { closeNodeEditor(); return; }
+    if (!mapEditMode) return;
+    if (mapSubMode === 'route') addRouteNode(e.latlng.lat, e.latlng.lng);
+    else if (mapSubMode === 'features') placePin(mapPickIdx, e.latlng.lat, e.latlng.lng);
+  });
+  refreshMapMarkers();
+  redrawRoute(false);
+}
+
+// ── Course route ──────────────────────────────────────────────────────────────
+function routeNodeIcon(i) {
+  const pt = routePoints[i];
+  const terrain = pt.terrain || 'tarmac';
+  const type    = pt.type    || 'waypoint';
+  const borderCol = TERRAINS[terrain]?.color || '#888';
+  const isSel = i === selectedNodeIdx;
+  const content = NODE_TYPES[type]?.content || '';
+  let bg = '#fff', fg = '#333';
+  if (type === 'start')  { bg = '#2a7a3a'; fg = '#fff'; }
+  if (type === 'finish') { bg = '#c0392b'; fg = '#fff'; }
+  if (type === 'directional') fg = borderCol;
+  const sz  = isSel ? 20 : 14;
+  const bw  = isSel ? 3  : 2;
+  const shd = isSel
+    ? '0 0 0 3px rgba(255,255,255,.5), 0 2px 8px rgba(0,0,0,.6)'
+    : '0 1px 4px rgba(0,0,0,.5)';
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};border:${bw}px solid ${borderCol};display:flex;align-items:center;justify-content:center;color:${fg};font-family:'DM Mono',monospace;font-size:${isSel?9:7}px;font-weight:700;box-shadow:${shd};cursor:grab">${content}</div>`,
+    iconSize: [sz, sz], iconAnchor: [sz/2, sz/2]
+  });
+}
+
+function rebuildRouteLines() {
+  lRouteLines.forEach(l => l.remove()); lRouteLines = [];
+  if (routePoints.length < 2 || !lmap) return;
+  let runStart = 0;
+  for (let i = 1; i < routePoints.length; i++) {
+    const runTerrain  = routePoints[runStart].terrain || 'tarmac';
+    const nextTerrain = routePoints[i].terrain || 'tarmac';
+    const isLast = i === routePoints.length - 1;
+    if (nextTerrain !== runTerrain || isLast) {
+      const pts = routePoints.slice(runStart, i + 1).map(p => [p.lat, p.lng]);
+      const col = TERRAINS[runTerrain]?.color || '#888';
+      const pl  = L.polyline(pts, { color: col, weight: 3.5, opacity: 0.85, lineJoin: 'round' }).addTo(lmap);
+      pl.bringToBack(); lRouteLines.push(pl);
+      runStart = i;
+    }
+  }
+}
+
+function redrawRoute(showNodes) {
+  lRouteNodes.forEach(m => m.remove()); lRouteNodes = [];
+  lRouteLines.forEach(l => l.remove()); lRouteLines = [];
+  if (routePoints.length === 0) { updateRouteCount(); return; }
+  rebuildRouteLines();
+  if (showNodes) {
+    routePoints.forEach((pt, i) => {
+      const m = L.marker([pt.lat, pt.lng], {
+        icon: routeNodeIcon(i), draggable: true, zIndexOffset: 600
+      }).addTo(lmap);
+      m.on('drag', function() {
+        const ll = this.getLatLng();
+        routePoints[i] = { ...routePoints[i], lat: ll.lat, lng: ll.lng };
+        rebuildRouteLines();
+      });
+      m.on('dragend', saveRoute);
+      m.on('click', e => { e.originalEvent.stopPropagation(); selectRouteNode(i); });
+      lRouteNodes.push(m);
+    });
+  }
+  updateRouteCount();
+}
+
+function addRouteNode(lat, lng) {
+  routePoints.push({ lat, lng, terrain: activeTerrain, type: 'waypoint' });
+  saveRoute(); redrawRoute(true);
+}
+
+function undoRouteNode() {
+  if (!routePoints.length) return;
+  if (selectedNodeIdx === routePoints.length - 1) {
+    document.getElementById('nodeEditor').classList.remove('open');
+    selectedNodeIdx = null;
+  }
+  routePoints.pop(); saveRoute(); redrawRoute(true);
+}
+
+function confirmClearRoute() {
+  if (!routePoints.length) return;
+  if (confirm('Clear the entire course route? This cannot be undone.')) {
+    routePoints = []; selectedNodeIdx = null;
+    document.getElementById('nodeEditor').classList.remove('open');
+    saveRoute(); redrawRoute(true);
+  }
+}
+
+function updateRouteCount() {
+  const el = document.getElementById('mapRouteCount');
+  if (el) el.textContent = `${routePoints.length} node${routePoints.length !== 1 ? 's' : ''}`;
+}
+
+// ── Node editor ───────────────────────────────────────────────────────────────
+function selectRouteNode(i) {
+  selectedNodeIdx = i;
+  lRouteNodes.forEach((m, idx) => m.setIcon(routeNodeIcon(idx)));
+  const pt = routePoints[i];
+  document.getElementById('nodeEditorTitle').textContent = `Node ${i + 1} / ${routePoints.length}`;
+  document.querySelectorAll('.ne-type-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.type === (pt.type || 'waypoint')));
+  document.querySelectorAll('.ne-terrain-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.terrain === (pt.terrain || 'tarmac')));
+  document.getElementById('nodeEditor').classList.add('open');
+}
+
+function closeNodeEditor() {
+  document.getElementById('nodeEditor').classList.remove('open');
+  selectedNodeIdx = null;
+  lRouteNodes.forEach((m, idx) => m.setIcon(routeNodeIcon(idx)));
+}
+
+function setNodeType(type) {
+  if (selectedNodeIdx === null) return;
+  routePoints[selectedNodeIdx] = { ...routePoints[selectedNodeIdx], type };
+  saveRoute();
+  lRouteNodes[selectedNodeIdx]?.setIcon(routeNodeIcon(selectedNodeIdx));
+  document.querySelectorAll('.ne-type-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.type === type));
+}
+
+function setNodeTerrain(terrain) {
+  if (selectedNodeIdx === null) return;
+  routePoints[selectedNodeIdx] = { ...routePoints[selectedNodeIdx], terrain };
+  saveRoute(); rebuildRouteLines();
+  lRouteNodes[selectedNodeIdx]?.setIcon(routeNodeIcon(selectedNodeIdx));
+  document.querySelectorAll('.ne-terrain-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.terrain === terrain));
+}
+
+function setActiveTerrain(terrain) {
+  activeTerrain = terrain;
+  document.querySelectorAll('.terrain-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.t === terrain));
+}
+
+// ── Feature pins ──────────────────────────────────────────────────────────────
+function pinColor(idx) {
+  const c = CARDS[idx];
+  if (state.completed[c.ref]) return '#2a7a3a';
+  if (c.obstacle) return '#e55a00';
+  return '#1a5c8a';
+}
+
+function pinIcon(idx) {
+  const c = CARDS[idx];
+  const sel = idx === mapPickIdx && mapSubMode === 'features';
+  const col = pinColor(idx);
+  const sz = sel ? 32 : 24;
+  const ring = sel ? '3px solid #fff' : '2px solid rgba(255,255,255,.35)';
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};border:${ring};display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:${sel?8:6}px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.5)">${c.ref}</div>`,
+    iconSize: [sz, sz], iconAnchor: [sz/2, sz/2]
+  });
+}
+
+function refreshMapMarkers() {
+  if (!lmap) return;
+  Object.values(lMarkers).forEach(m => m.remove());
+  lMarkers = {};
+  if (lFeatLine) { lFeatLine.remove(); lFeatLine = null; }
+  const placed = CARDS.map((c, i) => ({ ref: c.ref, idx: i, pos: mapPins[c.ref] })).filter(x => x.pos);
+  if (placed.length > 1) {
+    lFeatLine = L.polyline(placed.map(x => [x.pos.lat, x.pos.lng]), {
+      color: '#888', weight: 1, opacity: 0.35, dashArray: '3 5'
+    }).addTo(lmap);
+    lFeatLine.bringToBack();
+  }
+  placed.forEach(({ ref, idx, pos }) => {
+    const m = L.marker([pos.lat, pos.lng], { icon: pinIcon(idx) }).addTo(lmap);
+    m.on('click', e => {
+      e.originalEvent.stopPropagation();
+      if (mapSubMode === 'features') { mapPickIdx = idx; refreshMapMarkers(); refreshMapToolbar(); }
+    });
+    lMarkers[ref] = m;
+  });
+  document.getElementById('mapCount').textContent = `${placed.length} / ${CARDS.length} pinned`;
+}
+
+function placePin(idx, lat, lng) {
+  mapPins[CARDS[idx].ref] = { lat, lng }; saveMapPins(); refreshMapMarkers();
+  const next = nextUnpinned(idx + 1);
+  if (next !== null) { mapPickIdx = next; refreshMapMarkers(); }
+  refreshMapToolbar();
+}
+
+function nextUnpinned(from) {
+  for (let i = from; i < CARDS.length; i++) if (!mapPins[CARDS[i].ref]) return i;
+  for (let i = 0; i < from; i++) if (!mapPins[CARDS[i].ref]) return i;
+  return null;
+}
+
+function unpinCard() {
+  delete mapPins[CARDS[mapPickIdx].ref]; saveMapPins(); refreshMapMarkers(); refreshMapToolbar();
+}
+
+function mapNav(dir) {
+  const next = mapPickIdx + dir;
+  if (next < 0 || next >= CARDS.length) return;
+  mapPickIdx = next; refreshMapMarkers(); refreshMapToolbar();
+  const pos = mapPins[CARDS[mapPickIdx].ref];
+  if (pos && lmap) lmap.panTo([pos.lat, pos.lng]);
+}
+
+function mapFitBounds() {
+  if (!lmap) return;
+  const pts = [...Object.values(mapPins).map(p => [p.lat, p.lng]), ...routePoints.map(p => [p.lat, p.lng])];
+  if (pts.length > 0) lmap.fitBounds(pts, { padding: [28, 28] });
+}
+
+function confirmClearMap() {
+  if (confirm('Remove all feature pins? This cannot be undone.')) {
+    mapPins = {}; saveMapPins(); refreshMapMarkers(); refreshMapToolbar();
+  }
+}
+
+function refreshMapToolbar() {
+  const c = CARDS[mapPickIdx];
+  const pinned = !!mapPins[c.ref];
+  document.getElementById('mapRef').textContent = c.ref;
+  let desc = c.loc;
+  if (c.obstacle) {
+    const rest = c.loc.slice(10);
+    const sep = rest.indexOf(' — ');
+    desc = sep !== -1 ? rest.slice(sep + 3) : rest.replace(/\.$/, '');
+  }
+  document.getElementById('mapDesc').textContent = (c.obstacle ? '⚡ ' : '') + desc.slice(0, 42) + (desc.length > 42 ? '…' : '');
+  document.getElementById('mapPinStatus').textContent = pinned ? '\u{1F4CD} pinned' : 'tap map to pin';
+  document.getElementById('mapUnpin').style.display = pinned ? 'inline-flex' : 'none';
+  document.getElementById('mapPrev').disabled = mapPickIdx === 0;
+  document.getElementById('mapNext').disabled = mapPickIdx === CARDS.length - 1;
+}
+
+// ── CARD MINI-MAP ─────────────────────────────────────────────────────────────
+let cardMiniLmap = null;
+let cardMiniTileLayer = null;
+let cardMiniRouteLine = null;
+let cardMiniFeatureMarkers = [];
+let cardMiniPinMarker = null;
+let cardMiniUserMarker = null;
+let lastGeoPos = null;
+
+function initGeoWatch() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.watchPosition(pos => {
+    lastGeoPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    updateCardMiniUserMarker();
+  }, null, { enableHighAccuracy: true, maximumAge: 5000 });
+}
+
+function updateCardMiniUserMarker() {
+  if (!cardMiniLmap || !lastGeoPos) return;
+  const ll = [lastGeoPos.lat, lastGeoPos.lng];
+  if (cardMiniUserMarker) {
+    cardMiniUserMarker.setLatLng(ll);
+  } else {
+    cardMiniUserMarker = L.marker(ll, {
+      icon: L.divIcon({ className: '', html: '<div class="geo-user-dot"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }),
+      interactive: false, zIndexOffset: 500
+    }).addTo(cardMiniLmap);
+  }
+}
+
+function updateCardMiniMap(idx) {
+  const card = CARDS[idx];
+  const pin = mapPins[card.ref];
+  const container = document.getElementById('cardMiniMap');
+  if (!pin) { container.style.display = 'none'; return; }
+
+  container.style.display = 'block';
+
+  if (!cardMiniLmap) {
+    cardMiniLmap = L.map('cardMiniMap', {
+      zoomControl: false, attributionControl: false,
+      dragging: true, scrollWheelZoom: true,
+      doubleClickZoom: true, boxZoom: false, keyboard: false,
+    }).setView([pin.lat, pin.lng], 17);
+    const cfg = TILE_LAYERS[activeLayer] || TILE_LAYERS.map;
+    cardMiniTileLayer = L.tileLayer(cfg.url, { maxZoom: 19 }).addTo(cardMiniLmap);
+  }
+
+  requestAnimationFrame(() => {
+    if (!cardMiniLmap) return;
+    cardMiniLmap.invalidateSize();
+    cardMiniLmap.panTo([pin.lat, pin.lng]);
+  });
+
+  // Course route — white high-contrast line drawn beneath markers
+  if (cardMiniRouteLine) { cardMiniRouteLine.remove(); cardMiniRouteLine = null; }
+  if (routePoints.length >= 2) {
+    cardMiniRouteLine = L.polyline(
+      routePoints.map(p => [p.lat, p.lng]),
+      { color: '#fff', weight: 3.5, opacity: 0.9, lineJoin: 'round' }
+    ).addTo(cardMiniLmap);
+    cardMiniRouteLine.bringToBack();
+  }
+
+  // Other pinned cards at 50% opacity (drawn before active pin so active stays on top)
+  cardMiniFeatureMarkers.forEach(m => m.remove());
+  cardMiniFeatureMarkers = [];
+  CARDS.forEach((c, i) => {
+    if (i === idx) return;
+    const p = mapPins[c.ref];
+    if (!p) return;
+    const col = state.completed[c.ref] ? '#2a7a3a' : (c.obstacle ? '#e55a00' : '#1a5c8a');
+    const fHtml = `<div style="width:16px;height:16px;border-radius:50%;background:${col};border:1.5px solid rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:6px;font-weight:500">${c.ref}</div>`;
+    const fIcon = L.divIcon({ className: '', html: fHtml, iconSize: [16, 16], iconAnchor: [8, 8] });
+    const m = L.marker([p.lat, p.lng], { icon: fIcon, interactive: false, opacity: 0.5, zIndexOffset: -100 }).addTo(cardMiniLmap);
+    cardMiniFeatureMarkers.push(m);
+  });
+
+  // Pin marker for this card's location
+  const pinHtml = `<div style="width:22px;height:22px;border-radius:50%;background:#e55a00;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:7px;font-weight:500">${card.ref}</div>`;
+  const pinIcon = L.divIcon({ className: '', html: pinHtml, iconSize: [22, 22], iconAnchor: [11, 11] });
+  if (cardMiniPinMarker) {
+    cardMiniPinMarker.setLatLng([pin.lat, pin.lng]);
+    cardMiniPinMarker.setIcon(pinIcon);
+  } else {
+    cardMiniPinMarker = L.marker([pin.lat, pin.lng], { icon: pinIcon, interactive: false }).addTo(cardMiniLmap);
+  }
+
+  updateCardMiniUserMarker();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+loadUser();
+loadState();
+loadMapPins();
+loadRoute();
+initDistBar();
+initGeoWatch();
+if (currentUser.name && currentUser.event) {
+  document.getElementById('landingScreen').style.display = 'none';
+  renderCard(state.currentIndex);
+  updateProgress();
+} else {
+  showLanding();
+}
+</script>
+</body>
+</html>
