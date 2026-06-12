@@ -38,6 +38,7 @@ html, body {
   font-family: 'Barlow Condensed', sans-serif;
   background: var(--bg);
   color: var(--text);
+  touch-action: manipulation;
 }
 
 /* ── HEADER ─────────────────────────────── */
@@ -161,6 +162,16 @@ html, body {
   transform: translateY(-110%) !important;
   pointer-events: none;
 }
+.card.fly-left {
+  transition: transform 0.3s cubic-bezier(0.55, 0, 0.85, 0.06) !important;
+  transform: translateX(-115%) !important;
+  pointer-events: none;
+}
+.card.fly-right {
+  transition: transform 0.3s cubic-bezier(0.55, 0, 0.85, 0.06) !important;
+  transform: translateX(115%) !important;
+  pointer-events: none;
+}
 
 /* Action overlays during drag */
 .drag-overlay {
@@ -191,10 +202,29 @@ html, body {
 
 /* ── CARD HEADER ────────────────────────── */
 .card-head {
+  position: relative;
+  overflow: hidden;
   padding: 14px 16px 11px;
   background: var(--card);
   border-bottom: 1.5px solid rgba(0,0,0,0.08);
   flex-shrink: 0;
+}
+.card-head-event {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 14px;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 17px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  opacity: 0.1;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
 }
 .card-ref-row {
   display: flex;
@@ -250,15 +280,36 @@ html, body {
 .badge-rmed { background: var(--r-low); color: #333; }
 .badge-rhi { background: var(--r-med); color: white; }
 .badge-rcrit { background: var(--r-high); color: white; }
+.badge-pending-import { background: #2a1a3a; color: #c090f8; border: 1px solid #4a2a6a; }
 
 /* ── CARD MINI-MAP ──────────────────────── */
 #cardMiniMap {
-  height: 360px;
   flex-shrink: 0;
   display: none;
   background: #1a2a1a;
-  border-bottom: 1.5px solid rgba(0,0,0,0.14);
+  touch-action: none;
+  min-height: 120px;
 }
+.map-resize-handle {
+  height: 16px;
+  background: var(--card);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  flex-shrink: 0;
+  touch-action: none;
+  user-select: none;
+  border-bottom: 1.5px solid rgba(0,0,0,0.08);
+}
+.map-resize-handle.dragging { background: rgba(229,90,0,0.05); }
+.map-resize-grip {
+  width: 36px; height: 4px;
+  background: rgba(0,0,0,0.16);
+  border-radius: 2px;
+  transition: width 0.15s, background 0.15s;
+}
+.map-resize-handle.dragging .map-resize-grip { background: var(--accent); width: 48px; }
 .geo-user-dot {
   width: 14px; height: 14px; border-radius: 50%;
   background: #4a90e2; border: 2.5px solid #fff;
@@ -614,6 +665,9 @@ html, body {
 .ov-dot.has-note { background: var(--blue); color: white; }
 .ov-dot.current-item { background: var(--accent); color: white; }
 .ov-dot.pending { background: #1e2a1a; color: #444; font-size: 10px; font-family: 'DM Mono', monospace; }
+.ov-dot.pending-import { background: #2a1a3a; color: #c090f8; font-size: 12px; }
+.ov-dot.custom-card { background: #2e1a48; color: #a070d8; font-size: 14px; }
+.ov-ref.custom-ref { color: #a070d8; }
 .ov-ref {
   font-family: 'Bebas Neue', cursive;
   font-size: 22px;
@@ -662,17 +716,30 @@ html, body {
 
 /* ── DISTANCE BAR ───────────────────────── */
 .count-pill {
+  position: relative;
   font-family: 'DM Mono', monospace;
   font-size: 11px;
   background: rgba(0,0,0,0.25);
-  color: #888;
-  padding: 3px 8px;
+  color: #aaa;
+  padding: 3px 10px;
   border-radius: 10px;
   white-space: nowrap;
   flex-shrink: 0;
   letter-spacing: 0.5px;
   border: 1px solid var(--border);
+  overflow: hidden;
+  min-width: 44px;
+  text-align: center;
 }
+.count-fill {
+  position: absolute;
+  inset: 0;
+  background: rgba(90,200,130,0.18);
+  border-radius: 10px;
+  width: 0%;
+  transition: width 0.45s ease;
+}
+.count-pill span { position: relative; z-index: 1; }
 .dist-bar { flex: 1; min-width: 0; padding: 1px 0; }
 .dist-track {
   position: relative;
@@ -930,6 +997,61 @@ a.w3w-link:active { opacity: 0.7; }
 #leafletMap { flex: 1; min-height: 0; }
 .leaflet-container { background: #1a2a16; font-family: 'Barlow Condensed', sans-serif; }
 
+/* ── ROUTE SELECTOR BAR ─────────────────── */
+.route-selector-bar {
+  display: flex; align-items: center;
+  gap: 6px; padding: 7px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0; overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.route-selector-bar::-webkit-scrollbar { display: none; }
+.route-chip {
+  flex-shrink: 0; height: 28px; padding: 0 12px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 14px; color: #555;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.5px;
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.route-chip:active { background: rgba(255,255,255,0.05); }
+.route-chip.active {
+  background: rgba(229,90,0,0.12);
+  color: var(--accent);
+  border-color: rgba(229,90,0,0.4);
+}
+.route-chip-new {
+  border-style: dashed;
+  color: #3a4a36;
+  border-color: #2a3a26;
+}
+.route-chip-new:active { background: rgba(229,90,0,0.06); }
+.route-selector-empty {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: #333; letter-spacing: 0.5px;
+  padding: 0 2px; flex-shrink: 0;
+}
+
+/* ── ROUTE NAME MODAL ────────────────────── */
+.route-name-modal-input {
+  width: 100%; height: 46px;
+  background: #0d1209;
+  border: 1.5px solid #2a3a26;
+  border-radius: 12px;
+  padding: 0 14px;
+  color: #d8d5c8;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px; font-weight: 600;
+  outline: none; margin-bottom: 13px;
+  transition: border-color 0.15s;
+}
+.route-name-modal-input:focus { border-color: var(--accent); }
+.route-name-modal-input::placeholder { color: #333; }
+
 /* ── ALL DONE ───────────────────────────── */
 .all-done-screen {
   display: none;
@@ -959,6 +1081,97 @@ a.w3w-link:active { opacity: 0.7; }
   font-size: 20px; letter-spacing: 2px;
   cursor: pointer;
 }
+
+/* ── CHOICE SCREEN ──────────────────────────── */
+.choice-screen {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px 24px 48px;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.choice-screen.out {
+  opacity: 0; transform: scale(0.97); pointer-events: none;
+}
+.choice-logo {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 52px; letter-spacing: 6px;
+  color: var(--accent); line-height: 1;
+  margin-bottom: 2px;
+}
+.choice-tagline {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 3px;
+  color: #333; text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.choice-meta {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.choice-user-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px; font-weight: 600;
+  color: #ccc; letter-spacing: 0.5px;
+}
+.choice-user-role {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 1.5px;
+  color: #444; text-transform: uppercase; margin-top: 2px;
+}
+.choice-event-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 2px;
+  color: var(--accent); text-transform: uppercase; margin-top: 6px;
+}
+.choice-progress-pill {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 1px;
+  color: #5adf7a; background: rgba(90,223,122,0.08);
+  border: 1px solid rgba(90,223,122,0.2);
+  padding: 3px 11px; border-radius: 20px; margin-top: 8px;
+}
+.choice-options {
+  width: 100%; max-width: 360px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.choice-option {
+  width: 100%;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 16px; padding: 20px 18px;
+  display: flex; align-items: center; gap: 14px;
+  cursor: pointer; text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.choice-option:active { background: #1a2414; }
+.choice-option-primary {
+  border-color: rgba(229,90,0,0.35);
+  background: rgba(229,90,0,0.05);
+}
+.choice-option-primary:active { background: rgba(229,90,0,0.12); }
+.choice-option-icon {
+  font-size: 22px; flex-shrink: 0; width: 34px;
+  text-align: center; line-height: 1;
+}
+.choice-option-body { flex: 1; }
+.choice-option-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 26px; letter-spacing: 2px;
+  color: #ddd; line-height: 1;
+}
+.choice-option-primary .choice-option-title { color: var(--accent); }
+.choice-option-desc {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.3px;
+  color: #444; margin-top: 3px;
+}
+.choice-option-arrow {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px; color: #2a3a26; flex-shrink: 0;
+}
+.choice-option-primary .choice-option-arrow { color: rgba(229,90,0,0.45); }
 
 /* ── LANDING SCREEN ─────────────────────── */
 .landing {
@@ -1040,6 +1253,496 @@ a.w3w-link:active { opacity: 0.7; }
   transition: opacity 0.15s;
 }
 .landing-btn.ready { opacity: 1; }
+
+/* ── MENU SHEET ─────────────────────────── */
+.menu-options { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.menu-option {
+  width: 100%;
+  background: #141a10;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex; align-items: center; gap: 14px;
+  cursor: pointer; text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.menu-option:active { background: #1e2a18; border-color: #3a4a36; }
+.menu-option-icon { font-size: 18px; flex-shrink: 0; width: 26px; text-align: center; line-height: 1; color: #666; }
+.menu-option-text {
+  flex: 1;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 24px; letter-spacing: 2px;
+  color: #ccc; line-height: 1;
+}
+.menu-option-arrow {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 20px; color: #2a3a26;
+}
+
+/* ── NOTES PANEL ────────────────────────── */
+.notes-table-wrap {
+  flex: 1; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.note-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 12px 16px;
+  border-bottom: 1px solid #141a10;
+}
+.note-ref-col { flex-shrink: 0; width: 46px; }
+.note-ref-tag {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px; color: var(--accent);
+  letter-spacing: 1px; line-height: 1; display: block;
+}
+.note-content-col { flex: 1; min-width: 0; }
+.note-loc-text {
+  font-size: 11px; font-weight: 600; color: #666;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 4px; display: block;
+}
+.note-body-text {
+  font-size: 14px; font-weight: 500;
+  color: #d8d5c8; line-height: 1.45;
+  white-space: pre-wrap;
+}
+.notes-empty {
+  text-align: center; padding: 60px 24px;
+  color: #333;
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  letter-spacing: 1px; line-height: 1.8;
+}
+.note-meta-text {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #484840; letter-spacing: 0.3px;
+  margin-top: 5px; display: block;
+}
+
+/* ── ADD CARD BUTTON ────────────────────── */
+.btn-add {
+  width: 42px; height: 42px;
+  background: rgba(229,90,0,0.08);
+  border: 1.5px solid rgba(229,90,0,0.3);
+  color: var(--accent);
+  border-radius: 50%;
+  font-size: 22px; line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.12s;
+  font-family: 'Bebas Neue', cursive;
+}
+.btn-add:active { background: rgba(229,90,0,0.2); }
+
+/* ── CUSTOM CARD STRIP ──────────────────── */
+.badge-custom { background: #4a2a6a; color: #c8a0f8; }
+.custom-card-strip {
+  background: #1e1228;
+  color: #a070d8;
+  text-align: center;
+  padding: 5px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  border-top: 1px solid #3a2258;
+}
+.add-card-risk-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.risk-opt {
+  height: 30px; padding: 0 10px;
+  background: transparent; border: 1.5px solid var(--border);
+  border-radius: 6px; color: #555;
+  font-family: 'Bebas Neue', cursive; font-size: 13px; letter-spacing: 1px;
+  cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.risk-opt.active { background: rgba(229,90,0,0.1); color: var(--accent); border-color: rgba(229,90,0,0.3); }
+.risk-opt[data-risk="4"].active  { background: rgba(42,122,58,.15);  color: #2a7a3a; border-color: #2a7a3a; }
+.risk-opt[data-risk="6"].active  { background: rgba(200,164,0,.15);  color: #a08800; border-color: #c8a400; }
+.risk-opt[data-risk="9"].active  { background: rgba(230,126,34,.15); color: #c07010; border-color: #e67e22; }
+.risk-opt[data-risk="12"].active { background: rgba(192,57,43,.15);  color: #c0392b; border-color: #c0392b; }
+.delete-card-link {
+  background: none; border: none;
+  color: #5a2a2a; font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.5px;
+  cursor: pointer; padding: 6px 0;
+  text-decoration: underline; text-align: left;
+}
+
+/* ── EDIT PANEL ─────────────────────────── */
+.badge-edited { background: #2a1a40; color: #c0a0f0; }
+.edit-form-wrap {
+  flex: 1; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+.edit-field {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid #141a10;
+}
+.edit-field-label {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  color: #555; letter-spacing: 1.5px; text-transform: uppercase;
+  margin-bottom: 7px;
+}
+.edit-textarea {
+  width: 100%;
+  background: #0d1209;
+  border: 1.5px solid #1e2a1a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #d8d5c8;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 15px; font-weight: 500; line-height: 1.5;
+  resize: vertical; outline: none;
+  min-height: 56px;
+  transition: border-color 0.15s;
+}
+.edit-textarea:focus { border-color: rgba(229,90,0,0.5); }
+.edit-input {
+  width: 100%;
+  background: #0d1209;
+  border: 1.5px solid #1e2a1a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #d8d5c8;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 15px; font-weight: 500;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.edit-input:focus { border-color: rgba(229,90,0,0.5); }
+.edit-note-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px 10px;
+  background: rgba(192,57,43,0.06);
+  border-bottom: 1px solid #141a10;
+}
+.edit-note-text {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #884444; letter-spacing: 0.5px; flex: 1;
+}
+.edit-revert-link {
+  background: none; border: none;
+  color: #7a3030; font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.5px;
+  cursor: pointer; text-decoration: underline; flex-shrink: 0;
+}
+
+/* ── SIGN PICKER ────────────────────────── */
+.sign-picker {
+  display: flex; flex-wrap: wrap; gap: 7px;
+  padding: 4px 0 8px;
+}
+.sign-card {
+  display: flex; flex-direction: column; align-items: center;
+  background: #0d1209; border: 1.5px solid #1e2a1a;
+  border-radius: 10px; padding: 8px 10px;
+  min-width: 52px; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.sign-card:active { transform: scale(0.93); }
+.sign-card.dir.active { background: #0c1f2a; border-color: #1a6ca0; }
+.sign-card.haz.active { background: #2a1f08; border-color: #c88020; }
+.sign-card-icon { font-size: 22px; line-height: 1; margin-bottom: 4px; }
+.sign-card-label {
+  font-family: 'DM Mono', monospace; font-size: 8px;
+  color: #555; letter-spacing: 1px; text-transform: uppercase;
+  text-align: center; white-space: nowrap;
+}
+.sign-card.dir.active .sign-card-label { color: #5ab0e0; }
+.sign-card.haz.active .sign-card-label { color: #e0a040; }
+.sign-badge-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px; }
+.sign-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 8px; border-radius: 6px;
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  font-weight: 600; letter-spacing: 0.5px;
+}
+.sign-badge.dir { background: #0c1f2a; color: #5ab0e0; border: 1px solid #1a3a50; }
+.sign-badge.haz { background: #2a1f08; color: #e0a040; border: 1px solid #4a3010; }
+
+/* ── NEW EVENT SCREEN ────────────────────────── */
+.new-event-screen {
+  position: fixed; inset: 0; z-index: 1001;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.32, 1, 0.6, 1);
+}
+.new-event-screen.open { transform: translateX(0); }
+.new-event-head {
+  padding: 52px 12px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+}
+.new-event-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px; letter-spacing: 3px;
+  color: var(--accent); flex: 1;
+}
+.new-event-body {
+  flex: 1; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px 16px 8px;
+}
+.new-event-foot {
+  padding: 14px 16px 32px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── EVENTS LIST (landing) ──────────────────── */
+.events-list {
+  width: 100%; max-width: 360px;
+  display: flex; flex-direction: column; gap: 10px;
+  margin-bottom: 10px;
+  max-height: 260px; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.landing-add-btn {
+  width: 100%; max-width: 360px; height: 44px;
+  background: transparent; border: 1.5px dashed #2a3a26;
+  border-radius: 12px; color: #3a4a36;
+  font-family: 'Bebas Neue', cursive; font-size: 18px; letter-spacing: 2px;
+  cursor: pointer; margin-bottom: 16px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.landing-add-btn:active { border-color: var(--accent); color: var(--accent); }
+.event-progress {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  color: #5adf7a; background: rgba(90,223,122,0.08);
+  border: 1px solid rgba(90,223,122,0.15);
+  padding: 2px 8px; border-radius: 10px;
+  display: inline-block; margin-top: 5px;
+}
+.event-card-inner { display: flex; justify-content: space-between; align-items: flex-start; }
+.event-card-info { flex: 1; min-width: 0; }
+.event-delete-btn {
+  flex-shrink: 0; margin-left: 12px; margin-top: 2px;
+  background: none; border: 1px solid #2a2a2a; border-radius: 8px;
+  color: #555; font-size: 14px; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.event-delete-btn:hover { border-color: #c0392b; color: #c0392b; background: rgba(192,57,43,0.08); }
+.delete-event-error {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #c0392b; margin-top: 8px; display: none;
+}
+
+/* ── NEW EVENT FORM ─────────────────────────── */
+.geocode-result {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #5adf7a; letter-spacing: 0.5px;
+  margin-top: 6px; padding: 6px 10px;
+  background: rgba(90,223,122,0.06); border-radius: 6px; line-height: 1.5;
+}
+.geocode-error { color: #e55a00 !important; background: rgba(229,90,0,0.06) !important; }
+.csv-preview {
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #5adf7a;
+  letter-spacing: 0.5px; margin-top: 8px; padding: 8px 12px;
+  background: rgba(90,223,122,0.06); border: 1px solid rgba(90,223,122,0.15);
+  border-radius: 8px;
+}
+.csv-error { color: #e55a00 !important; border-color: rgba(229,90,0,0.2) !important; background: rgba(229,90,0,0.06) !important; }
+.latlon-row { display: flex; gap: 8px; }
+.latlon-row .landing-field { flex: 1; margin-bottom: 0; }
+.geocode-btn {
+  height: 46px; padding: 0 14px;
+  background: rgba(229,90,0,0.08); border: 1.5px solid rgba(229,90,0,0.25);
+  border-radius: 10px; color: var(--accent);
+  font-family: 'Bebas Neue', cursive; font-size: 16px; letter-spacing: 1.5px;
+  cursor: pointer; flex-shrink: 0; margin-bottom: 14px; align-self: flex-end;
+  transition: background 0.15s;
+}
+.geocode-btn:active { background: rgba(229,90,0,0.15); }
+.geocode-btn:disabled { opacity: 0.4; pointer-events: none; }
+.csv-upload-area {
+  width: 100%; padding: 16px; background: var(--surface);
+  border: 1.5px dashed var(--border); border-radius: 10px;
+  text-align: center; cursor: pointer; transition: border-color 0.15s;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+}
+.csv-upload-area:active { border-color: rgba(229,90,0,0.35); }
+.csv-upload-icon { font-size: 22px; color: #555; }
+.csv-upload-label { font-family: 'Bebas Neue', cursive; font-size: 16px; letter-spacing: 2px; color: #555; }
+.csv-upload-hint { font-family: 'DM Mono', monospace; font-size: 9px; color: #333; letter-spacing: 0.5px; }
+
+/* ── INLINE EDIT / ADD CARD ──────────────────────────────────────────────── */
+.card.editing {
+  border: 4px solid #f5c518 !important;
+  box-shadow: 0 0 0 2px rgba(245,197,24,0.18), 0 16px 48px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3) !important;
+}
+.card-draft-watermark {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  overflow: hidden; border-radius: 18px; display: none; user-select: none;
+}
+.card.editing .card-draft-watermark { display: block; }
+.card-draft-watermark-inner {
+  position: absolute; top: -40px; left: -40px; right: -40px; bottom: -40px;
+  display: flex; flex-direction: column; justify-content: space-around;
+  transform: rotate(-28deg);
+}
+.draft-row {
+  font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 14px;
+  color: rgba(245,197,24,0.08); white-space: nowrap; padding: 6px 0; line-height: 1;
+}
+.card-edit-section { margin-bottom: 12px; position: relative; z-index: 5; }
+.card-edit-section:last-child { margin-bottom: 0; }
+.card-edit-label {
+  font-family: 'Bebas Neue', cursive; font-size: 10px; letter-spacing: 2.5px;
+  color: #999; text-transform: uppercase; margin-bottom: 5px;
+  display: flex; align-items: center; gap: 7px;
+}
+.card-edit-label::after {
+  content: ''; flex: 1; height: 1px; background: rgba(0,0,0,0.07);
+}
+.card-edit-input {
+  width: 100%; box-sizing: border-box;
+  background: rgba(0,0,0,0.05); border: 1.5px solid rgba(0,0,0,0.13);
+  border-radius: 8px; padding: 8px 10px; color: var(--text);
+  font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 500;
+  outline: none; transition: border-color 0.15s, background 0.15s;
+}
+.card-edit-input:focus { border-color: var(--accent); background: rgba(229,90,0,0.04); }
+.card-edit-textarea {
+  width: 100%; box-sizing: border-box;
+  background: rgba(0,0,0,0.05); border: 1.5px solid rgba(0,0,0,0.13);
+  border-radius: 8px; padding: 8px 10px; color: var(--text);
+  font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 500;
+  line-height: 1.45; resize: vertical; outline: none; min-height: 50px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.card-edit-textarea:focus { border-color: var(--accent); background: rgba(229,90,0,0.04); }
+.card-edit-risk-row { display: flex; gap: 5px; flex-wrap: wrap; }
+.card-edit-risk-btn {
+  height: 28px; padding: 0 10px;
+  background: rgba(0,0,0,0.05); border: 1.5px solid rgba(0,0,0,0.12);
+  border-radius: 6px; color: #888; font-family: 'Bebas Neue', cursive;
+  font-size: 12px; letter-spacing: 1px; cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.card-edit-risk-btn.active { background: rgba(229,90,0,0.1); color: var(--accent); border-color: rgba(229,90,0,0.3); }
+.card-edit-risk-btn[data-risk="4"].active { background: rgba(42,122,58,.12); color: #2a7a3a; border-color: #2a7a3a; }
+.card-edit-risk-btn[data-risk="6"].active { background: rgba(200,164,0,.12); color: #a08800; border-color: #c8a400; }
+.card-edit-risk-btn[data-risk="9"].active { background: rgba(230,126,34,.12); color: #c07010; border-color: #e67e22; }
+.card-edit-risk-btn[data-risk="12"].active { background: rgba(192,57,43,.12); color: #c0392b; border-color: #c0392b; }
+.card-edit-subrow { display: flex; gap: 10px; }
+.card-edit-subrow > div { flex: 1; }
+.card-add-map-hint {
+  font-family: 'DM Mono', monospace; font-size: 9px; color: #a070d8;
+  letter-spacing: 1px; text-align: center; padding: 4px 0 8px;
+}
+.card-edit-revert-link {
+  background: none; border: none; color: #9a4040; font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.5px; cursor: pointer; text-decoration: underline;
+  padding: 2px 0; margin-left: 6px;
+}
+
+/* ── PHOTOS & TAGS ──────────────────────────────────────────────────────── */
+.card-media-section {
+  padding: 0 0 10px;
+  border-top: 1.5px solid rgba(0,0,0,0.06);
+  margin-top: 4px;
+}
+.media-row { padding: 10px 14px 2px; }
+.media-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase;
+  letter-spacing: 1.5px; color: #888; margin-bottom: 7px;
+}
+.photo-strip {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.photo-strip::-webkit-scrollbar { display: none; }
+.photo-thumb-wrap {
+  flex-shrink: 0; width: 68px; height: 68px; border-radius: 10px;
+  overflow: hidden; border: none; padding: 0; cursor: pointer; background: #1a2a3a;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.22);
+}
+.photo-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-add-btn {
+  flex-shrink: 0; width: 68px; height: 68px; border-radius: 10px;
+  border: 2px dashed rgba(0,0,0,0.18); background: rgba(0,0,0,0.04);
+  font-size: 26px; color: #aaa; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; font-weight: 300;
+  transition: border-color 0.15s, color 0.15s;
+}
+.photo-add-btn:active { border-color: var(--accent); color: var(--accent); }
+.tag-strip {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  min-height: 30px;
+}
+.tag-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(26,92,138,0.1); border: 1px solid rgba(26,92,138,0.22);
+  color: #1a5c8a; border-radius: 20px; padding: 3px 10px 3px 11px;
+  font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.3px;
+}
+.tag-chip-remove {
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: #1a5c8a; opacity: 0.55; font-size: 14px; line-height: 1;
+  display: flex; align-items: center;
+}
+.tag-chip-remove:active { opacity: 1; }
+.tag-add-btn {
+  background: none; border: 1.5px dashed rgba(0,0,0,0.18); border-radius: 20px;
+  padding: 3px 11px; font-family: 'DM Mono', monospace; font-size: 11px;
+  color: #aaa; cursor: pointer; letter-spacing: 0.3px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.tag-add-btn:active { border-color: var(--accent); color: var(--accent); }
+.tag-input {
+  border: 1.5px solid var(--accent); border-radius: 20px;
+  padding: 3px 11px; font-family: 'DM Mono', monospace; font-size: 11px;
+  color: #1a2a3a; background: #fff; outline: none; width: 100px;
+  letter-spacing: 0.3px;
+}
+
+/* Notes modal tags row */
+.notes-tag-row {
+  display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+  padding: 0 0 12px; min-height: 28px;
+}
+
+/* Photo lightbox */
+.photo-lightbox {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(0,0,0,0.92); display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+}
+.photo-lightbox.open { display: flex; }
+.lightbox-inner {
+  display: flex; flex-direction: column; width: 100%; max-height: 100dvh;
+  max-width: 600px;
+}
+.lightbox-bar {
+  display: flex; align-items: center; padding: 14px 16px 10px;
+  gap: 10px; flex-shrink: 0;
+}
+.lightbox-card-ref {
+  font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px;
+  color: #fff; flex: 1;
+}
+.lightbox-delete {
+  background: rgba(200,50,50,0.22); border: 1px solid rgba(200,50,50,0.4);
+  color: #e88; border-radius: 8px; padding: 6px 13px;
+  font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.lightbox-close {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+  color: #fff; border-radius: 8px; padding: 6px 13px;
+  font-size: 15px; cursor: pointer;
+}
+.lightbox-img {
+  flex: 1; min-height: 0; width: 100%; object-fit: contain;
+  padding: 0 8px 16px;
+}
 </style>
 </head>
 <body>
@@ -1058,19 +1761,99 @@ a.w3w-link:active { opacity: 0.7; }
       <input class="landing-input" id="inputRole" type="text" placeholder="e.g. Course Manager" autocomplete="organization-title" oninput="onLandingInput()">
     </div>
   </div>
-  <div class="landing-section-label">Select Event</div>
-  <div class="event-card" id="evtCard" onclick="selectEvent('Glasgow Pretty Muddy 2026')">
-    <div class="event-badge">Pretty Muddy</div>
-    <div class="event-name">Glasgow 2026</div>
-    <div class="event-detail">Pollok Country Park · June 2026</div>
-  </div>
+  <div class="landing-section-label">Your Events</div>
+  <div class="events-list" id="eventsListContainer"></div>
+  <button class="landing-add-btn" onclick="openNewEventForm()">+ Add New Event</button>
   <button class="landing-btn" id="landingBtn" onclick="startSession()">Let's Go →</button>
+</div>
+
+<!-- NEW EVENT SCREEN -->
+<div class="new-event-screen" id="newEventScreen">
+  <div class="new-event-head">
+    <button class="header-btn" onclick="closeNewEventForm()" style="color:#666;font-size:20px">&#8592;</button>
+    <span class="new-event-title">New Event</span>
+  </div>
+  <div class="new-event-body">
+    <div class="landing-field">
+      <label class="landing-label">Event Name *</label>
+      <input class="landing-input" id="newEventName" type="text" placeholder="e.g. Glasgow Pretty Muddy 2026" oninput="validateNewEvent()">
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
+      <div style="flex:1">
+        <label class="landing-label">Location / Venue</label>
+        <input class="landing-input" id="newEventLoc" type="text" placeholder="e.g. Pollok Country Park">
+      </div>
+      <button class="geocode-btn" id="geocodeBtn" onclick="doGeocode()">Find</button>
+    </div>
+    <div id="geocodeResult" style="display:none;margin-bottom:10px" class="geocode-result"></div>
+    <div class="latlon-row" style="margin-bottom:14px">
+      <div class="landing-field">
+        <label class="landing-label">Latitude</label>
+        <input class="landing-input" id="newEventLat" type="number" step="0.001" placeholder="55.823">
+      </div>
+      <div class="landing-field">
+        <label class="landing-label">Longitude</label>
+        <input class="landing-input" id="newEventLng" type="number" step="0.001" placeholder="-4.298">
+      </div>
+    </div>
+    <div class="landing-field">
+      <label class="landing-label">Risk Assessment CSV <span style="color:#333">(optional)</span></label>
+      <div class="csv-upload-area" onclick="document.getElementById('csvFileInput').click()">
+        <div class="csv-upload-icon">&#8659;</div>
+        <div class="csv-upload-label" id="csvUploadLabel">Upload CSV</div>
+        <div class="csv-upload-hint">ref · loc · hazard · net_risk · sig · equip · staff · info · res_risk · action · obstacle</div>
+      </div>
+      <input type="file" id="csvFileInput" accept=".csv,text/csv" style="display:none" onchange="onCSVFileSelected(event)">
+    </div>
+    <div id="csvPreview" style="display:none" class="csv-preview"></div>
+  </div>
+  <div class="new-event-foot">
+    <button class="export-btn" id="createEventBtn" onclick="createNewEvent()" style="opacity:.35" disabled>Create Event</button>
+  </div>
+</div>
+
+<!-- CHOICE SCREEN -->
+<div class="choice-screen" id="choiceScreen" style="display:none">
+  <div class="choice-logo">ofCourse</div>
+  <div class="choice-tagline">Event Day Setup</div>
+  <div class="choice-meta">
+    <div class="choice-user-name" id="choiceUserName"></div>
+    <div class="choice-user-role" id="choiceUserRole"></div>
+    <div class="choice-event-name" id="choiceEventName"></div>
+    <div id="choiceProgressPill" style="display:none"><span class="choice-progress-pill" id="choiceProgressText"></span></div>
+  </div>
+  <div class="choice-options">
+    <button class="choice-option choice-option-primary" onclick="goToSetup()">
+      <div class="choice-option-icon">&#10003;</div>
+      <div class="choice-option-body">
+        <div class="choice-option-title">Course Setup</div>
+        <div class="choice-option-desc">Walk the course · check off each point</div>
+      </div>
+      <div class="choice-option-arrow">&#8594;</div>
+    </button>
+    <button class="choice-option" onclick="goToMap()">
+      <div class="choice-option-icon">&#x2316;</div>
+      <div class="choice-option-body">
+        <div class="choice-option-title">View Map</div>
+        <div class="choice-option-desc">See the course route · pin obstacles</div>
+      </div>
+      <div class="choice-option-arrow">&#8594;</div>
+    </button>
+    <button class="choice-option" onclick="backToLanding()">
+      <div class="choice-option-icon">&#8592;</div>
+      <div class="choice-option-body">
+        <div class="choice-option-title">Change Event</div>
+        <div class="choice-option-desc">Switch event or update your details</div>
+      </div>
+      <div class="choice-option-arrow">&#8594;</div>
+    </button>
+  </div>
 </div>
 
 <!-- HEADER -->
 <header class="header">
-  <div class="header-logo">PM GLA 2026</div>
-  <div class="count-pill" id="countPill">0 / 61</div>
+  <div class="header-logo" onclick="showLanding()" style="cursor:pointer">OfCourse</div>
+  <div class="count-pill" id="countPill"><div class="count-fill" id="countFill"></div><span id="countText">0%</span></div>
   <div class="dist-bar">
     <div class="dist-track" id="distTrack">
       <div class="dist-marker" id="distMarker" style="left:0%"></div>
@@ -1084,8 +1867,7 @@ a.w3w-link:active { opacity: 0.7; }
       <span style="left:99.4%">5k</span>
     </div>
   </div>
-  <button class="header-btn" onclick="openMap()" title="Course Map" style="font-size:16px">&#x2316;</button>
-  <button class="header-btn" onclick="openOverview()" title="Overview">&#9776;</button>
+  <button class="header-btn" onclick="openMenu()" title="Menu">&#9776;</button>
 </header>
 
 <!-- STAGE -->
@@ -1102,15 +1884,17 @@ a.w3w-link:active { opacity: 0.7; }
         <div class="overlay-icon">✎</div>
         <div class="overlay-label">Add Note</div>
       </div>
+      <div class="card-draft-watermark" id="cardDraftWatermark"></div>
       <div class="card-head" id="cardHead"></div>
       <div id="cardMiniMap"></div>
+      <div class="map-resize-handle" id="mapResizeHandle"><div class="map-resize-grip"></div></div>
       <div class="card-body" id="cardBody"></div>
       <div class="complete-strip" id="completeStrip" style="display:none">✓ COMPLETE</div>
     </div>
     <div class="all-done-screen" id="allDoneScreen">
       <div class="all-done-icon">🏁</div>
       <div class="all-done-title">Course Set!</div>
-      <div class="all-done-sub">All 61 checkpoints reviewed.<br>Glasgow Pretty Muddy 2026 is ready to go.</div>
+      <div class="all-done-sub" id="allDoneSub">All checkpoints reviewed.</div>
       <button class="all-done-export" onclick="exportData()">Export Report</button>
     </div>
   </div>
@@ -1120,6 +1904,7 @@ a.w3w-link:active { opacity: 0.7; }
 <div class="actions" id="actionsBar">
   <button class="nav-btn" onclick="navigate(-1)" title="Previous">&#8592;</button>
   <button class="action-btn btn-notes" id="btnNotes" onclick="openNotes()">&#9998; Note</button>
+  <button class="btn-add" onclick="openAddCard()" title="Add field card">+</button>
   <button class="action-btn btn-done" id="btnDone" onclick="markDone()">&#10003; Done</button>
   <button class="nav-btn" onclick="navigate(1)" title="Next">&#8594;</button>
 </div>
@@ -1130,11 +1915,27 @@ a.w3w-link:active { opacity: 0.7; }
     <div class="modal-handle"></div>
     <div class="modal-title" id="modalTitle"></div>
     <div class="modal-sub" id="modalSub"></div>
+    <div class="notes-tag-row" id="notesTagRow"></div>
     <textarea class="notes-area" id="notesTextarea" placeholder="Type your notes here…" rows="5"></textarea>
     <div class="modal-actions-stack">
       <button class="modal-btn complete" onclick="saveNote(true)">Done with Note</button>
       <button class="modal-btn log-only" onclick="saveNote(false)">Log Note Only</button>
       <button class="modal-cancel-link" onclick="closeNotes()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ROUTE NAME MODAL -->
+<div class="modal-backdrop" id="routeNameModal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Name This Route</div>
+    <div class="modal-sub">Give this course a name so it can be saved and shared.</div>
+    <input class="route-name-modal-input" id="routeNameInput" type="text" placeholder="e.g. 5k Course, Kids Route…" maxlength="40"
+      onkeydown="if(event.key==='Enter')saveRouteNameFromModal()">
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="saveRouteNameFromModal()">Save Route</button>
+      <button class="modal-btn secondary" onclick="closeRouteNameModal()">Skip</button>
     </div>
   </div>
 </div>
@@ -1155,6 +1956,94 @@ a.w3w-link:active { opacity: 0.7; }
   </div>
 </div>
 
+<!-- MENU SHEET -->
+<div class="modal-backdrop" id="menuSheet" onclick="closeMenuOnBackdrop(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="menu-options">
+      <button class="menu-option" onclick="closeMenu(); openMap()">
+        <span class="menu-option-icon">&#x2316;</span>
+        <span class="menu-option-text">Course Map</span>
+        <span class="menu-option-arrow">&#8594;</span>
+      </button>
+      <button class="menu-option" onclick="closeMenu(); openOverview()">
+        <span class="menu-option-icon">&#9776;</span>
+        <span class="menu-option-text">Course Overview</span>
+        <span class="menu-option-arrow">&#8594;</span>
+      </button>
+      <button class="menu-option" onclick="closeMenu(); openCourseNotes()">
+        <span class="menu-option-icon">&#9998;</span>
+        <span class="menu-option-text">Course Notes</span>
+        <span class="menu-option-arrow">&#8594;</span>
+      </button>
+      <button class="menu-option" onclick="closeMenu(); openW3WKeyModal()">
+        <span class="menu-option-icon" style="color:#888;font-family:'DM Mono',monospace;font-size:11px">///</span>
+        <span class="menu-option-text" id="menuW3WText" style="color:#888">w3w Auto-Pin</span>
+        <span class="menu-option-arrow">&#8594;</span>
+      </button>
+      <button class="menu-option" onclick="closeMenu(); backToLanding()" style="border-top:1px solid #1e2a1a;margin-top:4px">
+        <span class="menu-option-icon" style="color:#555">&#8962;</span>
+        <span class="menu-option-text" style="color:#888">Events Home</span>
+        <span class="menu-option-arrow">&#8594;</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- W3W KEY MODAL -->
+<div class="modal-backdrop" id="w3wKeyModal" onclick="closeW3WKeyModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">What3Words Auto-Pin</div>
+    <div class="modal-sub" id="w3wModalSub">Enter your free API key to automatically pin all checkpoints that have a ///word.word.word address.</div>
+    <input class="route-name-modal-input" id="w3wKeyInput" type="text" placeholder="Your API key" autocomplete="off"
+      onkeydown="if(event.key==='Enter')saveW3WKeyFromModal()">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;color:#444;letter-spacing:0.5px;margin-bottom:13px;line-height:1.6">
+      Get a free key at <span style="color:#5aabef">what3words.com/developer</span><br>
+      Keys are stored locally and never sent anywhere except the w3w API.
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="saveW3WKeyFromModal()">Save &amp; Auto-Pin</button>
+      <button class="modal-btn secondary" id="w3wClearBtn" onclick="clearW3WKey()" style="display:none">Clear Key</button>
+    </div>
+    <div id="w3wPinStatus" style="display:none;text-align:center;margin-top:10px;font-family:'DM Mono',monospace;font-size:10px;color:#5adf7a;letter-spacing:0.5px"></div>
+  </div>
+</div>
+
+<!-- DELETE EVENT MODAL -->
+<div class="modal-backdrop" id="deleteEventModal" onclick="closeDeleteEventModal()" style="z-index:1100">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Delete Event</div>
+    <div class="modal-sub" id="deleteEventModalSub">This will permanently remove the event and all its data.</div>
+    <input class="route-name-modal-input" id="deleteEventPasswordInput" type="password"
+      placeholder="Enter password to confirm"
+      autocomplete="off"
+      onkeydown="if(event.key==='Enter')confirmDeleteEvent()"
+      oninput="document.getElementById('deleteEventError').style.display='none'">
+    <div class="delete-event-error" id="deleteEventError">Incorrect password.</div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" style="background:#c0392b;border-color:#c0392b" onclick="confirmDeleteEvent()">Delete</button>
+      <button class="modal-btn secondary" onclick="closeDeleteEventModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- COURSE NOTES PANEL -->
+<div class="overview" id="courseNotesPanel">
+  <div class="overview-head">
+    <div>
+      <div class="overview-title">Course Notes</div>
+      <div class="overview-stats" id="courseNotesStats"></div>
+    </div>
+    <button class="header-btn" onclick="closeCourseNotes()" style="color:#666;font-size:22px">&#10005;</button>
+  </div>
+  <div class="notes-table-wrap" id="courseNotesList"></div>
+  <div class="overview-foot">
+    <button class="export-btn" id="shareNotesBtn" onclick="shareCourseNotes()">&#8679; Share Notes</button>
+  </div>
+</div>
+
 <!-- COURSE MAP PANEL -->
 <div class="map-panel" id="mapPanel">
   <div class="map-head">
@@ -1170,6 +2059,8 @@ a.w3w-link:active { opacity: 0.7; }
     <button class="map-layer-btn"        id="layerBtnSatellite" onclick="setMapLayer('satellite')">Satellite</button>
     <button class="map-layer-btn"        id="layerBtnTerrain"   onclick="setMapLayer('terrain')">Terrain</button>
   </div>
+  <!-- Route selector (always visible) -->
+  <div class="route-selector-bar" id="routeSelectorBar"></div>
   <!-- Edit sub-mode selector (shown in edit mode only) -->
   <div class="map-submode-bar" id="mapSubmodeBar" style="display:none">
     <button class="map-submode-btn" id="btnRouteMode" onclick="setMapSubMode('route')">Edit Course Route</button>
@@ -1298,7 +2189,7 @@ const CARDS = [
 ];
 
 // ── DISTANCE BAR ─────────────────────────────────────────────────────────────
-const TOTAL_DIST = 5030;
+let activeTotalDist = 5030;
 
 function parseDist(str) {
   if (!str) return null;
@@ -1310,24 +2201,190 @@ function parseDist(str) {
   return null;
 }
 
-const RESOLVED_DISTS = (function() {
+function computeResolvedDists(cards) {
   let last = 0;
-  return CARDS.map(c => { const d = parseDist(c.dist); if (d !== null) last = d; return last; });
-})();
+  return cards.map(c => { const d = parseDist(c.dist); if (d !== null) last = d; return last; });
+}
+
+let activeCards = CARDS;
+let resolvedDists = computeResolvedDists(CARDS);
+
+// ── ALLCARDS (base + custom merged in order) ──────────────────────────────────
+let ALLCARDS = [];
+let ALL_RESOLVED_DISTS = [];
+
+function refreshAllCards() {
+  ALLCARDS = [];
+  ALL_RESOLVED_DISTS = [];
+  for (let i = 0; i < activeCards.length; i++) {
+    ALLCARDS.push(activeCards[i]);
+    ALL_RESOLVED_DISTS.push(resolvedDists[i]);
+    const customs = (state.customCards || [])
+      .filter(c => c.parentRef === activeCards[i].ref)
+      .sort((a, b) => a.subIdx - b.subIdx);
+    customs.forEach(c => {
+      ALLCARDS.push(c);
+      ALL_RESOLVED_DISTS.push(resolvedDists[i]);
+    });
+  }
+}
 
 function initDistBar() {
   const track = document.getElementById('distTrack');
+  track.querySelectorAll('.dist-dot').forEach(d => d.remove());
   const marker = track.querySelector('.dist-marker');
-  CARDS.forEach((c, i) => {
+  activeCards.forEach((c, i) => {
     const dot = document.createElement('div');
     dot.className = 'dist-dot' + (c.obstacle ? ' obs' : '');
-    dot.style.left = ((RESOLVED_DISTS[i] / TOTAL_DIST) * 100) + '%';
+    dot.style.left = ((resolvedDists[i] / activeTotalDist) * 100) + '%';
     track.insertBefore(dot, marker);
   });
+  const ticks = document.querySelector('.dist-ticks');
+  if (ticks && activeTotalDist) {
+    const maxKm = Math.ceil(activeTotalDist / 1000);
+    let html = '<span style="left:0%">0</span>';
+    for (let k = 1; k <= maxKm; k++) {
+      const pct = (k * 1000 / activeTotalDist * 100).toFixed(2);
+      if (parseFloat(pct) <= 101) html += `<span style="left:${pct}%">${k}k</span>`;
+    }
+    ticks.innerHTML = html;
+  }
+}
+
+// ── SIGN TYPES ────────────────────────────────────────────────────────────────
+const SIGN_TYPES = [
+  { id: 'ahead',  label: 'Ahead',          icon: '↑', type: 'dir' },
+  { id: 'left',   label: 'Left',           icon: '←', type: 'dir' },
+  { id: 'right',  label: 'Right',          icon: '→', type: 'dir' },
+  { id: 'slip',   label: 'Slip / Trip',    icon: '⚠', type: 'haz' },
+  { id: 'uneven', label: 'Uneven Surface', icon: '≈', type: 'haz' },
+];
+
+function signPickerHtml(selected, context) {
+  const sel = Array.isArray(selected) ? selected : [];
+  return '<div class="sign-picker">' +
+    SIGN_TYPES.map(s => {
+      const active = sel.includes(s.id) ? ' active' : '';
+      return `<div class="sign-card ${s.type}${active}" data-sign="${s.id}" data-context="${context}" onclick="toggleSign(this)">` +
+        `<div class="sign-card-icon">${s.icon}</div>` +
+        `<div class="sign-card-label">${s.label}</div></div>`;
+    }).join('') +
+    '</div>';
+}
+
+function toggleSign(btn) {
+  btn.classList.toggle('active');
+}
+
+function getSelectedSigns(context) {
+  const ids = [];
+  document.querySelectorAll(`.sign-card[data-context="${context}"].active`).forEach(el => {
+    ids.push(el.dataset.sign);
+  });
+  return ids;
+}
+
+// ── EVENTS ────────────────────────────────────────────────────────────────────
+const BUILTIN_EVENT_ID = 'pmg2026';
+const BUILTIN_EVENT_META = {
+  id: 'pmg2026', name: 'Glasgow Pretty Muddy 2026', displayName: 'Glasgow 2026',
+  badge: 'Pretty Muddy', location: 'Pollok Country Park · June 2026',
+  lat: 55.823, lng: -4.298, builtIn: true,
+};
+const EVENTS_LIST_KEY = 'ofcourse_events';
+let userEvents = [];
+let activeEventId = null;
+
+function loadUserEvents() {
+  try { const s = localStorage.getItem(EVENTS_LIST_KEY); if (s) userEvents = JSON.parse(s); } catch(e) {}
+}
+function saveUserEvents() { localStorage.setItem(EVENTS_LIST_KEY, JSON.stringify(userEvents)); }
+function getAllEvents() { return [BUILTIN_EVENT_META, ...userEvents]; }
+
+function getActiveEventName() {
+  const evt = getAllEvents().find(e => e.id === activeEventId);
+  return evt ? (evt.name || evt.displayName || activeEventId) : (activeEventId || 'ofCourse');
+}
+
+function loadEventCards(id) {
+  try { const s = localStorage.getItem('ofcourse_cards_' + id); return s ? JSON.parse(s) : []; } catch(e) { return []; }
+}
+
+function computeEventTotalDist(cards) {
+  let max = 0;
+  cards.forEach(c => { const d = parseDist(c.dist); if (d !== null && d > max) max = d; });
+  return max || 1000;
+}
+
+function activateEvent(id) {
+  activeEventId = id;
+  if (id === BUILTIN_EVENT_ID) {
+    activeCards = CARDS;
+    activeTotalDist = 5030;
+    LS_KEY = 'pmg2026';
+    MAP_KEY = 'pmg2026_pins';
+    ROUTES_KEY = 'pmg2026_routes';
+    ACTIVE_ROUTE_KEY = 'pmg2026_active_route';
+  } else {
+    const loaded = loadEventCards(id);
+    activeCards = loaded;
+    activeTotalDist = computeEventTotalDist(loaded);
+    LS_KEY = 'ofcourse_state_' + id;
+    MAP_KEY = 'ofcourse_pins_' + id;
+    ROUTES_KEY = 'ofcourse_routes_' + id;
+    ACTIVE_ROUTE_KEY = 'ofcourse_aeroute_' + id;
+  }
+  resolvedDists = computeResolvedDists(activeCards);
+  // Reset Leaflet so it re-initialises with new event coordinates
+  if (lmap) { lmap.remove(); lmap = null; lTileLayer = null; lMarkers = {}; lFeatLine = null; lRouteLines = []; lRouteNodes = []; }
+  mapPins = {};
+  routes = {}; activeRouteId = null; routePoints = [];
+  state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {} };
+  loadState(); loadMapPins(); loadRoutes(); refreshAllCards();
+}
+
+function renderEventsList() {
+  const container = document.getElementById('eventsListContainer');
+  if (!container) return;
+  const all = getAllEvents();
+  container.innerHTML = all.map(evt => {
+    const isSelected = selectedEventId === evt.id;
+    let progressText = '';
+    const sk = evt.id === BUILTIN_EVENT_ID ? 'pmg2026' : 'ofcourse_state_' + evt.id;
+    try {
+      const s = localStorage.getItem(sk);
+      if (s) {
+        const st = JSON.parse(s);
+        const done = Object.keys(st.completed || {}).filter(k => st.completed[k]).length;
+        if (done > 0) {
+          const total = evt.id === BUILTIN_EVENT_ID ? CARDS.length : (loadEventCards(evt.id).length || 0);
+          progressText = `${done} / ${total} complete`;
+        }
+      }
+    } catch(e) {}
+    const badge = evt.badge || (evt.builtIn ? 'Built-In' : 'CSV Event');
+    const name = evt.displayName || evt.name;
+    const detail = evt.location || '';
+    const safeId = evt.id.replace(/'/g, "\\'");
+    const safeName = name.replace(/'/g, "\\'");
+    const deleteBtn = evt.builtIn ? '' :
+      `<button class="event-delete-btn" title="Delete event" onclick="event.stopPropagation();openDeleteEventModal('${safeId}','${safeName}')">&#x2715;</button>`;
+    return `<div class="event-card${isSelected ? ' selected' : ''}" onclick="selectEventById('${evt.id}')">
+      <div class="event-card-inner">
+        <div class="event-card-info">
+          <div class="event-badge">${badge}</div>
+          <div class="event-name">${name}</div>
+          ${detail ? `<div class="event-detail">${detail}</div>` : ''}
+          ${progressText ? `<div class="event-progress">${progressText}</div>` : ''}
+        </div>
+        ${deleteBtn}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-const LS_KEY = 'pmg2026';
+let LS_KEY = 'pmg2026';
 // ── USER SESSION ──────────────────────────────────────────────────────────────
 const USER_KEY = 'ofcourse_user';
 let currentUser = { name: '', role: '', event: '' };
@@ -1347,26 +2404,70 @@ function onLandingInput() {
   document.getElementById('landingBtn').classList.toggle('ready', ready);
 }
 
-function selectEvent(id) {
+function selectEventById(id) {
   selectedEventId = id;
-  document.getElementById('evtCard').classList.add('selected');
+  renderEventsList();
   onLandingInput();
 }
 
 function startSession() {
   const name = document.getElementById('inputName').value.trim();
   if (!name || !selectedEventId) return;
-  currentUser = {
-    name,
-    role: document.getElementById('inputRole').value.trim(),
-    event: selectedEventId,
-  };
+  currentUser = { name, role: document.getElementById('inputRole').value.trim(), event: selectedEventId };
   saveUser();
+  activateEvent(selectedEventId);
+  if (w3wApiKey) autoResolveW3WPins();
+  initDistBar();
+  updateHeader();
   const el = document.getElementById('landingScreen');
   el.classList.add('out');
-  setTimeout(() => { el.style.display = 'none'; }, 350);
-  renderCard(state.currentIndex);
-  updateProgress();
+  setTimeout(() => { el.style.display = 'none'; showChoiceScreen(); }, 350);
+}
+
+function updateHeader() {
+  // Logo is always "OfCourse"; event name is shown as a watermark inside each card head
+}
+
+function showChoiceScreen() {
+  const done = Object.keys(state.completed).filter(k => state.completed[k]).length;
+  document.getElementById('choiceUserName').textContent = currentUser.name;
+  document.getElementById('choiceUserRole').textContent = currentUser.role || '';
+  document.getElementById('choiceUserRole').style.display = currentUser.role ? '' : 'none';
+  document.getElementById('choiceEventName').textContent = getActiveEventName();
+  const pill = document.getElementById('choiceProgressPill');
+  if (done > 0) {
+    document.getElementById('choiceProgressText').textContent = done + ' / ' + activeCards.length + ' complete';
+    pill.style.display = '';
+  } else {
+    pill.style.display = 'none';
+  }
+  const el = document.getElementById('choiceScreen');
+  el.style.display = 'flex';
+  el.classList.remove('out');
+}
+
+function hideChoiceScreen(cb) {
+  const el = document.getElementById('choiceScreen');
+  el.classList.add('out');
+  setTimeout(() => { el.style.display = 'none'; if (cb) cb(); }, 350);
+}
+
+function goToSetup() {
+  hideChoiceScreen(() => { renderCard(state.currentIndex); updateProgress(); });
+}
+
+function goToMap() {
+  hideChoiceScreen(() => { openMap(); });
+}
+
+function backToLanding() {
+  // Close any open panels
+  const mapPanel = document.getElementById('mapPanel');
+  if (mapPanel && mapPanel.classList.contains('open')) closeMap();
+  // Hide choice screen
+  const cs = document.getElementById('choiceScreen');
+  if (cs && cs.style.display !== 'none') { cs.classList.add('out'); setTimeout(() => { cs.style.display = 'none'; }, 350); }
+  showLanding();
 }
 
 function showLanding() {
@@ -1375,20 +2476,329 @@ function showLanding() {
   el.classList.remove('out');
   if (currentUser.name) document.getElementById('inputName').value = currentUser.name;
   if (currentUser.role) document.getElementById('inputRole').value = currentUser.role;
-  if (currentUser.event) {
-    selectedEventId = currentUser.event;
-    document.getElementById('evtCard').classList.add('selected');
-  }
+  renderEventsList();
   onLandingInput();
 }
 
+// ── NEW EVENT FORM ────────────────────────────────────────────────────────────
+let parsedCSVCards = [];
+
+function openNewEventForm() {
+  document.getElementById('newEventName').value = '';
+  document.getElementById('newEventLoc').value = '';
+  document.getElementById('newEventLat').value = '';
+  document.getElementById('newEventLng').value = '';
+  document.getElementById('csvFileInput').value = '';
+  document.getElementById('csvUploadLabel').textContent = 'Upload CSV';
+  document.getElementById('csvPreview').style.display = 'none';
+  document.getElementById('geocodeResult').style.display = 'none';
+  parsedCSVCards = [];
+  validateNewEvent();
+  document.getElementById('newEventScreen').classList.add('open');
+}
+
+function closeNewEventForm() {
+  document.getElementById('newEventScreen').classList.remove('open');
+}
+
+function validateNewEvent() {
+  const name = document.getElementById('newEventName').value.trim();
+  const btn = document.getElementById('createEventBtn');
+  btn.disabled = !name;
+  btn.style.opacity = name ? '1' : '.35';
+}
+
+function createNewEvent() {
+  const name = document.getElementById('newEventName').value.trim();
+  if (!name) return;
+  const loc = document.getElementById('newEventLoc').value.trim();
+  const lat = parseFloat(document.getElementById('newEventLat').value) || null;
+  const lng = parseFloat(document.getElementById('newEventLng').value) || null;
+  const id = 'evt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const newEvt = {
+    id, name, displayName: name, badge: 'Custom Event',
+    location: loc, lat: lat || 54.5, lng: lng || -3.0,
+    createdAt: new Date().toISOString(), builtIn: false,
+  };
+  if (parsedCSVCards.length) {
+    localStorage.setItem('ofcourse_cards_' + id, JSON.stringify(parsedCSVCards));
+    newEvt.cardCount = parsedCSVCards.length;
+    newEvt.fromCSV = true;
+  }
+  userEvents.push(newEvt);
+  saveUserEvents();
+  parsedCSVCards = [];
+  closeNewEventForm();
+  renderEventsList();
+  selectEventById(id);
+  // Pre-resolve w3w pins so they're ready when user enters the event
+  if (w3wApiKey && newEvt.cardCount) {
+    activateEvent(id);
+    autoResolveW3WPins();
+    // Return to no active event — user hasn't started session yet
+    activeEventId = null;
+  }
+}
+
+async function doGeocode() {
+  const query = document.getElementById('newEventLoc').value.trim();
+  if (!query) return;
+  const btn = document.getElementById('geocodeBtn');
+  btn.textContent = '…'; btn.disabled = true;
+  const resultEl = document.getElementById('geocodeResult');
+  try {
+    const res = await fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(query) + '&format=json&limit=1');
+    const data = await res.json();
+    if (data && data.length) {
+      const p = data[0];
+      document.getElementById('newEventLat').value = parseFloat(p.lat).toFixed(5);
+      document.getElementById('newEventLng').value = parseFloat(p.lon).toFixed(5);
+      resultEl.className = 'geocode-result';
+      resultEl.textContent = '✓ ' + p.display_name.split(',').slice(0, 3).join(',');
+    } else {
+      resultEl.className = 'geocode-result geocode-error';
+      resultEl.textContent = '✗ Location not found — enter coordinates manually';
+    }
+  } catch(e) {
+    resultEl.className = 'geocode-result geocode-error';
+    resultEl.textContent = '✗ Search failed — check connection';
+  }
+  resultEl.style.display = 'block';
+  btn.textContent = 'Find'; btn.disabled = false;
+}
+
+// ── CSV PARSING ───────────────────────────────────────────────────────────────
+function onCSVFileSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const result = parseRiskCSV(e.target.result);
+    const preview = document.getElementById('csvPreview');
+    if (result.error) {
+      preview.className = 'csv-preview csv-error';
+      preview.textContent = '✗ ' + result.error;
+      parsedCSVCards = [];
+      document.getElementById('csvUploadLabel').textContent = 'Upload CSV';
+    } else {
+      parsedCSVCards = result.cards;
+      preview.className = 'csv-preview';
+      preview.textContent = '✓ ' + result.cards.length + ' cards parsed from ' + file.name;
+      document.getElementById('csvUploadLabel').textContent = file.name;
+    }
+    preview.style.display = 'block';
+  };
+  reader.readAsText(file);
+}
+
+function parseRiskCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
+  if (lines.length < 2) return { error: 'CSV must have at least a header row and one data row' };
+  const headers = parseCSVRow(lines[0]).map(h => h.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''));
+  const fieldMap = {
+    ref:    ['ref','reference','id','checkpoint_ref','checkpoint'],
+    dist:   ['dist','distance','dist_m'],
+    w3w:    ['w3w','what3words','words'],
+    loc:    ['loc','location','description','name','feature','point'],
+    hazard: ['hazard','hazards','risk_description','threat'],
+    netR:   ['net_risk','net_risk_score','netrisk','risk_score','net_r','netr','risk'],
+    sig:    ['sig','signage','signs','sign'],
+    equip:  ['equip','equipment','kit'],
+    staff:  ['staff','staffing','personnel','marshals'],
+    info:   ['info','further_info','information','notes','additional_info'],
+    resR:   ['res_risk','residual_risk','resr','res_r','residualrisk'],
+    action: ['action','actions','further_action','further_actions'],
+    obstacle: ['obstacle','is_obstacle','obs'],
+  };
+  const idx = {};
+  Object.entries(fieldMap).forEach(([field, aliases]) => {
+    for (const alias of aliases) { const i = headers.indexOf(alias); if (i !== -1) { idx[field] = i; break; } }
+  });
+  if (idx.ref === undefined && idx.loc === undefined) return { error: 'CSV must have at least a "ref" or "loc" column' };
+  const cards = [];
+  for (let i = 1; i < lines.length; i++) {
+    const row = parseCSVRow(lines[i]);
+    if (!row.some(c => c.trim())) continue;
+    const get = f => (idx[f] !== undefined ? (row[idx[f]] || '').trim() : '');
+    const obs = get('obstacle').toLowerCase();
+    cards.push({
+      ref: get('ref') || ('C' + i), dist: get('dist'), w3w: get('w3w'),
+      loc: get('loc'), hazard: get('hazard'),
+      netR: parseInt(get('netR')) || 0, sig: get('sig'), equip: get('equip'),
+      staff: get('staff'), info: get('info'),
+      resR: parseInt(get('resR')) || 0, action: get('action'),
+      obstacle: obs === 'yes' || obs === 'true' || obs === '1',
+    });
+  }
+  if (!cards.length) return { error: 'No data rows found in CSV' };
+  return { cards };
+}
+
+function parseCSVRow(line) {
+  const result = []; let field = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { if (inQ && line[i+1] === '"') { field += '"'; i++; } else inQ = !inQ; }
+    else if (ch === ',' && !inQ) { result.push(field); field = ''; }
+    else field += ch;
+  }
+  result.push(field);
+  return result;
+}
+
+// ── WHAT3WORDS AUTO-PIN ───────────────────────────────────────────────────────
+const W3W_KEY_STORAGE = 'ofcourse_w3w_key';
+let w3wApiKey = '';
+
+function loadW3WKey() { w3wApiKey = localStorage.getItem(W3W_KEY_STORAGE) || ''; }
+function saveW3WKey(key) {
+  w3wApiKey = key.trim();
+  if (w3wApiKey) localStorage.setItem(W3W_KEY_STORAGE, w3wApiKey);
+  else localStorage.removeItem(W3W_KEY_STORAGE);
+}
+
+async function autoResolveW3WPins() {
+  if (!w3wApiKey) return 0;
+  const toResolve = activeCards.filter(c => {
+    if (!c.w3w) return false;
+    return /\/\/\/[a-z]+\.[a-z]+\.[a-z]+/.test(c.w3w) && !mapPins[c.ref];
+  });
+  if (!toResolve.length) return 0;
+
+  let count = 0;
+  for (let i = 0; i < toResolve.length; i++) {
+    const card = toResolve[i];
+    const match = card.w3w.match(/\/\/\/([a-z]+\.[a-z]+\.[a-z]+)/);
+    if (!match) continue;
+    try {
+      const res = await fetch(
+        'https://api.what3words.com/v3/convert-to-coordinates?words=' +
+        encodeURIComponent(match[1]) + '&key=' + encodeURIComponent(w3wApiKey)
+      );
+      if (res.status === 401 || res.status === 403) break; // bad key — stop
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.coordinates) {
+        mapPins[card.ref] = { lat: data.coordinates.lat, lng: data.coordinates.lng };
+        count++;
+      }
+    } catch(e) { break; }
+    if (i < toResolve.length - 1) await new Promise(r => setTimeout(r, 80));
+  }
+
+  if (count > 0) {
+    saveMapPins();
+    if (lmap) refreshMapMarkers();
+  }
+  return count;
+}
+
+function openW3WKeyModal() {
+  const input = document.getElementById('w3wKeyInput');
+  input.value = w3wApiKey;
+  const clearBtn = document.getElementById('w3wClearBtn');
+  clearBtn.style.display = w3wApiKey ? '' : 'none';
+  document.getElementById('w3wPinStatus').style.display = 'none';
+  document.getElementById('w3wKeyModal').classList.add('open');
+  setTimeout(() => input.focus(), 300);
+}
+
+function closeW3WKeyModal() {
+  document.getElementById('w3wKeyModal').classList.remove('open');
+}
+
+async function saveW3WKeyFromModal() {
+  const key = (document.getElementById('w3wKeyInput').value || '').trim();
+  saveW3WKey(key);
+  updateMenuW3WStatus();
+  document.getElementById('w3wClearBtn').style.display = key ? '' : 'none';
+
+  if (!key) { closeW3WKeyModal(); return; }
+
+  const statusEl = document.getElementById('w3wPinStatus');
+  statusEl.textContent = 'Resolving locations…';
+  statusEl.style.display = 'block';
+
+  const count = await autoResolveW3WPins();
+
+  if (count > 0) {
+    statusEl.textContent = '✓ ' + count + ' location' + (count !== 1 ? 's' : '') + ' auto-pinned';
+    setTimeout(closeW3WKeyModal, 1800);
+  } else if (count === 0 && activeCards.some(c => c.w3w && /\/\/\//.test(c.w3w))) {
+    statusEl.style.color = '#e55a00';
+    statusEl.textContent = '✗ No new locations resolved — check your key';
+  } else {
+    statusEl.textContent = 'All w3w locations already pinned';
+    setTimeout(closeW3WKeyModal, 1200);
+  }
+}
+
+async function clearW3WKey() {
+  saveW3WKey('');
+  updateMenuW3WStatus();
+  document.getElementById('w3wKeyInput').value = '';
+  document.getElementById('w3wClearBtn').style.display = 'none';
+  document.getElementById('w3wPinStatus').style.display = 'none';
+}
+
+function updateMenuW3WStatus() {
+  const el = document.getElementById('menuW3WText');
+  if (!el) return;
+  el.textContent = w3wApiKey ? 'w3w Auto-Pin ✓' : 'w3w Auto-Pin';
+}
+
+// ── DELETE EVENT ──────────────────────────────────────────────────────────────
+let deleteTargetEventId = null;
+const DELETE_PASSWORD = 'PLEASEDELETETHIS';
+
+function openDeleteEventModal(id, name) {
+  deleteTargetEventId = id;
+  document.getElementById('deleteEventModalSub').textContent =
+    'Permanently delete "' + name + '" and all its data? This cannot be undone.';
+  document.getElementById('deleteEventPasswordInput').value = '';
+  document.getElementById('deleteEventError').style.display = 'none';
+  document.getElementById('deleteEventModal').classList.add('open');
+  setTimeout(() => document.getElementById('deleteEventPasswordInput').focus(), 300);
+}
+
+function closeDeleteEventModal() {
+  document.getElementById('deleteEventModal').classList.remove('open');
+  deleteTargetEventId = null;
+}
+
+function confirmDeleteEvent() {
+  const pw = document.getElementById('deleteEventPasswordInput').value;
+  if (pw !== DELETE_PASSWORD) {
+    const err = document.getElementById('deleteEventError');
+    err.style.display = 'block';
+    document.getElementById('deleteEventPasswordInput').select();
+    return;
+  }
+  const id = deleteTargetEventId;
+  if (!id) return;
+
+  // Remove all per-event localStorage keys
+  ['ofcourse_state_', 'ofcourse_pins_', 'ofcourse_routes_', 'ofcourse_aeroute_', 'ofcourse_cards_']
+    .forEach(prefix => localStorage.removeItem(prefix + id));
+
+  // Remove from the events list
+  userEvents = userEvents.filter(e => e.id !== id);
+  saveUserEvents();
+
+  // If this was the selected event, reset selection
+  if (selectedEventId === id) { selectedEventId = ''; onLandingInput(); }
+
+  closeDeleteEventModal();
+  renderEventsList();
+}
+
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let state = { currentIndex: 0, completed: {}, notes: {}, audit: [] };
+let state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {} };
 
 function loadState() {
   try {
     const saved = localStorage.getItem(LS_KEY);
-    if (saved) state = { currentIndex: 0, completed: {}, notes: {}, audit: [], ...JSON.parse(saved) };
+    if (saved) state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, ...JSON.parse(saved) };
   } catch(e) {}
 }
 function saveState() {
@@ -1430,7 +2840,7 @@ function renderW3W(str) {
     .replace(/\n/g, '<br>');
 }
 
-const sectionOpen = {};
+let sectionOpen = {};
 function toggleSection(key, el) {
   sectionOpen[key] = !sectionOpen[key];
   el.closest('.section').classList.toggle('collapsed', !sectionOpen[key]);
@@ -1447,30 +2857,53 @@ function secHtml(key, label, content) {
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
 function renderCard(idx) {
-  if (idx >= CARDS.length) {
+  if (idx >= ALLCARDS.length) {
     showAllDone();
     return;
   }
-  const card = CARDS[idx];
+  const card = ALLCARDS[idx];
+
+  // Reset section collapse state on each new card so content is always visible
+  sectionOpen = {};
+
+  // Track pending-import state: capture before marking reviewed
+  if (!state.reviewed) state.reviewed = {};
+  const isCSVEvent = activeEventId !== BUILTIN_EVENT_ID;
+  const wasPendingImport = isCSVEvent && !state.reviewed[card.ref];
+  if (wasPendingImport) {
+    state.reviewed[card.ref] = true;
+    saveState();
+  }
+
+  const ec = effectiveCard(card);
   const isDone = !!state.completed[card.ref];
   const myNote = state.notes[card.ref] || '';
+  const hasEdits = !!(state.cardEdits && state.cardEdits[card.ref]);
+
+  if (card.isCustom) {
+    renderCustomCard(card, isDone, myNote);
+    return;
+  }
 
   // Header
   const head = document.getElementById('cardHead');
   head.innerHTML = `
+    <div class="card-head-event">${getActiveEventName()}</div>
     <div class="card-ref-row">
-      <div class="card-ref">${card.ref}</div>
+      <div class="card-ref" onclick="openCardEdit()" style="cursor:pointer">${card.ref}</div>
       <div class="card-ref-meta">
-        ${card.dist ? `<span class="card-dist">${card.dist}</span>` : ''}
-        ${card.w3w ? `<span class="card-w3w">${renderW3W(card.w3w)}</span>` : ''}
+        ${ec.dist ? `<span class="card-dist">${ec.dist}</span>` : ''}
+        ${ec.w3w ? `<span class="card-w3w">${renderW3W(ec.w3w)}</span>` : ''}
       </div>
     </div>
     <div class="card-badges">
       ${card.obstacle ? `<span class="badge badge-obstacle">OBSTACLE</span>` : ''}
-      ${card.netR > 0 ? `<span class="badge ${riskClass(card.netR)}">NET RISK ${card.netR}</span>` : ''}
-      ${card.resR > 0 ? `<span class="badge badge-type">RES ${card.resR}</span>` : ''}
+      ${ec.netR > 0 ? `<span class="badge ${riskClass(ec.netR)}">NET RISK ${ec.netR}</span>` : ''}
+      ${ec.resR > 0 ? `<span class="badge badge-type">RES ${ec.resR}</span>` : ''}
+      ${wasPendingImport ? `<span class="badge badge-pending-import">⏳ PENDING</span>` : ''}
       ${isDone ? `<span class="badge badge-complete">✓ DONE</span>` : ''}
       ${myNote ? `<span class="badge badge-note">✎ NOTE</span>` : ''}
+      ${hasEdits ? `<span class="badge badge-edited">✎ EDITED</span>` : ''}
     </div>
   `;
 
@@ -1479,10 +2912,10 @@ function renderCard(idx) {
   let html = '';
 
   // Obstacle name + Location
-  let locText = card.loc;
+  let locText = ec.loc || '';
   let obstacleName = null;
-  if (card.loc.startsWith('OBSTACLE: ')) {
-    const rest = card.loc.slice(10);
+  if (locText.startsWith('OBSTACLE: ')) {
+    const rest = locText.slice(10);
     const sep = rest.indexOf(' — ');
     if (sep !== -1) {
       obstacleName = rest.slice(0, sep);
@@ -1506,29 +2939,36 @@ function renderCard(idx) {
   }
 
   // Hazard (collapsible)
-  if (card.hazard) {
-    html += secHtml('hazard', 'Hazard / Threat', `<div class="hazard-box">${card.hazard}</div>`);
+  if (ec.hazard) {
+    html += secHtml('hazard', 'Hazard / Threat', `<div class="hazard-box">${ec.hazard}</div>`);
   }
 
   // Mitigation (collapsible)
-  const hasMit = card.sig || card.equip || card.staff;
+  const hasMit = ec.sig || ec.equip || ec.staff || (ec.signs && ec.signs.length);
   if (hasMit) {
     let mc = '<div class="mit-list">';
-    if (card.sig)   mc += `<div class="mit-row"><div class="mit-icon">🪧</div><div class="mit-content"><div class="mit-label">Signage</div><div class="mit-text">${card.sig}</div></div></div>`;
-    if (card.equip) mc += `<div class="mit-row"><div class="mit-icon">🔧</div><div class="mit-content"><div class="mit-label">Equipment</div><div class="mit-text">${card.equip}</div></div></div>`;
-    if (card.staff) mc += `<div class="mit-row"><div class="mit-icon">👤</div><div class="mit-content"><div class="mit-label">Staff</div><div class="mit-text">${card.staff}</div></div></div>`;
+    if (ec.signs && ec.signs.length) {
+      const badges = ec.signs.map(id => {
+        const s = SIGN_TYPES.find(t => t.id === id);
+        return s ? `<span class="sign-badge ${s.type}">${s.icon} ${s.label}</span>` : '';
+      }).join('');
+      mc += `<div class="mit-row"><div class="mit-icon">🪧</div><div class="mit-content"><div class="mit-label">Signage</div><div class="sign-badge-row">${badges}</div></div></div>`;
+    }
+    if (ec.sig)   mc += `<div class="mit-row"><div class="mit-icon">🪧</div><div class="mit-content"><div class="mit-label">${ec.signs && ec.signs.length ? 'Signage Notes' : 'Signage'}</div><div class="mit-text">${ec.sig}</div></div></div>`;
+    if (ec.equip) mc += `<div class="mit-row"><div class="mit-icon">🔧</div><div class="mit-content"><div class="mit-label">Equipment</div><div class="mit-text">${ec.equip}</div></div></div>`;
+    if (ec.staff) mc += `<div class="mit-row"><div class="mit-icon">👤</div><div class="mit-content"><div class="mit-label">Staff</div><div class="mit-text">${ec.staff}</div></div></div>`;
     mc += '</div>';
     html += secHtml('mitigation', 'Mitigation', mc);
   }
 
   // Further info (collapsible)
-  if (card.info) {
-    html += secHtml('info', 'Further Info', `<div class="info-box">${card.info}</div>`);
+  if (ec.info) {
+    html += secHtml('info', 'Further Info', `<div class="info-box">${ec.info}</div>`);
   }
 
   // Further action (collapsible)
-  if (card.action) {
-    html += secHtml('action', 'Further Action', `<div class="action-box">${card.action}</div>`);
+  if (ec.action) {
+    html += secHtml('action', 'Further Action', `<div class="action-box">${ec.action}</div>`);
   }
 
   // My notes
@@ -1542,13 +2982,17 @@ function renderCard(idx) {
     </div>`;
   }
 
+  html += `<div id="cardMediaSection" class="card-media-section"></div>`;
+
   body.innerHTML = html;
   body.scrollTop = 0;
   updateCardMiniMap(idx);
+  renderCardMedia(idx);
 
   // Complete strip
   const strip = document.getElementById('completeStrip');
   strip.style.display = isDone ? 'block' : 'none';
+  strip.style.background = '';
 
   // Update buttons
   updateActionBar(isDone);
@@ -1566,11 +3010,13 @@ function updateActionBar(isDone) {
 }
 
 function updateProgress() {
-  const total = CARDS.length;
+  const total = ALLCARDS.length;
   const done = Object.keys(state.completed).filter(k => state.completed[k]).length;
-  document.getElementById('countPill').textContent = `${done} / ${total}`;
-  const idx = Math.min(state.currentIndex, CARDS.length - 1);
-  document.getElementById('distMarker').style.left = ((RESOLVED_DISTS[idx] / TOTAL_DIST) * 100) + '%';
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('countFill').style.width = pct + '%';
+  document.getElementById('countText').textContent = pct + '%';
+  const idx = Math.min(state.currentIndex, ALLCARDS.length - 1);
+  document.getElementById('distMarker').style.left = ((ALL_RESOLVED_DISTS[idx] / activeTotalDist) * 100) + '%';
 }
 
 function showAllDone() {
@@ -1579,6 +3025,8 @@ function showAllDone() {
   document.getElementById('mainCard').style.display = 'none';
   document.getElementById('allDoneScreen').classList.add('visible');
   document.getElementById('actionsBar').style.display = 'none';
+  const sub = document.getElementById('allDoneSub');
+  if (sub) sub.innerHTML = `All ${ALLCARDS.length} checkpoints reviewed.<br>${getActiveEventName()} is ready to go.`;
 }
 function hideAllDone() {
   document.getElementById('cardStack').querySelector('.card-behind-2').style.display = '';
@@ -1590,8 +3038,9 @@ function hideAllDone() {
 
 // ── NAVIGATION ────────────────────────────────────────────────────────────────
 function navigate(dir) {
+  if (_cardMode) return;
   const newIdx = state.currentIndex + dir;
-  if (newIdx < 0 || newIdx >= CARDS.length) return;
+  if (newIdx < 0 || newIdx >= ALLCARDS.length) return;
   state.currentIndex = newIdx;
   saveState();
   hideAllDone();
@@ -1600,6 +3049,7 @@ function navigate(dir) {
 }
 
 function goToCard(idx) {
+  if (_cardMode) cancelCardMode();
   state.currentIndex = idx;
   saveState();
   hideAllDone();
@@ -1610,7 +3060,7 @@ function goToCard(idx) {
 
 // ── ACTIONS ───────────────────────────────────────────────────────────────────
 function markDone() {
-  const card = CARDS[state.currentIndex];
+  const card = ALLCARDS[state.currentIndex];
   if (state.completed[card.ref]) {
     delete state.completed[card.ref];
     auditEntry(card.ref, 'undo');
@@ -1631,7 +3081,7 @@ function markDone() {
     doneOverlay.style.opacity = '0';
     el.classList.remove('fly-down');
     el.style.transform = '';
-    if (state.currentIndex < CARDS.length - 1) {
+    if (state.currentIndex < ALLCARDS.length - 1) {
       state.currentIndex++;
       saveState();
       renderCard(state.currentIndex);
@@ -1643,12 +3093,62 @@ function markDone() {
 
 // ── NOTES ─────────────────────────────────────────────────────────────────────
 function openNotes() {
-  const card = CARDS[state.currentIndex];
+  const card = ALLCARDS[state.currentIndex];
   document.getElementById('modalTitle').textContent = card.ref;
-  document.getElementById('modalSub').textContent = card.loc.substring(0, 60) + (card.loc.length > 60 ? '…' : '');
+  const cardLocStr = card.loc || card.description || '';
+  document.getElementById('modalSub').textContent = cardLocStr.substring(0, 60) + (cardLocStr.length > 60 ? '…' : '');
   document.getElementById('notesTextarea').value = state.notes[card.ref] || '';
+  renderNotesTagRow(card.ref);
   document.getElementById('notesModal').classList.add('open');
   setTimeout(() => document.getElementById('notesTextarea').focus(), 300);
+}
+
+function renderNotesTagRow(cardRef) {
+  const row = document.getElementById('notesTagRow');
+  if (!row) return;
+  const tags = (state.tags && state.tags[cardRef]) || [];
+  let html = '';
+  tags.forEach((tag, i) => {
+    html += `<span class="tag-chip">#${escHtml(tag)}<button class="tag-chip-remove" onclick="removeTagFromNotes('${cardRef}',${i})">×</button></span>`;
+  });
+  html += `<button class="tag-add-btn" onclick="startAddTagInNotes('${cardRef}')">+ tag</button>`;
+  row.innerHTML = html;
+}
+
+function removeTagFromNotes(cardRef, i) {
+  removeTag(cardRef, i);
+  renderNotesTagRow(cardRef);
+}
+
+function startAddTagInNotes(cardRef) {
+  const row = document.getElementById('notesTagRow');
+  if (!row) return;
+  const addBtn = row.querySelector('.tag-add-btn');
+  if (!addBtn) return;
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'tag-input';
+  inp.placeholder = 'tag name…';
+  inp.maxLength = 30;
+  let submitted = false;
+  const submit = () => {
+    if (submitted) return;
+    submitted = true;
+    const tag = inp.value.trim().replace(/^#+/, '').replace(/\s+/g, '-').toLowerCase();
+    if (tag) {
+      if (!state.tags) state.tags = {};
+      if (!state.tags[cardRef]) state.tags[cardRef] = [];
+      if (!state.tags[cardRef].includes(tag)) { state.tags[cardRef].push(tag); saveState(); }
+    }
+    renderNotesTagRow(cardRef);
+  };
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    if (e.key === 'Escape') { submitted = true; renderNotesTagRow(cardRef); }
+  });
+  inp.addEventListener('blur', () => setTimeout(submit, 150));
+  addBtn.replaceWith(inp);
+  inp.focus();
 }
 function closeNotes() {
   document.getElementById('notesModal').classList.remove('open');
@@ -1657,14 +3157,17 @@ function closeNotesOnBackdrop(e) {
   if (e.target === document.getElementById('notesModal')) closeNotes();
 }
 function saveNote(complete) {
-  const card = CARDS[state.currentIndex];
+  const card = ALLCARDS[state.currentIndex];
   const text = document.getElementById('notesTextarea').value.trim();
+  if (!state.noteMeta) state.noteMeta = {};
   if (text) {
     state.notes[card.ref] = text;
+    state.noteMeta[card.ref] = { savedBy: currentUser.name || 'Unknown', savedAt: new Date().toISOString() };
     auditEntry(card.ref, 'note', { text });
   } else {
     if (state.notes[card.ref]) auditEntry(card.ref, 'note_delete');
     delete state.notes[card.ref];
+    delete state.noteMeta[card.ref];
   }
   const wasAlreadyDone = !!state.completed[card.ref];
   if (complete && !wasAlreadyDone) {
@@ -1673,7 +3176,7 @@ function saveNote(complete) {
   }
   saveState();
   closeNotes();
-  if (complete && !wasAlreadyDone && state.currentIndex < CARDS.length - 1) {
+  if (complete && !wasAlreadyDone && state.currentIndex < ALLCARDS.length - 1) {
     state.currentIndex++;
     saveState();
   }
@@ -1685,28 +3188,41 @@ function saveNote(complete) {
 function openOverview() {
   const done = Object.keys(state.completed).filter(k => state.completed[k]).length;
   const noted = Object.keys(state.notes).length;
-  document.getElementById('overviewStats').textContent = `${done} complete · ${noted} with notes`;
+  const isCSVEvent = activeEventId !== BUILTIN_EVENT_ID;
+  const pendingImportCount = isCSVEvent && state.reviewed
+    ? ALLCARDS.filter(c => !state.reviewed[c.ref]).length
+    : 0;
+  document.getElementById('overviewStats').textContent = pendingImportCount > 0
+    ? `${done} complete · ${pendingImportCount} pending import`
+    : `${done} complete · ${noted} with notes`;
 
   const list = document.getElementById('ovList');
-  list.innerHTML = CARDS.map((c, i) => {
+  list.innerHTML = ALLCARDS.map((c, i) => {
     const isDone = !!state.completed[c.ref];
     const hasNote = !!state.notes[c.ref];
     const isCurrent = i === state.currentIndex;
+    const isPendingImport = isCSVEvent && !(state.reviewed && state.reviewed[c.ref]);
     let dotClass = 'pending', dotContent = String(i+1).padStart(2,'0');
+    if (c.isCustom && dotClass === 'pending') { dotClass = 'pending'; dotContent = '+'; }
     if (isCurrent) { dotClass = 'current-item'; dotContent = '►'; }
-    else if (isDone && hasNote) { dotClass = 'done'; dotContent = '✓'; }
     else if (isDone) { dotClass = 'done'; dotContent = '✓'; }
     else if (hasNote) { dotClass = 'has-note'; dotContent = '✎'; }
+    else if (isPendingImport) { dotClass = 'pending-import'; dotContent = '⏳'; }
+    else if (c.isCustom) { dotClass = 'pending'; dotContent = '+'; }
 
     const noteSnip = hasNote ? `<div class="ov-note-snip">✎ ${state.notes[c.ref].substring(0,40)}${state.notes[c.ref].length>40?'…':''}</div>` : '';
     const distStr = c.dist ? `${c.dist}` : '—';
 
+    const ovLocText = c.isCustom
+      ? (c.description || c.loc || '').substring(0, 50)
+      : (c.loc || '').substring(0, 50);
+    const ovLocFull = c.isCustom ? (c.description || c.loc || '') : (c.loc || '');
     return `<div class="ov-item${isCurrent?' current':''}" onclick="goToCard(${i})">
-      <div class="ov-dot ${dotClass}">${dotContent}</div>
-      <div class="ov-ref">${c.ref}</div>
+      <div class="ov-dot ${c.isCustom && dotClass==='pending' ? 'custom-card' : dotClass}">${dotContent}</div>
+      <div class="ov-ref${c.isCustom ? ' custom-ref' : ''}">${c.ref}</div>
       <div class="ov-info">
-        <div class="ov-loc">${c.loc.substring(0,50)}${c.loc.length>50?'…':''}</div>
-        <div class="ov-dist">${distStr}${c.w3w ? ' · ' + c.w3w.substring(0,20) : ''}</div>
+        <div class="ov-loc">${ovLocText}${ovLocFull.length > 50 ? '…' : ''}</div>
+        <div class="ov-dist">${distStr}${!c.isCustom && c.w3w ? ' · ' + c.w3w.substring(0,20) : (c.isCustom ? ' · field addition' : '')}</div>
         ${noteSnip}
       </div>
     </div>`;
@@ -1723,6 +3239,132 @@ function closeOverview() {
   document.getElementById('overviewPanel').classList.remove('open');
 }
 
+// ── MENU ──────────────────────────────────────────────────────────────────────
+function openMenu() {
+  document.getElementById('menuSheet').classList.add('open');
+}
+function closeMenu() {
+  document.getElementById('menuSheet').classList.remove('open');
+}
+function closeMenuOnBackdrop(e) {
+  if (e.target === document.getElementById('menuSheet')) closeMenu();
+}
+
+// ── COURSE NOTES ──────────────────────────────────────────────────────────────
+function openCourseNotes() {
+  const noted = ALLCARDS.filter(c => state.notes[c.ref] || (state.cardEdits && state.cardEdits[c.ref]));
+  document.getElementById('courseNotesStats').textContent =
+    noted.length ? noted.length + ' note' + (noted.length !== 1 ? 's' : '') : 'no notes yet';
+  document.getElementById('shareNotesBtn').style.display = noted.length ? '' : 'none';
+
+  const list = document.getElementById('courseNotesList');
+  if (!noted.length) {
+    list.innerHTML = '<div class="notes-empty">No notes recorded yet.<br>Swipe up on a card or tap Note<br>to add field notes.</div>';
+  } else {
+    const fmtDt = iso => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) +
+        ' · ' + d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+    };
+    list.innerHTML = noted.map(c => {
+      const ec = effectiveCard(c);
+      let loc = ec.loc || c.loc || '';
+      if (loc.startsWith('OBSTACLE: ')) {
+        const rest = loc.slice(10);
+        const sep = rest.indexOf(' — ');
+        loc = sep !== -1 ? rest.slice(0, sep) : rest.replace(/\.$/, '');
+      }
+      const myNote = state.notes[c.ref] || '';
+      const noteMeta = state.noteMeta && state.noteMeta[c.ref];
+      const noteMetaLine = noteMeta
+        ? `<span class="note-meta-text">${noteMeta.savedBy || 'Unknown'} · ${fmtDt(noteMeta.savedAt)}</span>`
+        : '';
+      const editSummary = state.cardEditSummary && state.cardEditSummary[c.ref];
+      const editLine = editSummary
+        ? `<span class="note-body-text" style="color:#a070d8;font-size:12px">✎ Edited: ${editSummary.fields.join(', ')}</span>` +
+          `<span class="note-meta-text">${editSummary.editedBy || 'Unknown'} · ${fmtDt(editSummary.editedAt)}</span>`
+        : '';
+      return `<div class="note-row">
+        <div class="note-ref-col">
+          <span class="note-ref-tag${c.isCustom ? '" style="color:#a070d8' : ''}">${c.ref}</span>
+        </div>
+        <div class="note-content-col">
+          <span class="note-loc-text">${loc}</span>
+          ${myNote ? `<span class="note-body-text">${myNote}</span>${noteMetaLine}` : ''}
+          ${editLine}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('courseNotesPanel').classList.add('open');
+}
+function closeCourseNotes() {
+  document.getElementById('courseNotesPanel').classList.remove('open');
+}
+
+async function shareCourseNotes() {
+  const noted = ALLCARDS.filter(c => state.notes[c.ref] || (state.cardEdits && state.cardEdits[c.ref]));
+  if (!noted.length) return;
+
+  const lines = [`COURSE NOTES — ${(currentUser.event || 'ofCourse').toUpperCase()}`];
+  if (currentUser.name) {
+    lines.push(`${currentUser.name}${currentUser.role ? ', ' + currentUser.role : ''}`);
+  }
+  lines.push(new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }));
+  lines.push('');
+
+  const fmtDt = iso => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) +
+      ' ' + d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+  };
+
+  noted.forEach(c => {
+    const ec = effectiveCard(c);
+    let loc = ec.loc || '';
+    if (loc.startsWith('OBSTACLE: ')) {
+      const rest = loc.slice(10);
+      const sep = rest.indexOf(' — ');
+      loc = sep !== -1 ? rest.slice(0, sep) : rest.replace(/\.$/, '');
+    }
+    lines.push(`${c.ref}  ${loc}`);
+    if (state.notes[c.ref]) {
+      lines.push(state.notes[c.ref]);
+      const noteMeta = state.noteMeta && state.noteMeta[c.ref];
+      if (noteMeta) lines.push(`  — ${noteMeta.savedBy || 'Unknown'}, ${fmtDt(noteMeta.savedAt)}`);
+    }
+    const editSummary = state.cardEditSummary && state.cardEditSummary[c.ref];
+    if (editSummary) {
+      lines.push(`[Edited: ${editSummary.fields.join(', ')}]`);
+      lines.push(`  — ${editSummary.editedBy || 'Unknown'}, ${fmtDt(editSummary.editedAt)}`);
+    }
+    lines.push('');
+  });
+
+  const shareText = lines.join('\n');
+  const shareTitle = `Course Notes — ${currentUser.event || 'ofCourse'}`;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: shareTitle, text: shareText });
+      return;
+    } catch(e) {
+      if (e.name === 'AbortError') return;
+    }
+  }
+
+  // Fallback: download as plain text
+  const blob = new Blob([shareText], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `course-notes-${new Date().toISOString().slice(0, 10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── EXPORT ────────────────────────────────────────────────────────────────────
 function exportData() {
   // Build lookup: last 'complete' audit entry per ref
@@ -1731,16 +3373,22 @@ function exportData() {
     if (e.action === 'complete') completions[e.ref] = e;
   });
 
-  const rows = [['Ref','Distance','W3W','Location','Obstacle','Net Risk','Residual Risk','Status','Notes','Completed By','Role','Completed At']];
-  CARDS.forEach(c => {
+  const rows = [['Ref','Distance','W3W','Location','Obstacle','Net Risk','Residual Risk','Status','Notes','Tags','Completed By','Role','Completed At']];
+  ALLCARDS.forEach(c => {
     const comp = completions[c.ref];
+    const ec = effectiveCard(c);
+    const editSummary = state.cardEditSummary && state.cardEditSummary[c.ref];
+    const editNote = editSummary ? `[Edited: ${editSummary.fields.join(', ')}]` : '';
+    const noteText = [state.notes[c.ref] || '', editNote].filter(Boolean).join(' | ');
+    const cardTags = (state.tags && state.tags[c.ref] || []).map(t => '#' + t).join(' ');
     rows.push([
-      c.ref, c.dist, c.w3w,
-      '"' + c.loc.replace(/"/g,'""') + '"',
-      c.obstacle ? 'YES' : 'NO',
-      c.netR || '', c.resR || '',
+      ec.ref || c.ref, ec.dist || '', ec.w3w || '',
+      '"' + (ec.loc || '').replace(/"/g,'""') + '"',
+      c.obstacle ? 'YES' : (c.isCustom ? 'FIELD ADDITION' : 'NO'),
+      ec.netR || '', ec.resR || '',
       state.completed[c.ref] ? 'COMPLETE' : 'PENDING',
-      '"' + (state.notes[c.ref] || '').replace(/"/g,'""') + '"',
+      '"' + noteText.replace(/"/g,'""') + '"',
+      '"' + cardTags + '"',
       comp ? '"' + comp.user + '"' : '',
       comp ? '"' + (comp.role || '') + '"' : '',
       comp ? comp.ts : '',
@@ -1767,7 +3415,7 @@ function exportData() {
 
 function confirmReset() {
   if (confirm('Reset all progress and notes? This cannot be undone.')) {
-    state = { currentIndex: 0, completed: {}, notes: {}, audit: [] };
+    state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {} };
     saveState();
     hideAllDone();
     closeOverview();
@@ -1782,16 +3430,28 @@ function confirmReset() {
   const card = document.getElementById('mainCard');
   const doneOverlay = document.getElementById('doneOverlay');
   const notesOverlay = document.getElementById('notesOverlay');
-  let startY = null, startX = null, startTime = null, currentY = 0;
-  const THRESHOLD = 80;
+  let startY = null, startX = null, startTime = null;
+  let currentY = 0, currentX = 0;
+  let swipeAxis = null; // 'vertical' | 'horizontal' | null
+  const V_THRESHOLD = 80;
+  const H_THRESHOLD = 60;
   const VELOCITY_THRESHOLD = 0.35; // px/ms
 
+  function reset() {
+    card.classList.remove('is-dragging');
+    card.classList.add('snap-back');
+    card.style.transform = '';
+    doneOverlay.style.opacity = 0;
+    notesOverlay.style.opacity = 0;
+    startY = null; startX = null; swipeAxis = null;
+  }
+
   function onStart(clientX, clientY) {
-    startY = clientY;
-    startX = clientX;
+    if (_cardMode) return;
+    startY = clientY; startX = clientX;
     startTime = Date.now();
-    currentY = 0;
-    card.classList.remove('snap-back', 'fly-down', 'fly-up');
+    currentY = 0; currentX = 0; swipeAxis = null;
+    card.classList.remove('snap-back', 'fly-down', 'fly-up', 'fly-left', 'fly-right');
   }
 
   function onMove(clientX, clientY) {
@@ -1799,23 +3459,31 @@ function confirmReset() {
     const dy = clientY - startY;
     const dx = clientX - startX;
 
-    // Only track if more vertical than horizontal
-    if (Math.abs(dy) < Math.abs(dx) * 0.8) return;
+    // Lock axis on first significant movement
+    if (!swipeAxis && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      swipeAxis = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+    }
+    if (!swipeAxis) return;
 
-    currentY = dy;
-    const rot = dy * 0.02;
-    card.style.transform = `translateY(${dy * 0.6}px) rotate(${rot}deg)`;
     card.classList.add('is-dragging');
 
-    // Show overlays
-    const progress = Math.min(Math.abs(dy) / THRESHOLD, 1);
-    if (dy > 20) {
-      doneOverlay.style.opacity = progress * 0.9;
-      notesOverlay.style.opacity = 0;
-    } else if (dy < -20) {
-      notesOverlay.style.opacity = progress * 0.9;
-      doneOverlay.style.opacity = 0;
+    if (swipeAxis === 'vertical') {
+      currentY = dy;
+      card.style.transform = `translateY(${dy * 0.6}px) rotate(${dy * 0.02}deg)`;
+      const progress = Math.min(Math.abs(dy) / V_THRESHOLD, 1);
+      if (dy > 20) {
+        doneOverlay.style.opacity = progress * 0.9;
+        notesOverlay.style.opacity = 0;
+      } else if (dy < -20) {
+        notesOverlay.style.opacity = progress * 0.9;
+        doneOverlay.style.opacity = 0;
+      } else {
+        doneOverlay.style.opacity = 0;
+        notesOverlay.style.opacity = 0;
+      }
     } else {
+      currentX = dx;
+      card.style.transform = `translateX(${dx * 0.45}px) rotate(${dx * 0.01}deg)`;
       doneOverlay.style.opacity = 0;
       notesOverlay.style.opacity = 0;
     }
@@ -1828,30 +3496,56 @@ function confirmReset() {
     notesOverlay.style.opacity = 0;
 
     const elapsed = Date.now() - startTime;
-    const velocity = Math.abs(currentY) / elapsed;
-    const triggered = Math.abs(currentY) > THRESHOLD || velocity > VELOCITY_THRESHOLD;
 
-    if (triggered) {
-      if (currentY > 0) {
-        // Swipe down → done
-        markDone();
-        card.style.transform = '';
+    if (swipeAxis === 'vertical') {
+      const velocity = Math.abs(currentY) / elapsed;
+      const triggered = Math.abs(currentY) > V_THRESHOLD || velocity > VELOCITY_THRESHOLD;
+      if (triggered) {
+        if (currentY > 0) {
+          markDone();
+          card.style.transform = '';
+        } else {
+          card.classList.add('snap-back');
+          card.style.transform = '';
+          setTimeout(openNotes, 150);
+        }
       } else {
-        // Swipe up → notes
         card.classList.add('snap-back');
         card.style.transform = '';
-        setTimeout(openNotes, 150);
+      }
+    } else if (swipeAxis === 'horizontal') {
+      const velocity = Math.abs(currentX) / elapsed;
+      const triggered = Math.abs(currentX) > H_THRESHOLD || velocity > VELOCITY_THRESHOLD;
+      if (triggered) {
+        const dir = currentX < 0 ? 1 : -1; // left = next, right = prev
+        const canNav = !(dir === -1 && state.currentIndex === 0) &&
+                       !(dir === 1 && state.currentIndex >= ALLCARDS.length - 1);
+        if (canNav) {
+          card.classList.add(currentX < 0 ? 'fly-left' : 'fly-right');
+          setTimeout(() => {
+            card.classList.remove('fly-left', 'fly-right');
+            card.style.transform = '';
+            navigate(dir);
+          }, 300);
+        } else {
+          card.classList.add('snap-back');
+          card.style.transform = '';
+        }
+      } else {
+        card.classList.add('snap-back');
+        card.style.transform = '';
       }
     } else {
       card.classList.add('snap-back');
       card.style.transform = '';
     }
 
-    startY = null;
+    startY = null; startX = null; swipeAxis = null;
   }
 
   // Touch events
   card.addEventListener('touchstart', e => {
+    if (e.target.closest('#cardMiniMap, #mapResizeHandle')) return;
     onStart(e.touches[0].clientX, e.touches[0].clientY);
   }, { passive: true });
 
@@ -1860,14 +3554,7 @@ function confirmReset() {
   }, { passive: true });
 
   card.addEventListener('touchend', () => onEnd(), { passive: true });
-  card.addEventListener('touchcancel', () => {
-    card.classList.remove('is-dragging');
-    card.classList.add('snap-back');
-    card.style.transform = '';
-    doneOverlay.style.opacity = 0;
-    notesOverlay.style.opacity = 0;
-    startY = null;
-  }, { passive: true });
+  card.addEventListener('touchcancel', () => reset(), { passive: true });
 
   // Mouse events for desktop
   let mouseDown = false;
@@ -1889,6 +3576,12 @@ function confirmReset() {
 
 // ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
+  if (_cardMode) {
+    if (e.key === 'Escape') cancelCardMode();
+    return;
+  }
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement.isContentEditable) return;
   if (document.getElementById('notesModal').classList.contains('open')) return;
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate(1);
   if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') navigate(-1);
@@ -1912,10 +3605,18 @@ const NODE_TYPES = {
   finish:      { content: 'F' },
 };
 
-const MAP_KEY   = 'pmg2026_pins';
+let MAP_KEY        = 'pmg2026_pins';
 let mapPins = {};
-const ROUTE_KEY = 'pmg2026_route';
-let routePoints = [];
+let ROUTES_KEY     = 'pmg2026_routes';
+let ACTIVE_ROUTE_KEY = 'pmg2026_active_route';
+let routes = {};        // { id: { name, points, createdAt, createdBy, updatedAt } }
+let activeRouteId = null;
+let routePoints = [];   // always === routes[activeRouteId].points (or [])
+
+// ── Route sync ────────────────────────────────────────────────────────────────
+// When deployed to Fly.io the server exposes /api/routes and routes are shared
+// across all users automatically. Set false to disable sync (localStorage only).
+const ROUTE_SYNC = true;
 
 const TILE_LAYERS = {
   map: {
@@ -1957,10 +3658,167 @@ function loadMapPins() {
   try { const s = localStorage.getItem(MAP_KEY); if (s) mapPins = JSON.parse(s); } catch(e) {}
 }
 function saveMapPins() { localStorage.setItem(MAP_KEY, JSON.stringify(mapPins)); }
-function loadRoute() {
-  try { const s = localStorage.getItem(ROUTE_KEY); if (s) routePoints = JSON.parse(s); } catch(e) {}
+
+function genRouteId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
-function saveRoute() { localStorage.setItem(ROUTE_KEY, JSON.stringify(routePoints)); }
+
+function loadRoutes() {
+  try {
+    const s = localStorage.getItem(ROUTES_KEY);
+    if (s) routes = JSON.parse(s);
+  } catch(e) {}
+  // Migrate legacy single-route data
+  try {
+    const legacy = localStorage.getItem('pmg2026_route');
+    if (legacy && !Object.keys(routes).length) {
+      const pts = JSON.parse(legacy);
+      if (pts && pts.length) {
+        const id = genRouteId();
+        routes[id] = { name: 'Course Route', points: pts, createdAt: new Date().toISOString(), createdBy: 'migrated' };
+        localStorage.setItem(ROUTES_KEY, JSON.stringify(routes));
+        localStorage.removeItem('pmg2026_route');
+      }
+    }
+  } catch(e) {}
+  // Restore active route selection
+  const savedActive = localStorage.getItem(ACTIVE_ROUTE_KEY);
+  const ids = Object.keys(routes);
+  if (savedActive && routes[savedActive]) {
+    activeRouteId = savedActive;
+  } else if (ids.length) {
+    activeRouteId = ids[0];
+  }
+  routePoints = activeRouteId ? (routes[activeRouteId].points || []) : [];
+}
+
+function saveRoutesLocal() {
+  localStorage.setItem(ROUTES_KEY, JSON.stringify(routes));
+}
+
+function saveActiveRoute() {
+  if (!activeRouteId || !routes[activeRouteId]) return;
+  routes[activeRouteId].points = routePoints;
+  routes[activeRouteId].updatedAt = new Date().toISOString();
+  saveRoutesLocal();
+  pushRouteToFirebase(activeRouteId);
+}
+
+// Kept as alias so drag-handler reference still works
+function saveRoute() { saveActiveRoute(); }
+
+// ── Route selector UI ─────────────────────────────────────────────────────────
+function renderRouteSelector() {
+  const bar = document.getElementById('routeSelectorBar');
+  if (!bar) return;
+  const ids = Object.keys(routes);
+  let html = '';
+  if (ids.length === 0) {
+    html = `<span class="route-selector-empty">No routes yet</span>`;
+  } else {
+    html = ids.map(id => {
+      const r = routes[id];
+      const isActive = id === activeRouteId;
+      const name = r.name || '(unnamed)';
+      const pts = (r.points || []).length;
+      const label = pts ? `${name} · ${pts}` : name;
+      return `<button class="route-chip${isActive ? ' active' : ''}" onclick="setActiveRoute('${id}')">${label}</button>`;
+    }).join('');
+  }
+  html += `<button class="route-chip route-chip-new" onclick="createNewRoute()">+ New Route</button>`;
+  bar.innerHTML = html;
+}
+
+function setActiveRoute(id) {
+  if (!routes[id]) return;
+  activeRouteId = id;
+  localStorage.setItem(ACTIVE_ROUTE_KEY, id);
+  routePoints = routes[id].points || [];
+  redrawRoute(mapSubMode === 'route' && mapEditMode);
+  updateRouteCount();
+  renderRouteSelector();
+}
+
+function createNewRoute() {
+  const id = genRouteId();
+  routes[id] = {
+    name: null,
+    points: [],
+    createdAt: new Date().toISOString(),
+    createdBy: currentUser.name || '',
+  };
+  saveRoutesLocal();
+  setActiveRoute(id);
+  // Auto-enter route edit mode
+  if (!mapEditMode) toggleMapEdit();
+  if (mapSubMode !== 'route') setMapSubMode('route');
+}
+
+// ── Route naming ──────────────────────────────────────────────────────────────
+function promptRouteName() {
+  if (!activeRouteId || !routes[activeRouteId]) return;
+  const input = document.getElementById('routeNameInput');
+  input.value = routes[activeRouteId].name || '';
+  document.getElementById('routeNameModal').classList.add('open');
+  setTimeout(() => input.focus(), 300);
+}
+
+function saveRouteNameFromModal() {
+  const name = (document.getElementById('routeNameInput').value || '').trim();
+  if (!name || !activeRouteId || !routes[activeRouteId]) return;
+  routes[activeRouteId].name = name;
+  routes[activeRouteId].savedAt = new Date().toISOString();
+  routes[activeRouteId].savedBy = currentUser.name || '';
+  saveRoutesLocal();
+  pushRouteToFirebase(activeRouteId);
+  document.getElementById('routeNameModal').classList.remove('open');
+  renderRouteSelector();
+}
+
+function closeRouteNameModal() {
+  document.getElementById('routeNameModal').classList.remove('open');
+}
+
+// ── Route sync (own server /api/routes) ──────────────────────────────────────
+async function pushRouteToFirebase(id) {
+  if (!ROUTE_SYNC || !routes[id] || activeEventId !== BUILTIN_EVENT_ID) return;
+  try {
+    await fetch('/api/routes/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(routes[id]),
+    });
+  } catch(e) {}
+}
+
+async function fetchRoutesFromFirebase() {
+  if (!ROUTE_SYNC || activeEventId !== BUILTIN_EVENT_ID) return;
+  try {
+    const res = await fetch('/api/routes');
+    if (!res.ok) return;
+    const remote = await res.json();
+    if (!remote || typeof remote !== 'object') return;
+    let changed = false;
+    Object.entries(remote).forEach(([id, r]) => {
+      if (!r || !Array.isArray(r.points)) return;
+      const localTs  = routes[id]?.updatedAt || '';
+      const remoteTs = r.updatedAt || '';
+      if (!routes[id] || remoteTs > localTs) { routes[id] = r; changed = true; }
+    });
+    if (changed) {
+      saveRoutesLocal();
+      renderRouteSelector();
+      if (activeRouteId && routes[activeRouteId]) {
+        routePoints = routes[activeRouteId].points || [];
+        redrawRoute(mapSubMode === 'route' && mapEditMode);
+        updateRouteCount();
+        if (document.getElementById('mapPanel').classList.contains('open')) {
+          requestAnimationFrame(() => mapFitBounds());
+        }
+      }
+    }
+  } catch(e) {}
+}
 
 // ── Panel open/close ──────────────────────────────────────────────────────────
 function openMap() {
@@ -1977,11 +3835,19 @@ function openMap() {
   document.getElementById('nodeEditor').classList.remove('open');
   document.getElementById('btnRouteMode').classList.remove('active');
   document.getElementById('btnFeatMode').classList.remove('active');
+  renderRouteSelector();
   setMapLayer(activeLayer);
-  panel.addEventListener('transitionend', function once() {
+  panel.addEventListener('transitionend', function once(e) {
+    if (e.target !== panel) return;  // ignore bubbled events from children
     panel.removeEventListener('transitionend', once);
     if (!lmap) initLeaflet();
-    else { lmap.invalidateSize(); refreshMapMarkers(); redrawRoute(false); }
+    else {
+      lmap.invalidateSize();
+      refreshMapMarkers();
+      redrawRoute(false);
+      requestAnimationFrame(() => mapFitBounds());
+    }
+    fetchRoutesFromFirebase();
   });
 }
 function closeMap() { document.getElementById('mapPanel').classList.remove('open'); }
@@ -2001,6 +3867,10 @@ function toggleMapEdit() {
     document.getElementById('btnRouteMode').classList.remove('active');
     document.getElementById('btnFeatMode').classList.remove('active');
     redrawRoute(false);
+    // Prompt for a name if this route has nodes but hasn't been named yet
+    if (activeRouteId && routes[activeRouteId] && routePoints.length > 0 && !routes[activeRouteId].name) {
+      setTimeout(promptRouteName, 350);
+    }
   }
 }
 
@@ -2017,7 +3887,7 @@ function setMapSubMode(mode) {
   } else {
     redrawRoute(false);
     refreshMapToolbar();
-    const pos = mapPins[CARDS[mapPickIdx].ref];
+    const pos = mapPins[ALLCARDS[mapPickIdx].ref];
     if (pos && lmap) lmap.panTo([pos.lat, pos.lng]);
   }
 }
@@ -2041,7 +3911,9 @@ function setMapLayer(layer) {
 }
 
 function initLeaflet() {
-  lmap = L.map('leafletMap', { zoomControl: true }).setView([55.823, -4.298], 15);
+  const evtMeta = getAllEvents().find(e => e.id === activeEventId) || BUILTIN_EVENT_META;
+  const clat = evtMeta.lat || 55.823, clng = evtMeta.lng || -4.298;
+  lmap = L.map('leafletMap', { zoomControl: true }).setView([clat, clng], 15);
   setMapLayer(activeLayer);
   lmap.on('click', e => {
     if (selectedNodeIdx !== null) { closeNodeEditor(); return; }
@@ -2051,6 +3923,7 @@ function initLeaflet() {
   });
   refreshMapMarkers();
   redrawRoute(false);
+  requestAnimationFrame(() => mapFitBounds());
 }
 
 // ── Course route ──────────────────────────────────────────────────────────────
@@ -2135,7 +4008,7 @@ function undoRouteNode() {
 function confirmClearRoute() {
   if (!routePoints.length) return;
   if (confirm('Clear the entire course route? This cannot be undone.')) {
-    routePoints = []; selectedNodeIdx = null;
+    routePoints.length = 0; selectedNodeIdx = null;
     document.getElementById('nodeEditor').classList.remove('open');
     saveRoute(); redrawRoute(true);
   }
@@ -2191,21 +4064,22 @@ function setActiveTerrain(terrain) {
 
 // ── Feature pins ──────────────────────────────────────────────────────────────
 function pinColor(idx) {
-  const c = CARDS[idx];
+  const c = ALLCARDS[idx];
   if (state.completed[c.ref]) return '#2a7a3a';
+  if (c.isCustom) return '#6a30a8';
   if (c.obstacle) return '#e55a00';
   return '#1a5c8a';
 }
 
 function pinIcon(idx) {
-  const c = CARDS[idx];
+  const c = ALLCARDS[idx];
   const sel = idx === mapPickIdx && mapSubMode === 'features';
   const col = pinColor(idx);
-  const sz = sel ? 32 : 24;
-  const ring = sel ? '3px solid #fff' : '2px solid rgba(255,255,255,.35)';
+  const sz = sel ? 64 : 48;
+  const ring = sel ? '6px solid #fff' : '4px solid rgba(255,255,255,.35)';
   return L.divIcon({
     className: '',
-    html: `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};border:${ring};display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:${sel?8:6}px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.5)">${c.ref}</div>`,
+    html: `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};border:${ring};display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:${sel?16:12}px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.5)">${c.ref}</div>`,
     iconSize: [sz, sz], iconAnchor: [sz/2, sz/2]
   });
 }
@@ -2215,7 +4089,7 @@ function refreshMapMarkers() {
   Object.values(lMarkers).forEach(m => m.remove());
   lMarkers = {};
   if (lFeatLine) { lFeatLine.remove(); lFeatLine = null; }
-  const placed = CARDS.map((c, i) => ({ ref: c.ref, idx: i, pos: mapPins[c.ref] })).filter(x => x.pos);
+  const placed = ALLCARDS.map((c, i) => ({ ref: c.ref, idx: i, pos: mapPins[c.ref] })).filter(x => x.pos);
   if (placed.length > 1) {
     lFeatLine = L.polyline(placed.map(x => [x.pos.lat, x.pos.lng]), {
       color: '#888', weight: 1, opacity: 0.35, dashArray: '3 5'
@@ -2226,35 +4100,36 @@ function refreshMapMarkers() {
     const m = L.marker([pos.lat, pos.lng], { icon: pinIcon(idx) }).addTo(lmap);
     m.on('click', e => {
       e.originalEvent.stopPropagation();
+      if (!mapEditMode) { closeMap(); goToCard(idx); return; }
       if (mapSubMode === 'features') { mapPickIdx = idx; refreshMapMarkers(); refreshMapToolbar(); }
     });
     lMarkers[ref] = m;
   });
-  document.getElementById('mapCount').textContent = `${placed.length} / ${CARDS.length} pinned`;
+  document.getElementById('mapCount').textContent = `${placed.length} / ${ALLCARDS.length} pinned`;
 }
 
 function placePin(idx, lat, lng) {
-  mapPins[CARDS[idx].ref] = { lat, lng }; saveMapPins(); refreshMapMarkers();
+  mapPins[ALLCARDS[idx].ref] = { lat, lng }; saveMapPins(); refreshMapMarkers();
   const next = nextUnpinned(idx + 1);
   if (next !== null) { mapPickIdx = next; refreshMapMarkers(); }
   refreshMapToolbar();
 }
 
 function nextUnpinned(from) {
-  for (let i = from; i < CARDS.length; i++) if (!mapPins[CARDS[i].ref]) return i;
-  for (let i = 0; i < from; i++) if (!mapPins[CARDS[i].ref]) return i;
+  for (let i = from; i < ALLCARDS.length; i++) if (!mapPins[ALLCARDS[i].ref]) return i;
+  for (let i = 0; i < from; i++) if (!mapPins[ALLCARDS[i].ref]) return i;
   return null;
 }
 
 function unpinCard() {
-  delete mapPins[CARDS[mapPickIdx].ref]; saveMapPins(); refreshMapMarkers(); refreshMapToolbar();
+  delete mapPins[ALLCARDS[mapPickIdx].ref]; saveMapPins(); refreshMapMarkers(); refreshMapToolbar();
 }
 
 function mapNav(dir) {
   const next = mapPickIdx + dir;
-  if (next < 0 || next >= CARDS.length) return;
+  if (next < 0 || next >= ALLCARDS.length) return;
   mapPickIdx = next; refreshMapMarkers(); refreshMapToolbar();
-  const pos = mapPins[CARDS[mapPickIdx].ref];
+  const pos = mapPins[ALLCARDS[mapPickIdx].ref];
   if (pos && lmap) lmap.panTo([pos.lat, pos.lng]);
 }
 
@@ -2271,20 +4146,21 @@ function confirmClearMap() {
 }
 
 function refreshMapToolbar() {
-  const c = CARDS[mapPickIdx];
+  const c = ALLCARDS[mapPickIdx];
   const pinned = !!mapPins[c.ref];
   document.getElementById('mapRef').textContent = c.ref;
-  let desc = c.loc;
-  if (c.obstacle) {
-    const rest = c.loc.slice(10);
+  let desc = c.loc || '';
+  if (!c.isCustom && c.obstacle) {
+    const rest = desc.slice(10);
     const sep = rest.indexOf(' — ');
     desc = sep !== -1 ? rest.slice(sep + 3) : rest.replace(/\.$/, '');
   }
-  document.getElementById('mapDesc').textContent = (c.obstacle ? '⚡ ' : '') + desc.slice(0, 42) + (desc.length > 42 ? '…' : '');
+  const prefix = c.isCustom ? '+ ' : (c.obstacle ? '⚡ ' : '');
+  document.getElementById('mapDesc').textContent = prefix + desc.slice(0, 42) + (desc.length > 42 ? '…' : '');
   document.getElementById('mapPinStatus').textContent = pinned ? '\u{1F4CD} pinned' : 'tap map to pin';
   document.getElementById('mapUnpin').style.display = pinned ? 'inline-flex' : 'none';
   document.getElementById('mapPrev').disabled = mapPickIdx === 0;
-  document.getElementById('mapNext').disabled = mapPickIdx === CARDS.length - 1;
+  document.getElementById('mapNext').disabled = mapPickIdx === ALLCARDS.length - 1;
 }
 
 // ── CARD MINI-MAP ─────────────────────────────────────────────────────────────
@@ -2318,12 +4194,19 @@ function updateCardMiniUserMarker() {
 }
 
 function updateCardMiniMap(idx) {
-  const card = CARDS[idx];
+  const card = ALLCARDS[idx];
   const pin = mapPins[card.ref];
   const container = document.getElementById('cardMiniMap');
-  if (!pin) { container.style.display = 'none'; return; }
+  const handle = document.getElementById('mapResizeHandle');
+  if (!pin) {
+    container.style.display = 'none';
+    handle.style.display = 'none';
+    return;
+  }
 
   container.style.display = 'block';
+  container.style.height = minimapH + 'px';
+  handle.style.display = 'flex';
 
   if (!cardMiniLmap) {
     cardMiniLmap = L.map('cardMiniMap', {
@@ -2346,7 +4229,7 @@ function updateCardMiniMap(idx) {
   if (routePoints.length >= 2) {
     cardMiniRouteLine = L.polyline(
       routePoints.map(p => [p.lat, p.lng]),
-      { color: '#fff', weight: 3.5, opacity: 0.9, lineJoin: 'round' }
+      { color: '#ff2d78', weight: 3.5, opacity: 0.9, lineJoin: 'round' }
     ).addTo(cardMiniLmap);
     cardMiniRouteLine.bringToBack();
   }
@@ -2354,20 +4237,21 @@ function updateCardMiniMap(idx) {
   // Other pinned cards at 50% opacity (drawn before active pin so active stays on top)
   cardMiniFeatureMarkers.forEach(m => m.remove());
   cardMiniFeatureMarkers = [];
-  CARDS.forEach((c, i) => {
+  ALLCARDS.forEach((c, i) => {
     if (i === idx) return;
     const p = mapPins[c.ref];
     if (!p) return;
-    const col = state.completed[c.ref] ? '#2a7a3a' : (c.obstacle ? '#e55a00' : '#1a5c8a');
-    const fHtml = `<div style="width:16px;height:16px;border-radius:50%;background:${col};border:1.5px solid rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:6px;font-weight:500">${c.ref}</div>`;
-    const fIcon = L.divIcon({ className: '', html: fHtml, iconSize: [16, 16], iconAnchor: [8, 8] });
-    const m = L.marker([p.lat, p.lng], { icon: fIcon, interactive: false, opacity: 0.5, zIndexOffset: -100 }).addTo(cardMiniLmap);
+    const col = state.completed[c.ref] ? '#2a7a3a' : (c.isCustom ? '#6a30a8' : (c.obstacle ? '#e55a00' : '#1a5c8a'));
+    const fHtml = `<div style="width:32px;height:32px;border-radius:50%;background:${col};border:3px solid rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:12px;font-weight:500">${c.ref}</div>`;
+    const fIcon = L.divIcon({ className: '', html: fHtml, iconSize: [32, 32], iconAnchor: [16, 16] });
+    const m = L.marker([p.lat, p.lng], { icon: fIcon, interactive: true, opacity: 0.65, zIndexOffset: -100 }).addTo(cardMiniLmap);
+    m.on('click', (function(cardIdx) { return function() { if (!_cardMode) goToCard(cardIdx); }; })(i));
     cardMiniFeatureMarkers.push(m);
   });
 
   // Pin marker for this card's location
-  const pinHtml = `<div style="width:22px;height:22px;border-radius:50%;background:#e55a00;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:7px;font-weight:500">${card.ref}</div>`;
-  const pinIcon = L.divIcon({ className: '', html: pinHtml, iconSize: [22, 22], iconAnchor: [11, 11] });
+  const pinHtml = `<div style="width:44px;height:44px;border-radius:50%;background:#e55a00;border:5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:14px;font-weight:500">${card.ref}</div>`;
+  const pinIcon = L.divIcon({ className: '', html: pinHtml, iconSize: [44, 44], iconAnchor: [22, 22] });
   if (cardMiniPinMarker) {
     cardMiniPinMarker.setLatLng([pin.lat, pin.lng]);
     cardMiniPinMarker.setIcon(pinIcon);
@@ -2378,20 +4262,856 @@ function updateCardMiniMap(idx) {
   updateCardMiniUserMarker();
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
-loadUser();
-loadState();
-loadMapPins();
-loadRoute();
-initDistBar();
-initGeoWatch();
-if (currentUser.name && currentUser.event) {
-  document.getElementById('landingScreen').style.display = 'none';
+// ── EFFECTIVE CARD (base + edits merged) ─────────────────────────────────────
+function effectiveCard(card) {
+  const edits = (state.cardEdits || {})[card.ref];
+  if (!edits || !Object.keys(edits).length) return card;
+  return { ...card, ...edits };
+}
+
+// ── INLINE EDIT / ADD CARD ────────────────────────────────────────────────────
+let _cardMode = null;         // null | 'edit' | 'add'
+let _addCardParentIdx = null;
+let _addCardPendingPin = null;
+let _addCardPinMarker = null;
+let _addCardMapClickHandler = null;
+let _inlineNetR = 0;
+
+function _buildDraftWatermark() {
+  const text = 'DRAFT  DRAFT  DRAFT  DRAFT  DRAFT  ';
+  let rows = '';
+  for (let i = 0; i < 14; i++) rows += `<div class="draft-row">${text}</div>`;
+  document.getElementById('cardDraftWatermark').innerHTML =
+    `<div class="card-draft-watermark-inner">${rows}</div>`;
+}
+
+function setCardEditingState(on) {
+  const card = document.getElementById('mainCard');
+  if (on) { card.classList.add('editing'); _buildDraftWatermark(); }
+  else    { card.classList.remove('editing'); document.getElementById('cardDraftWatermark').innerHTML = ''; }
+}
+
+function setEditActionBar(mode) {
+  document.getElementById('actionsBar').innerHTML = mode === 'edit'
+    ? `<button class="action-btn btn-notes" onclick="cancelCardMode()" style="flex:0 0 120px">✕ Cancel</button>
+       <button class="action-btn btn-done"  onclick="saveCardEditInline()" style="flex:1 1 auto">✓ Save Changes</button>`
+    : `<button class="action-btn btn-notes" onclick="cancelCardMode()" style="flex:0 0 120px">✕ Cancel</button>
+       <button class="action-btn btn-done"  onclick="saveAddCardInline()" style="flex:1 1 auto">+ Add to Course</button>`;
+}
+
+function restoreActionBar() {
+  document.getElementById('actionsBar').innerHTML =
+    `<button class="nav-btn" onclick="navigate(-1)" title="Previous">&#8592;</button>
+     <button class="action-btn btn-notes" id="btnNotes" onclick="openNotes()">&#9998; Note</button>
+     <button class="btn-add" onclick="openAddCard()" title="Add field card">+</button>
+     <button class="action-btn btn-done" id="btnDone" onclick="markDone()">&#10003; Done</button>
+     <button class="nav-btn" onclick="navigate(1)" title="Next">&#8594;</button>`;
+}
+
+function cancelCardMode() {
+  if (_cardMode === 'add') _cleanupAddCardMap();
+  _cardMode = null; _addCardParentIdx = null;
+  setCardEditingState(false);
+  restoreActionBar();
   renderCard(state.currentIndex);
   updateProgress();
+}
+
+// ── Inline Edit ───────────────────────────────────────────────────────────────
+function openCardEdit() {
+  if (_cardMode) return;
+  _cardMode = 'edit';
+  const card = ALLCARDS[state.currentIndex];
+  _inlineNetR = effectiveCard(card).netR || 0;
+  _renderCardInlineEdit(state.currentIndex);
+  setCardEditingState(true);
+  setEditActionBar('edit');
+  document.getElementById('completeStrip').style.display = 'none';
+}
+
+function _renderCardInlineEdit(idx) {
+  const card = ALLCARDS[idx];
+  const ec = effectiveCard(card);
+  const hasEdits = !!(state.cardEdits && state.cardEdits[card.ref]);
+  const safe = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  document.getElementById('cardHead').innerHTML = `
+    <div class="card-head-event">${getActiveEventName()}</div>
+    <div class="card-ref-row">
+      <div class="card-ref" style="color:#f5c518;cursor:default">${card.ref}</div>
+      <div class="card-ref-meta">${ec.dist ? `<span class="card-dist">${ec.dist}</span>` : ''}</div>
+    </div>
+    <div class="card-badges">
+      <span class="badge" style="background:#3a3000;color:#f5c518;border:1px solid #5a4800">✎ EDITING</span>
+      ${hasEdits ? `<button class="card-edit-revert-link" onclick="revertCardEdit()">↩ revert all</button>` : ''}
+    </div>`;
+
+  updateCardMiniMap(idx);
+
+  const riskLevels = [{v:0,l:'None'},{v:4,l:'Low'},{v:6,l:'Med'},{v:9,l:'High'},{v:12,l:'Crit'}];
+  const riskPickerHtml = (id) => `
+    <div class="card-edit-risk-row">
+      ${riskLevels.map(({v,l}) =>
+        `<button class="card-edit-risk-btn${v===_inlineNetR?' active':''}" data-risk="${v}" onclick="_setInlineRisk(this,'${id}')">${l}</button>`
+      ).join('')}
+    </div>
+    <input type="hidden" id="${id}" value="${_inlineNetR}">`;
+
+  let html = '';
+  if (card.isCustom) {
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Location</div>
+      <input class="card-edit-input" data-field="loc" value="${safe(ec.loc)}">
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Description</div>
+      <textarea class="card-edit-textarea" data-field="description" rows="3">${safe(ec.description)}</textarea>
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Signage</div>
+      ${signPickerHtml(ec.signs || [], 'inlinedit')}
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Risk Level</div>
+      ${riskPickerHtml('inlineEditNetR')}
+    </div>`;
+  } else {
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Location</div>
+      <textarea class="card-edit-textarea" data-field="loc" rows="2">${safe(ec.loc)}</textarea>
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Hazard / Threat</div>
+      <textarea class="card-edit-textarea" data-field="hazard" rows="2">${safe(ec.hazard)}</textarea>
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Signage</div>
+      ${signPickerHtml(ec.signs || [], 'inlinedit')}
+      <textarea class="card-edit-textarea" data-field="sig" rows="2" placeholder="Signage notes…" style="margin-top:6px">${safe(ec.sig)}</textarea>
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Equipment</div>
+      <textarea class="card-edit-textarea" data-field="equip" rows="2">${safe(ec.equip)}</textarea>
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Staff</div>
+      <textarea class="card-edit-textarea" data-field="staff" rows="2">${safe(ec.staff)}</textarea>
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Further Info</div>
+      <textarea class="card-edit-textarea" data-field="info" rows="2">${safe(ec.info)}</textarea>
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Further Action</div>
+      <textarea class="card-edit-textarea" data-field="action" rows="2">${safe(ec.action)}</textarea>
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">Net Risk</div>
+      ${riskPickerHtml('inlineEditNetR')}
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-subrow">
+        <div>
+          <div class="card-edit-label">Res Risk</div>
+          <input class="card-edit-input" type="number" data-field="resR" value="${ec.resR||0}" min="0" max="25">
+        </div>
+        <div>
+          <div class="card-edit-label">Distance</div>
+          <input class="card-edit-input" data-field="dist" value="${safe(ec.dist)}" placeholder="e.g. 500m">
+        </div>
+      </div>
+    </div>`;
+    html += `<div class="card-edit-section">
+      <div class="card-edit-label">What3Words</div>
+      <input class="card-edit-input" data-field="w3w" value="${safe(ec.w3w)}" placeholder="///word.word.word">
+    </div>`;
+  }
+
+  const body = document.getElementById('cardBody');
+  body.innerHTML = html;
+  body.scrollTop = 0;
+}
+
+function _setInlineRisk(btn, inputId) {
+  btn.closest('.card-edit-risk-row').querySelectorAll('.card-edit-risk-btn')
+    .forEach(b => b.classList.toggle('active', b === btn));
+  const h = document.getElementById(inputId);
+  if (h) h.value = btn.dataset.risk;
+  _inlineNetR = parseInt(btn.dataset.risk, 10);
+}
+
+function saveCardEditInline() {
+  const card = ALLCARDS[state.currentIndex];
+  const base = card.isCustom ? card : (CARDS.find(c => c.ref === card.ref) || card);
+  const newEdits = {};
+  const changedFields = [];
+
+  document.querySelectorAll('#cardBody [data-field]').forEach(el => {
+    const field = el.dataset.field;
+    if (el.type === 'hidden') return;
+    let value = el.type === 'number' ? (parseInt(el.value, 10) || 0) : el.value.trim();
+    const baseVal = (field === 'netR' || field === 'resR') ? (base[field] || 0) : (base[field] || '');
+    if (String(value) !== String(baseVal)) { newEdits[field] = value; changedFields.push(field); }
+  });
+
+  const netRInput = document.getElementById('inlineEditNetR');
+  if (netRInput) {
+    const v = parseInt(netRInput.value, 10) || 0;
+    if (v !== (base.netR || 0)) { newEdits.netR = v; if (!changedFields.includes('netR')) changedFields.push('netR'); }
+    else { delete newEdits.netR; }
+  }
+
+  const editSigns = getSelectedSigns('inlinedit');
+  const baseSigns = base.signs || [];
+  if (JSON.stringify([...editSigns].sort()) !== JSON.stringify([...baseSigns].sort())) {
+    newEdits.signs = editSigns;
+    if (!changedFields.includes('signs')) changedFields.push('signs');
+  }
+
+  if (!state.cardEdits) state.cardEdits = {};
+  if (!state.cardEditSummary) state.cardEditSummary = {};
+
+  if (changedFields.length > 0) {
+    state.cardEdits[card.ref] = { ...(state.cardEdits[card.ref] || {}), ...newEdits };
+    state.cardEditSummary[card.ref] = {
+      fields: [...new Set([...(state.cardEditSummary[card.ref]?.fields || []), ...changedFields])],
+      editedAt: new Date().toISOString(),
+      editedBy: currentUser.name || 'unknown',
+    };
+    auditEntry(card.ref, 'card_edit', { fields: changedFields.join(', ') });
+  }
+
+  saveState();
+  _cardMode = null;
+  setCardEditingState(false);
+  restoreActionBar();
+  renderCard(state.currentIndex);
+  updateProgress();
+}
+
+function revertCardEdit() {
+  const card = ALLCARDS[state.currentIndex];
+  if (!confirm(`Revert all edits to ${card.ref}? This restores the original content.`)) return;
+  if (state.cardEdits) delete state.cardEdits[card.ref];
+  if (state.cardEditSummary) delete state.cardEditSummary[card.ref];
+  auditEntry(card.ref, 'card_edit_revert', {});
+  saveState();
+  _inlineNetR = (ALLCARDS[state.currentIndex].netR) || 0;
+  _renderCardInlineEdit(state.currentIndex);
+}
+
+// ── CUSTOM CARD RENDERING ─────────────────────────────────────────────────────
+function renderCustomCard(card, isDone, myNote) {
+  const ec = effectiveCard(card);
+  const hasEdits = !!(state.cardEdits && state.cardEdits[card.ref]);
+  const head = document.getElementById('cardHead');
+  head.innerHTML = `
+    <div class="card-head-event">${getActiveEventName()}</div>
+    <div class="card-ref-row">
+      <div class="card-ref" onclick="openCardEdit()" style="cursor:pointer">${card.ref}</div>
+      <div class="card-ref-meta">
+        <span class="card-dist" style="color:#a070d8">Field Addition</span>
+      </div>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-custom">+ FIELD ADDITION</span>
+      ${ec.netR > 0 ? `<span class="badge ${riskClass(ec.netR)}">${riskLabel(ec.netR)} RISK</span>` : ''}
+      ${isDone ? `<span class="badge badge-complete">✓ DONE</span>` : ''}
+      ${myNote ? `<span class="badge badge-note">✎ NOTE</span>` : ''}
+      ${hasEdits ? `<span class="badge badge-edited">✎ EDITED</span>` : ''}
+    </div>
+  `;
+
+  const body = document.getElementById('cardBody');
+  let html = '';
+
+  if (ec.loc) {
+    html += `<div class="section">
+      <div class="section-label">Location</div>
+      <div class="loc-text">${ec.loc}</div>
+    </div>`;
+  }
+  if (ec.description) {
+    html += `<div class="section">
+      <div class="section-label">Description</div>
+      <div class="info-box">${ec.description}</div>
+    </div>`;
+  }
+  if (ec.signs && ec.signs.length) {
+    const badges = ec.signs.map(id => {
+      const s = SIGN_TYPES.find(t => t.id === id);
+      return s ? `<span class="sign-badge ${s.type}">${s.icon} ${s.label}</span>` : '';
+    }).join('');
+    html += `<div class="section">
+      <div class="section-label">Signage</div>
+      <div class="sign-badge-row">${badges}</div>
+    </div>`;
+  }
+  if (myNote) {
+    html += `<div class="section">
+      <div class="section-label">My Notes</div>
+      <div class="my-note-box">
+        <div class="my-note-label">✎ Field Note</div>
+        <div class="my-note-text">${myNote}</div>
+      </div>
+    </div>`;
+  }
+  const when = card.createdAt
+    ? new Date(card.createdAt).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+    : '';
+  html += `<div class="section" style="margin-top:4px">
+    <div class="section-label">Added By</div>
+    <div class="action-box">${card.createdBy || 'Unknown'}${when ? ' · ' + when : ''}</div>
+  </div>`;
+  html += `<div class="section" style="margin-top:8px">
+    <button class="delete-card-link" onclick="deleteCustomCard('${card.ref}')">Remove this field addition…</button>
+  </div>`;
+  html += `<div id="cardMediaSection" class="card-media-section"></div>`;
+
+  body.innerHTML = html;
+  body.scrollTop = 0;
+  updateCardMiniMap(state.currentIndex);
+  renderCardMedia(state.currentIndex);
+
+  document.getElementById('completeStrip').style.display = isDone ? 'block' : 'none';
+  // Tint the complete strip for custom cards
+  const strip = document.getElementById('completeStrip');
+  strip.style.background = isDone ? '#4a2a6a' : '';
+  updateActionBar(isDone);
+}
+
+// ── ADD CARD (inline) ─────────────────────────────────────────────────────────
+function openAddCard() {
+  if (_cardMode) return;
+  const card = ALLCARDS[state.currentIndex];
+  const parentRef = card.isCustom ? card.parentRef : card.ref;
+  const existingCount = (state.customCards || []).filter(c => c.parentRef === parentRef).length;
+  const letter = 'abcdefghijklmnopqrstuvwxyz'[existingCount] || String(existingCount + 1);
+  const newRef = parentRef + letter;
+
+  _cardMode = 'add';
+  _addCardParentIdx = state.currentIndex;
+  _addCardPendingPin = null;
+  _inlineNetR = 0;
+
+  _renderAddCardInline(parentRef, newRef);
+  setCardEditingState(true);
+  setEditActionBar('add');
+  document.getElementById('completeStrip').style.display = 'none';
+  setTimeout(() => _initAddCardMap(parentRef), 80);
+}
+
+function _renderAddCardInline(parentRef, newRef) {
+  document.getElementById('cardHead').innerHTML = `
+    <div class="card-ref-row">
+      <div class="card-ref" style="color:#a070d8;cursor:default">${newRef}</div>
+      <div class="card-ref-meta"><span class="card-dist" style="color:#a070d8">After ${parentRef}</span></div>
+    </div>
+    <div class="card-badges"><span class="badge badge-custom">+ NEW FIELD CARD</span></div>`;
+
+  const miniMap = document.getElementById('cardMiniMap');
+  miniMap.style.display = 'block';
+  miniMap.style.height = '210px';
+
+  const riskLevels = [{v:0,l:'None'},{v:4,l:'Low'},{v:6,l:'Med'},{v:9,l:'High'},{v:12,l:'Crit'}];
+  const body = document.getElementById('cardBody');
+  body.innerHTML = `
+    <div class="card-add-map-hint" id="addCardMapHint">⊕ Tap map above to drop a pin · drag to adjust</div>
+    <div class="card-edit-section">
+      <div class="card-edit-label">Location</div>
+      <input class="card-edit-input" id="addCardLocInline" type="text" placeholder="Where is this checkpoint?" autocomplete="off">
+    </div>
+    <div class="card-edit-section">
+      <div class="card-edit-label">Description / Action Required</div>
+      <textarea class="card-edit-textarea" id="addCardDescInline" rows="3" placeholder="Describe the risk, feature or action required…"></textarea>
+    </div>
+    <div class="card-edit-section">
+      <div class="card-edit-label">Risk Level</div>
+      <div class="card-edit-risk-row">
+        ${riskLevels.map(({v,l}) =>
+          `<button class="card-edit-risk-btn${v===0?' active':''}" data-risk="${v}" onclick="_setInlineRisk(this,'inlineAddNetR')">${l}</button>`
+        ).join('')}
+      </div>
+      <input type="hidden" id="inlineAddNetR" value="0">
+    </div>
+    <div class="card-edit-section">
+      <div class="card-edit-label">Signage</div>
+      ${signPickerHtml([], 'inlineadd')}
+    </div>`;
+  body.scrollTop = 0;
+  setTimeout(() => document.getElementById('addCardLocInline')?.focus(), 350);
+}
+
+function _initAddCardMap(parentRef) {
+  const container = document.getElementById('cardMiniMap');
+  container.style.display = 'block';
+
+  const parentPin = mapPins[parentRef];
+  const evts = getAllEvents ? getAllEvents() : [];
+  const evtMeta = evts.find(e => e.id === activeEventId) || BUILTIN_EVENT_META;
+  const center = parentPin
+    ? [parentPin.lat, parentPin.lng]
+    : [evtMeta.lat || 55.823, evtMeta.lng || -4.298];
+
+  if (!cardMiniLmap) {
+    cardMiniLmap = L.map('cardMiniMap', {
+      zoomControl: true, attributionControl: false,
+      dragging: true, scrollWheelZoom: false,
+      doubleClickZoom: false, boxZoom: false, keyboard: false,
+    }).setView(center, 17);
+    const cfg = TILE_LAYERS[activeLayer] || TILE_LAYERS.map;
+    cardMiniTileLayer = L.tileLayer(cfg.url, { maxZoom: 19 }).addTo(cardMiniLmap);
+  } else {
+    requestAnimationFrame(() => {
+      cardMiniLmap.invalidateSize();
+      cardMiniLmap.setView(center, 17);
+    });
+  }
+
+  // Show parent pin at low opacity for reference
+  if (parentPin) {
+    const parentIcon = L.divIcon({
+      className: '',
+      html: `<div style="width:18px;height:18px;border-radius:50%;background:#1a5c8a;border:2px solid rgba(255,255,255,0.5);opacity:0.55;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:6px;color:#fff">${parentRef}</div>`,
+      iconSize: [18, 18], iconAnchor: [9, 9],
+    });
+    L.marker([parentPin.lat, parentPin.lng], { icon: parentIcon, interactive: false }).addTo(cardMiniLmap);
+  }
+
+  _addCardMapClickHandler = (e) => {
+    _addCardPendingPin = { lat: e.latlng.lat, lng: e.latlng.lng };
+    if (_addCardPinMarker) {
+      _addCardPinMarker.setLatLng(e.latlng);
+    } else {
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:24px;height:24px;border-radius:50%;background:#a070d8;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1">⊕</div>`,
+        iconSize: [24, 24], iconAnchor: [12, 12],
+      });
+      _addCardPinMarker = L.marker(e.latlng, { icon, draggable: true, zIndexOffset: 500 }).addTo(cardMiniLmap);
+      _addCardPinMarker.on('dragend', () => {
+        const ll = _addCardPinMarker.getLatLng();
+        _addCardPendingPin = { lat: ll.lat, lng: ll.lng };
+      });
+      const hint = document.getElementById('addCardMapHint');
+      if (hint) hint.textContent = '⊕ Pinned — drag to adjust';
+    }
+  };
+  cardMiniLmap.on('click', _addCardMapClickHandler);
+}
+
+function _cleanupAddCardMap() {
+  if (_addCardMapClickHandler && cardMiniLmap) {
+    cardMiniLmap.off('click', _addCardMapClickHandler);
+    _addCardMapClickHandler = null;
+  }
+  if (_addCardPinMarker) { _addCardPinMarker.remove(); _addCardPinMarker = null; }
+  _addCardPendingPin = null;
+  const m = document.getElementById('cardMiniMap');
+  m.style.height = minimapH + 'px'; m.style.display = 'none';
+  document.getElementById('mapResizeHandle').style.display = 'none';
+}
+
+function saveAddCardInline() {
+  const loc  = (document.getElementById('addCardLocInline')?.value || '').trim();
+  const desc = (document.getElementById('addCardDescInline')?.value || '').trim();
+  if (!loc) { document.getElementById('addCardLocInline')?.focus(); return; }
+
+  const card = ALLCARDS[_addCardParentIdx];
+  const parentRef = card.isCustom ? card.parentRef : card.ref;
+  const existing = (state.customCards || []).filter(c => c.parentRef === parentRef);
+  const letter = 'abcdefghijklmnopqrstuvwxyz'[existing.length] || String(existing.length + 1);
+  const newRef = parentRef + letter;
+
+  const newCard = {
+    ref: newRef, parentRef, subIdx: existing.length,
+    loc, description: desc, isCustom: true,
+    netR: _inlineNetR, resR: 0,
+    signs: getSelectedSigns('inlineadd'),
+    obstacle: false, dist: '', w3w: '',
+    createdAt: new Date().toISOString(),
+    createdBy: currentUser.name || 'Unknown',
+  };
+
+  if (!state.customCards) state.customCards = [];
+  state.customCards.push(newCard);
+  auditEntry(newRef, 'field_addition', { loc, desc });
+
+  if (_addCardPendingPin) { mapPins[newRef] = _addCardPendingPin; saveMapPins(); }
+
+  saveState();
+  _cleanupAddCardMap();
+  _cardMode = null; _addCardParentIdx = null;
+  setCardEditingState(false);
+  restoreActionBar();
+  refreshAllCards();
+
+  const newIdx = ALLCARDS.findIndex(c => c.ref === newRef);
+  if (newIdx !== -1) { state.currentIndex = newIdx; saveState(); }
+  renderCard(state.currentIndex);
+  updateProgress();
+}
+
+function deleteCustomCard(ref) {
+  if (!confirm('Remove this field addition? This cannot be undone.')) return;
+  const idx = (state.customCards || []).findIndex(c => c.ref === ref);
+  if (idx === -1) return;
+  state.customCards.splice(idx, 1);
+  delete state.completed[ref];
+  delete state.notes[ref];
+  delete mapPins[ref];
+  saveState(); saveMapPins();
+  refreshAllCards();
+  state.currentIndex = Math.max(0, state.currentIndex - 1);
+  saveState();
+  renderCard(state.currentIndex);
+  updateProgress();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+loadUser();
+loadUserEvents();
+loadW3WKey();
+
+// Restore previously active event
+if (currentUser.event) {
+  const allEvts = getAllEvents();
+  const savedEvt = allEvts.find(e => e.id === currentUser.event)
+    || allEvts.find(e => e.name === currentUser.event);
+  if (savedEvt) {
+    selectedEventId = savedEvt.id;
+    // Normalise stored event to ID format
+    if (currentUser.event !== savedEvt.id) { currentUser.event = savedEvt.id; saveUser(); }
+    activateEvent(savedEvt.id);
+  }
+}
+
+// Fallback: initialise state for Glasgow if nothing was restored
+if (!activeEventId) {
+  activeCards = CARDS; activeTotalDist = 5030;
+  resolvedDists = computeResolvedDists(CARDS);
+  loadState(); loadMapPins(); loadRoutes(); refreshAllCards();
+}
+
+initDistBar();
+updateHeader();
+updateMenuW3WStatus();
+initGeoWatch();
+
+// If a w3w key is stored, resolve any un-pinned addresses in the background
+if (w3wApiKey && activeEventId) autoResolveW3WPins();
+
+// ── MINI-MAP HEIGHT + TOUCH ISOLATION ────────────────────────────────────────
+const MINIMAP_H_KEY = 'ofcourse_minimap_h';
+let minimapH = parseInt(localStorage.getItem(MINIMAP_H_KEY), 10) ||
+               Math.round((window.innerHeight - 142) * 0.40);
+minimapH = Math.max(120, Math.min(Math.round(window.innerHeight * 0.72), minimapH));
+
+// Stop map touches from bubbling to the card swipe handler
+document.getElementById('cardMiniMap').addEventListener('touchstart', e => {
+  e.stopPropagation();
+}, { passive: true });
+
+// ── Resize handle ─────────────────────────────────────────────────────────────
+(function() {
+  const handle = document.getElementById('mapResizeHandle');
+  let startY = null, startH = 0;
+
+  function beginResize(clientY) {
+    startY = clientY;
+    startH = document.getElementById('cardMiniMap').offsetHeight || minimapH;
+    handle.classList.add('dragging');
+  }
+
+  function doResize(clientY) {
+    if (startY === null) return;
+    const newH = Math.max(120, Math.min(Math.round(window.innerHeight * 0.72),
+                          startH + (clientY - startY)));
+    document.getElementById('cardMiniMap').style.height = newH + 'px';
+    if (cardMiniLmap) requestAnimationFrame(() => cardMiniLmap.invalidateSize());
+  }
+
+  function endResize(clientY) {
+    if (startY === null) return;
+    const newH = Math.max(120, Math.min(Math.round(window.innerHeight * 0.72),
+                          startH + (clientY - startY)));
+    minimapH = newH;
+    document.getElementById('cardMiniMap').style.height = minimapH + 'px';
+    localStorage.setItem(MINIMAP_H_KEY, minimapH);
+    if (cardMiniLmap) requestAnimationFrame(() => cardMiniLmap.invalidateSize());
+    handle.classList.remove('dragging');
+    startY = null;
+  }
+
+  handle.addEventListener('touchstart', e => {
+    e.stopPropagation();
+    beginResize(e.touches[0].clientY);
+  }, { passive: true });
+  handle.addEventListener('touchmove', e => {
+    e.stopPropagation();
+    doResize(e.touches[0].clientY);
+  }, { passive: true });
+  handle.addEventListener('touchend', e => {
+    e.stopPropagation();
+    endResize(e.changedTouches[0].clientY);
+  }, { passive: true });
+
+  // Mouse support (desktop)
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    beginResize(e.clientY);
+    const mm = ev => doResize(ev.clientY);
+    const mu = ev => { endResize(ev.clientY); document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); };
+    document.addEventListener('mousemove', mm);
+    document.addEventListener('mouseup', mu);
+  });
+})();
+
+// ── PHOTOS & TAGS ─────────────────────────────────────────────────────────────
+
+let _photoDB = null;
+function openPhotoDB() {
+  if (_photoDB) return Promise.resolve(_photoDB);
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('ofcourse_photos', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('photos')) {
+        const store = db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
+        store.createIndex('byCard', ['eventId', 'cardRef'], { unique: false });
+      }
+    };
+    req.onsuccess = e => { _photoDB = e.target.result; resolve(_photoDB); };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function dbAddPhoto(eventId, cardRef, blob, name) {
+  return openPhotoDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction('photos', 'readwrite');
+    const req = tx.objectStore('photos').add({ eventId, cardRef, blob, name, timestamp: Date.now() });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  }));
+}
+
+function dbGetPhotos(eventId, cardRef) {
+  return openPhotoDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction('photos', 'readonly');
+    const idx = tx.objectStore('photos').index('byCard');
+    const req = idx.getAll([eventId, cardRef]);
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  }));
+}
+
+function dbDeletePhoto(id) {
+  return openPhotoDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction('photos', 'readwrite');
+    const req = tx.objectStore('photos').delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  }));
+}
+
+let _mediaBlobURLs = [];
+function _revokeBlobURLs() {
+  _mediaBlobURLs.forEach(u => URL.revokeObjectURL(u));
+  _mediaBlobURLs = [];
+}
+
+let _mediaCurrentRef = null;
+let _pendingPhotoRef = null;
+
+async function renderCardMedia(idx) {
+  if (idx < 0 || idx >= ALLCARDS.length) return;
+  const card = ALLCARDS[idx];
+  const section = document.getElementById('cardMediaSection');
+  if (!section) return;
+
+  _revokeBlobURLs();
+  _mediaCurrentRef = card.ref;
+
+  const tags = (state.tags && state.tags[card.ref]) || [];
+  let photos = [];
+  try { photos = await dbGetPhotos(activeEventId, card.ref); } catch(e) {}
+
+  // Re-check the section still exists after async (user may have navigated)
+  const sec2 = document.getElementById('cardMediaSection');
+  if (!sec2 || _mediaCurrentRef !== card.ref) return;
+
+  let html = '';
+
+  // Photos row
+  html += '<div class="media-row"><div class="media-label">Photos</div><div class="photo-strip">';
+  photos.forEach(p => {
+    const url = URL.createObjectURL(p.blob);
+    _mediaBlobURLs.push(url);
+    html += `<button class="photo-thumb-wrap" onclick="openPhotoLightbox(${p.id})" title="View photo"><img class="photo-thumb-img" src="${url}" alt=""></button>`;
+  });
+  html += `<button class="photo-add-btn" onclick="triggerPhotoUpload('${card.ref}')">+</button>`;
+  html += '</div></div>';
+
+  // Tags row
+  html += '<div class="media-row"><div class="media-label">Tags</div><div class="tag-strip">';
+  tags.forEach((tag, i) => {
+    html += `<span class="tag-chip">#${escHtml(tag)}<button class="tag-chip-remove" onclick="removeTag('${escHtml(card.ref)}',${i})">×</button></span>`;
+  });
+  html += `<button class="tag-add-btn" onclick="startAddTag('${escHtml(card.ref)}')">+ add tag</button>`;
+  html += '</div></div>';
+
+  sec2.innerHTML = html;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function triggerPhotoUpload(cardRef) {
+  _pendingPhotoRef = cardRef;
+  const inp = document.getElementById('photoFileInput');
+  inp.value = '';
+  inp.click();
+}
+
+async function onPhotoFileSelected(input) {
+  const file = input.files[0];
+  if (!file || !_pendingPhotoRef) return;
+  const cardRef = _pendingPhotoRef;
+  _pendingPhotoRef = null;
+  try {
+    const blob = await compressImage(file, 1400, 0.82);
+    await dbAddPhoto(activeEventId, cardRef, blob, file.name);
+    const idx = ALLCARDS.findIndex(c => c.ref === cardRef);
+    if (idx === state.currentIndex) renderCardMedia(idx);
+  } catch(e) {
+    alert('Could not save photo: ' + (e.message || e));
+  }
+}
+
+function compressImage(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width, h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+        else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('Compression failed')), 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+    img.src = url;
+  });
+}
+
+// Lightbox
+let _lightboxPhotoId = null;
+let _lightboxBlobURL = null;
+
+async function openPhotoLightbox(photoId) {
+  _lightboxPhotoId = photoId;
+  try {
+    const photos = await dbGetPhotos(activeEventId, _mediaCurrentRef);
+    const p = photos.find(x => x.id === photoId);
+    if (!p) return;
+    if (_lightboxBlobURL) URL.revokeObjectURL(_lightboxBlobURL);
+    _lightboxBlobURL = URL.createObjectURL(p.blob);
+    document.getElementById('lightboxImg').src = _lightboxBlobURL;
+    document.getElementById('lightboxCard').textContent = _mediaCurrentRef;
+    document.getElementById('photoLightbox').classList.add('open');
+  } catch(e) {}
+}
+
+function closePhotoLightbox() {
+  document.getElementById('photoLightbox').classList.remove('open');
+  document.getElementById('lightboxImg').src = '';
+  if (_lightboxBlobURL) { URL.revokeObjectURL(_lightboxBlobURL); _lightboxBlobURL = null; }
+  _lightboxPhotoId = null;
+}
+
+async function deleteCurrentPhoto() {
+  if (_lightboxPhotoId == null) return;
+  if (!confirm('Delete this photo?')) return;
+  try {
+    await dbDeletePhoto(_lightboxPhotoId);
+    closePhotoLightbox();
+    const idx = ALLCARDS.findIndex(c => c.ref === _mediaCurrentRef);
+    if (idx >= 0) renderCardMedia(idx);
+  } catch(e) {}
+}
+
+// Tags (card body)
+function removeTag(cardRef, i) {
+  if (!state.tags) state.tags = {};
+  const tags = state.tags[cardRef];
+  if (!tags) return;
+  tags.splice(i, 1);
+  if (!tags.length) delete state.tags[cardRef];
+  saveState();
+  const idx = ALLCARDS.findIndex(c => c.ref === cardRef);
+  if (idx >= 0) renderCardMedia(idx);
+}
+
+function startAddTag(cardRef) {
+  const strip = document.querySelector('#cardMediaSection .tag-strip');
+  if (!strip) return;
+  const addBtn = strip.querySelector('.tag-add-btn');
+  if (!addBtn) return;
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'tag-input';
+  inp.placeholder = 'tag name…';
+  inp.maxLength = 30;
+  let submitted = false;
+  const submit = () => {
+    if (submitted) return;
+    submitted = true;
+    const tag = inp.value.trim().replace(/^#+/, '').replace(/\s+/g, '-').toLowerCase();
+    if (tag) {
+      if (!state.tags) state.tags = {};
+      if (!state.tags[cardRef]) state.tags[cardRef] = [];
+      if (!state.tags[cardRef].includes(tag)) { state.tags[cardRef].push(tag); saveState(); }
+    }
+    const idx = ALLCARDS.findIndex(c => c.ref === cardRef);
+    if (idx >= 0) renderCardMedia(idx);
+  };
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    if (e.key === 'Escape') { submitted = true; const idx = ALLCARDS.findIndex(c => c.ref === cardRef); if (idx >= 0) renderCardMedia(idx); }
+  });
+  inp.addEventListener('blur', () => setTimeout(submit, 150));
+  addBtn.replaceWith(inp);
+  inp.focus();
+}
+
+if (currentUser.name && activeEventId) {
+  document.getElementById('landingScreen').style.display = 'none';
+  showChoiceScreen();
 } else {
   showLanding();
 }
 </script>
+
+<!-- PHOTO UPLOAD INPUT (hidden) -->
+<input type="file" id="photoFileInput" accept="image/*" style="display:none"
+  onchange="onPhotoFileSelected(this)">
+
+<!-- PHOTO LIGHTBOX -->
+<div class="photo-lightbox" id="photoLightbox" onclick="closePhotoLightbox()">
+  <div class="lightbox-inner" onclick="event.stopPropagation()">
+    <div class="lightbox-bar">
+      <span class="lightbox-card-ref" id="lightboxCard"></span>
+      <button class="lightbox-delete" onclick="deleteCurrentPhoto()">Delete</button>
+      <button class="lightbox-close" onclick="closePhotoLightbox()">✕</button>
+    </div>
+    <img class="lightbox-img" id="lightboxImg" alt="">
+  </div>
+</div>
 </body>
 </html>

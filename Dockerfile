@@ -1,4 +1,6 @@
-FROM nginx:alpine
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY index.html /usr/share/nginx/html/index.html
+FROM denoland/deno:alpine-2.3.3
+WORKDIR /app
+COPY index.html .
+COPY server.ts .
 EXPOSE 80
+CMD ["deno", "run", "--allow-net", "--allow-read", "--allow-write", "--allow-env", "server.ts"]

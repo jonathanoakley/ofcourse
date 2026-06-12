@@ -1,32 +1,42 @@
-# fly.toml — ofCourse
-# Run `fly launch` once to create the app, then `fly deploy` for updates.
-# Change the app name below to whatever fly launch assigns (or pick your own).
+# fly.toml app configuration file generated for ofcourse on 2026-06-12T09:14:56+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "ofcourse"
-primary_region = "lhr"
+app = 'ofcourse'
+primary_region = 'lhr'
 
 [build]
+
+[env]
+  DATA_DIR = '/data'
+
+[[mounts]]
+  source = 'routes_data'
+  destination = '/data'
 
 [http_service]
   internal_port = 80
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
   [http_service.concurrency]
-    type = "requests"
+    type = 'requests'
     hard_limit = 200
     soft_limit = 100
 
-[[vm]]
-  size = "shared-cpu-1x"
-  memory = "256mb"
+  [[http_service.checks]]
+    interval = '15s'
+    timeout = '2s'
+    grace_period = '5s'
+    method = 'GET'
+    path = '/health'
+    protocol = 'http'
 
-[[http_service.checks]]
-  grace_period = "5s"
-  interval = "15s"
-  method = "GET"
-  path = "/health"
-  protocol = "http"
-  timeout = "2s"
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256
