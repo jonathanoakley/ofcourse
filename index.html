@@ -1946,12 +1946,7 @@ a.w3w-link:active { opacity: 0.7; }
 .ec-entry {
   padding: 12px 14px; border-bottom: 1px solid var(--border);
 }
-.ec-replies { background: rgba(0,0,0,0.18); }
-.ec-entry.is-reply { padding: 8px 10px 8px 18px; border-left: 3px solid #2a2a2a; }
-.ec-entry.is-reply .ec-entry-title { font-size: 12px; }
-.ec-entry.is-reply .ec-entry-desc { font-size: 11px; }
-.ec-entry.is-reply .ec-entry-time { font-size: 9px; }
-.ec-entry.is-reply .ec-type-badge { font-size: 8px; padding: 1px 5px; }
+.ec-entry.is-reply { padding-left: 28px; border-left: 3px solid var(--border); }
 .ec-entry-head {
   display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
 }
@@ -1973,15 +1968,12 @@ a.w3w-link:active { opacity: 0.7; }
 .ec-entry-meta {
   font-family: 'DM Mono', monospace; font-size: 10px; color: #777; margin-top: 4px;
 }
-.ec-reply-btn {
-  display: flex; align-items: center; width: 100%; min-height: 44px;
-  background: none; border: none;
-  border-top: 1px solid var(--border); padding: 10px 14px;
-  text-align: left; font-family: 'DM Mono', monospace; font-size: 11px;
-  color: #4a6ab0; cursor: pointer; letter-spacing: 0.2px;
-  -webkit-tap-highlight-color: transparent;
+.ec-reply-icon {
+  background: none; border: none; color: #888; font-size: 15px;
+  cursor: pointer; padding: 10px 8px 10px 10px; margin: -10px -8px -10px -4px;
+  flex-shrink: 0; -webkit-tap-highlight-color: transparent; line-height: 1;
 }
-.ec-reply-btn:active { background: var(--surface); }
+.ec-reply-icon:active { color: #5580cc; }
 .ec-fab {
   position: fixed; bottom: 28px; right: 20px;
   width: 56px; height: 56px; border-radius: 50%;
@@ -6309,16 +6301,12 @@ function renderEcFeed() {
   }
   feed.innerHTML = roots.map(root => {
     const replies = (byParent[root.id] || []).sort((a, b) => new Date(a.ts) - new Date(b.ts));
-    const repliesHtml = replies.length
-      ? `<div class="ec-replies">${replies.map(r => _ecEntryHtml(r, true)).join('')}</div>`
-      : '';
-    return `<div class="ec-thread">${_ecEntryHtml(root, false)}${repliesHtml}
-      <button class="ec-reply-btn" onclick="openEcCompose('${escHtml(root.id)}')">&#8617; Add update</button>
-    </div>`;
+    const repliesHtml = replies.map(r => _ecEntryHtml(r, true, root.id)).join('');
+    return `<div class="ec-thread">${_ecEntryHtml(root, false, root.id)}${repliesHtml}</div>`;
   }).join('');
 }
 
-function _ecEntryHtml(entry, isReply) {
+function _ecEntryHtml(entry, isReply, rootId) {
   const { col, label } = _ecBadge(entry);
   const t = new Date(entry.ts);
   const timeStr = t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -6328,10 +6316,12 @@ function _ecEntryHtml(entry, isReply) {
   const titleHtml = entry.title
     ? `<div class="ec-entry-title">${escHtml(entry.title)}</div>` : '';
   const meta = [entry.user, entry.role].filter(Boolean).join(' · ');
+  const replyTarget = escHtml(rootId || entry.id);
   return `<div class="ec-entry${isReply ? ' is-reply' : ''}">
     <div class="ec-entry-head">
       <span class="ec-type-badge" style="background:${col}">${escHtml(label)}</span>
       <span class="ec-entry-time">${timeStr}&thinsp;<span style="color:#999">${dateStr}</span></span>
+      <button class="ec-reply-icon" onclick="openEcCompose('${replyTarget}')" title="Reply">&#8617;</button>
     </div>
     ${titleHtml}${descHtml}
     <div class="ec-entry-meta">${escHtml(meta)}</div>
