@@ -2298,6 +2298,20 @@ a.w3w-link:active { opacity: 0.7; }
   .new-event-screen {
     left: 10%;
     right: 10%;
+  }
+
+  /* Only add side borders to opaque elements — transparent ones (.stage, .actions)
+     would show the borders as floating lines against the background */
+  .header,
+  .choice-screen,
+  .landing,
+  .overview,
+  .map-panel,
+  .ec-panel,
+  .live-panel,
+  .config-panel,
+  .obstacle-panel,
+  .new-event-screen {
     border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
   }
