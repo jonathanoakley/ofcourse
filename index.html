@@ -2340,7 +2340,7 @@ a.w3w-link:active { opacity: 0.7; }
 
 <!-- CHOICE SCREEN -->
 <div class="choice-screen" id="choiceScreen" style="display:none">
-  <button class="choice-back-btn" onclick="backToLanding()">&#8592; Change Event</button>
+  <button class="choice-back-btn" onclick="backToLanding()">&#8592; Home</button>
   <div class="choice-logo">ofCourse</div>
   <div class="choice-tagline">Event Day Setup</div>
   <div class="choice-meta">
@@ -2399,7 +2399,7 @@ a.w3w-link:active { opacity: 0.7; }
 
 <!-- HEADER -->
 <header class="header">
-  <div class="header-logo" onclick="showLanding()" style="cursor:pointer">OfCourse</div>
+  <div class="header-logo" onclick="activeEventId ? showChoiceScreen() : showLanding()" style="cursor:pointer">OfCourse</div>
   <button class="sync-dot s-idle" id="syncDot" onclick="forceSyncNow()" aria-label="Sync status"></button>
   <div class="count-pill" id="countPill"><div class="count-fill" id="countFill"></div><span id="countText">0%</span></div>
   <div class="dist-bar">
@@ -2509,7 +2509,7 @@ a.w3w-link:active { opacity: 0.7; }
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
     <div class="menu-options">
-      <button class="menu-option" onclick="closeMenu(); openMap()">
+      <button class="menu-option" onclick="closeMenu(); goToMap()">
         <span class="menu-option-icon">&#x2316;</span>
         <span class="menu-option-text">Course Map</span>
         <span class="menu-option-arrow">&#8594;</span>
@@ -2539,9 +2539,9 @@ a.w3w-link:active { opacity: 0.7; }
         <span class="menu-option-text" id="menuW3WText" style="color:#888">w3w Auto-Pin</span>
         <span class="menu-option-arrow">&#8594;</span>
       </button>
-      <button class="menu-option" onclick="closeMenu(); backToLanding()" style="border-top:1px solid #1e2a1a;margin-top:4px">
+      <button class="menu-option" onclick="closeMenu(); showChoiceScreen()" style="border-top:1px solid #1e2a1a;margin-top:4px">
         <span class="menu-option-icon" style="color:#555">&#8962;</span>
-        <span class="menu-option-text" style="color:#888">Events Home</span>
+        <span class="menu-option-text" style="color:#888">Event Home</span>
         <span class="menu-option-arrow">&#8594;</span>
       </button>
     </div>
@@ -2605,7 +2605,7 @@ a.w3w-link:active { opacity: 0.7; }
 <!-- COURSE MAP PANEL -->
 <div class="map-panel" id="mapPanel">
   <div class="map-head">
-    <button class="header-btn" onclick="closeMap()">&#8592;</button>
+    <button class="header-btn" onclick="closeMap(); showChoiceScreen()">&#8592;</button>
     <span class="map-title">Course Map</span>
     <span class="map-count" id="mapCount">0 / 61 pinned</span>
     <button class="header-btn" onclick="mapFitBounds()" title="Fit all" style="font-size:14px">&#x26F6;</button>
@@ -3079,12 +3079,13 @@ function goToMap() {
 }
 
 function backToLanding() {
-  // Close any open panels
-  const mapPanel = document.getElementById('mapPanel');
-  if (mapPanel && mapPanel.classList.contains('open')) closeMap();
-  // Hide choice screen
+  document.getElementById('mapPanel')?.classList.remove('open');
+  ['obstaclePanel', 'obstacleCheckView', 'configPanel', 'livePanel', 'ecPanel'].forEach(function(id) {
+    document.getElementById(id)?.classList.remove('open');
+  });
+  document.getElementById('ecFab')?.classList.remove('visible');
   const cs = document.getElementById('choiceScreen');
-  if (cs && cs.style.display !== 'none') { cs.classList.add('out'); setTimeout(() => { cs.style.display = 'none'; }, 350); }
+  if (cs) { cs.classList.add('out'); setTimeout(() => { cs.style.display = 'none'; }, 350); }
   showLanding();
 }
 
@@ -4241,7 +4242,7 @@ function confirmReset() {
     closeOverview();
     renderCard(0);
     updateProgress();
-    showLanding();
+    showChoiceScreen();
   }
 }
 
@@ -7026,6 +7027,7 @@ function _routeFromPath() {
   if (!section) {
     showChoiceScreen();
   } else if (section === 'course') {
+    if (!ALLCARDS.length) { showChoiceScreen(); return; }
     cs.style.display = 'none';
     if (sub) {
       const targetIdx = ALLCARDS.findIndex(function(c) { return c.ref === sub; });
