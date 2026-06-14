@@ -1947,8 +1947,7 @@ a.w3w-link:active { opacity: 0.7; }
 .ec-entry {
   padding: 12px 14px; border-bottom: 1px solid var(--border);
 }
-.ec-entry.is-reply { padding-left: 28px; border-left: 3px solid var(--border); }
-.ec-thread > .ec-entry:last-child { border-bottom: none; }
+.ec-entry.is-reply { border-left: 4px solid #5580cc; }
 .ec-entry-head {
   display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
 }
@@ -1976,6 +1975,15 @@ a.w3w-link:active { opacity: 0.7; }
   flex-shrink: 0; -webkit-tap-highlight-color: transparent; line-height: 1;
 }
 .ec-reply-icon:active { color: #5580cc; }
+.ec-add-update-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; min-height: 40px; background: none; border: none;
+  border-top: 1px solid var(--border); padding: 0 14px;
+  font-family: 'DM Mono', monospace; font-size: 11px; color: #5580cc;
+  cursor: pointer; letter-spacing: 0.3px;
+  -webkit-tap-highlight-color: transparent;
+}
+.ec-add-update-btn:active { background: rgba(85,128,204,0.08); }
 .ec-fab {
   position: fixed; bottom: 28px; right: 20px;
   width: 56px; height: 56px; border-radius: 50%;
@@ -6294,21 +6302,21 @@ function renderEcFeed() {
   const logs = state.controlLogs || [];
   const roots = logs.filter(e => !e.parentId).sort((a, b) => new Date(b.ts) - new Date(a.ts));
   const byParent = {};
-  logs.filter(e => e.parentId).forEach(e => {
-    (byParent[e.parentId] = byParent[e.parentId] || []).push(e);
-  });
+  logs.forEach(e => { if (e.parentId) (byParent[e.parentId] = byParent[e.parentId] || []).push(e); });
   if (!roots.length) {
     feed.innerHTML = '<div class="ec-empty">No log entries yet.<br>Tap <strong>+</strong> to log a medical, marshal update, or other incident.</div>';
     return;
   }
+  function renderSubtree(entry, depth) {
+    const children = (byParent[entry.id] || []).sort((a, b) => new Date(a.ts) - new Date(b.ts));
+    return _ecEntryHtml(entry, depth) + children.map(c => renderSubtree(c, depth + 1)).join('');
+  }
   feed.innerHTML = roots.map(root => {
-    const replies = (byParent[root.id] || []).sort((a, b) => new Date(a.ts) - new Date(b.ts));
-    const repliesHtml = replies.map(r => _ecEntryHtml(r, true, root.id)).join('');
-    return `<div class="ec-thread">${_ecEntryHtml(root, false, root.id)}${repliesHtml}</div>`;
+    return `<div class="ec-thread">${renderSubtree(root, 0)}<button class="ec-add-update-btn" onclick="openEcCompose('${escHtml(root.id)}')">+ Add update</button></div>`;
   }).join('');
 }
 
-function _ecEntryHtml(entry, isReply, rootId) {
+function _ecEntryHtml(entry, depth) {
   const { col, label } = _ecBadge(entry);
   const t = new Date(entry.ts);
   const timeStr = t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -6318,12 +6326,12 @@ function _ecEntryHtml(entry, isReply, rootId) {
   const titleHtml = entry.title
     ? `<div class="ec-entry-title">${escHtml(entry.title)}</div>` : '';
   const meta = [entry.user, entry.role].filter(Boolean).join(' · ');
-  const replyTarget = escHtml(rootId || entry.id);
-  return `<div class="ec-entry${isReply ? ' is-reply' : ''}">
+  const pl = depth > 0 ? ` style="padding-left:${14 + depth * 26}px"` : '';
+  return `<div class="ec-entry${depth > 0 ? ' is-reply' : ''}"${pl}>
     <div class="ec-entry-head">
       <span class="ec-type-badge" style="background:${col}">${escHtml(label)}</span>
       <span class="ec-entry-time">${timeStr}&thinsp;<span style="color:#999">${dateStr}</span></span>
-      <button class="ec-reply-icon" onclick="openEcCompose('${replyTarget}')" title="Reply">&#8617;</button>
+      <button class="ec-reply-icon" onclick="openEcCompose('${escHtml(entry.id)}')" title="Reply">&#8617;</button>
     </div>
     ${titleHtml}${descHtml}
     <div class="ec-entry-meta">${escHtml(meta)}</div>
