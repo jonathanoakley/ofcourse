@@ -2799,6 +2799,11 @@ function activateEvent(id) {
     await _syncPullPins();
     await _syncPullRoutes();
     if (id === BUILTIN_EVENT_ID) _applyBuiltinObstacleCaps();
+    // Push merged result back to server — bootstraps the server with any
+    // pre-existing localStorage data that was never previously uploaded.
+    _sPush('state_' + id, state, 0);
+    if (Object.keys(mapPins).length) _sPush('pins_' + id, mapPins, 0);
+    if (Object.keys(routes).length) _sPush('routes_' + id, routes, 0);
   })();
   _syncStartPoll();
 }
