@@ -3670,7 +3670,7 @@ async function _syncPullState() {
   state = merged;
   localStorage.setItem(LS_KEY, JSON.stringify(state));
   refreshAllCards(); updateProgress(); renderCard(state.currentIndex);
-  if (document.getElementById('configPanel')?.classList.contains('open')) renderLiveFeed();
+  if (_adminSection === 'auditLog' && document.getElementById('configPanel')?.classList.contains('open')) renderLiveFeed();
   if (ecLogsChanged && document.getElementById('ecPanel')?.classList.contains('open')) renderEcFeed();
 }
 
@@ -6550,13 +6550,36 @@ function shareLiveFeed() {
   }
 }
 
+let _adminSection = 'home';
+
+function adminShowSection(section) {
+  ['adminHome', 'adminAuditLog', 'adminConfigMenu', 'adminObstacleConfig', 'adminMenuConfig'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const idMap = { home: 'adminHome', auditLog: 'adminAuditLog', configMenu: 'adminConfigMenu', obstacleConfig: 'adminObstacleConfig', menuConfig: 'adminMenuConfig' };
+  const target = document.getElementById(idMap[section] || 'adminHome');
+  if (target) target.style.display = '';
+  const titles = { home: 'Administration', auditLog: 'Audit Log', configMenu: 'Configuration', obstacleConfig: 'Obstacle Configuration', menuConfig: 'Menu Configuration' };
+  const titleEl = document.getElementById('adminPanelTitle');
+  if (titleEl) titleEl.textContent = titles[section] || 'Administration';
+  const refreshBtn = document.getElementById('adminRefreshBtn');
+  if (refreshBtn) refreshBtn.style.visibility = section === 'auditLog' ? 'visible' : 'hidden';
+  _adminSection = section;
+  if (section === 'auditLog') renderLiveFeed();
+  if (section === 'obstacleConfig') renderObstacleConfig();
+  if (section === 'menuConfig') { renderEcConfig(); renderMapCacheSection(); }
+}
+
+function adminBack() {
+  const parentMap = { auditLog: 'home', configMenu: 'home', obstacleConfig: 'configMenu', menuConfig: 'configMenu' };
+  if (_adminSection === 'home') { closeConfigPanel(); } else { adminShowSection(parentMap[_adminSection] || 'home'); }
+}
+
 function openConfigPanel() {
   _pushRoute('config');
   _updateConfigBreadcrumb();
-  renderLiveFeed();
-  renderEcConfig();
-  renderObstacleConfig();
-  renderMapCacheSection();
+  adminShowSection('home');
   document.getElementById('configPanel').classList.add('open');
 }
 
@@ -7157,18 +7180,14 @@ function _routeFromPath() {
     if (sub) setTimeout(function() { openObstacleCheck(sub); }, 200);
   } else if (section === 'config') {
     cs.style.display = 'none';
-    renderObstacleConfig();
-    renderMapCacheSection();
-    document.getElementById('configPanel').classList.add('open');
     _updateConfigBreadcrumb();
+    adminShowSection('home');
+    document.getElementById('configPanel').classList.add('open');
   } else if (section === 'live') {
     cs.style.display = 'none';
     _updateConfigBreadcrumb();
     _applyLiveQueryParams();
-    renderLiveFeed();
-    renderEcConfig();
-    renderObstacleConfig();
-    renderMapCacheSection();
+    adminShowSection('auditLog');
     document.getElementById('configPanel').classList.add('open');
   } else if (section === 'ec') {
     cs.style.display = 'none';
@@ -7233,15 +7252,38 @@ if (currentUser.name && activeEventId) {
 <!-- ADMINISTRATION PANEL -->
 <div class="config-panel" id="configPanel">
   <div class="config-panel-head">
-    <button class="header-btn" onclick="closeConfigPanel()">&#8592;</button>
+    <button class="header-btn" onclick="adminBack()">&#8592;</button>
     <div class="panel-head-center">
-      <span class="config-panel-title">Administration</span>
+      <span class="config-panel-title" id="adminPanelTitle">Administration</span>
       <div class="panel-breadcrumb" id="configBreadcrumb"></div>
     </div>
-    <button class="header-btn" onclick="renderLiveFeed()" title="Refresh audit log" style="font-size:16px">&#8635;</button>
+    <button class="header-btn" id="adminRefreshBtn" onclick="renderLiveFeed()" title="Refresh" style="font-size:16px;visibility:hidden">&#8635;</button>
   </div>
-  <div class="config-body">
-    <div class="config-section-head">Audit Log</div>
+
+  <!-- Home: top-level sub-menu -->
+  <div id="adminHome" class="config-body">
+    <div class="choice-options" style="padding:16px 16px 0">
+      <button class="choice-option" onclick="adminShowSection('auditLog')">
+        <div class="choice-option-icon" style="color:#5580cc">&#9998;</div>
+        <div class="choice-option-body">
+          <div class="choice-option-title">Audit Log</div>
+          <div class="choice-option-desc">Full change and activity log for this event</div>
+        </div>
+        <div class="choice-option-arrow">&#8594;</div>
+      </button>
+      <button class="choice-option" onclick="adminShowSection('configMenu')">
+        <div class="choice-option-icon">&#9881;</div>
+        <div class="choice-option-body">
+          <div class="choice-option-title">Configuration</div>
+          <div class="choice-option-desc">Obstacle setup · event control menu</div>
+        </div>
+        <div class="choice-option-arrow">&#8594;</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Audit Log view -->
+  <div id="adminAuditLog" class="config-body" style="display:none">
     <div class="live-filter-bar">
       <div class="live-filter-row">
         <span class="live-filter-label">From</span>
@@ -7257,12 +7299,41 @@ if (currentUser.name && activeEventId) {
       </div>
     </div>
     <div id="liveFeedList" class="live-feed-list"></div>
+  </div>
+
+  <!-- Configuration sub-menu -->
+  <div id="adminConfigMenu" class="config-body" style="display:none">
+    <div class="choice-options" style="padding:16px 16px 0">
+      <button class="choice-option" onclick="adminShowSection('obstacleConfig')">
+        <div class="choice-option-icon" style="color:#c0392b">&#9888;</div>
+        <div class="choice-option-body">
+          <div class="choice-option-title">Obstacle Configuration</div>
+          <div class="choice-option-desc">Set zones and capacity limits per obstacle</div>
+        </div>
+        <div class="choice-option-arrow">&#8594;</div>
+      </button>
+      <button class="choice-option" onclick="adminShowSection('menuConfig')">
+        <div class="choice-option-icon">&#9776;</div>
+        <div class="choice-option-body">
+          <div class="choice-option-title">Menu Configuration</div>
+          <div class="choice-option-desc">Event control roles · map cache</div>
+        </div>
+        <div class="choice-option-arrow">&#8594;</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Obstacle Configuration view -->
+  <div id="adminObstacleConfig" class="config-body" style="display:none">
+    <div id="obstacleConfigList"></div>
+  </div>
+
+  <!-- Menu Configuration view -->
+  <div id="adminMenuConfig" class="config-body" style="display:none">
     <div class="config-section-head">Event Control</div>
     <div id="ecConfigSection"></div>
     <div class="config-section-head">Map Cache</div>
     <div id="mapCacheSection"></div>
-    <div class="config-section-head">Obstacle Configuration</div>
-    <div id="obstacleConfigList"></div>
   </div>
 </div>
 
