@@ -5998,8 +5998,45 @@ document.getElementById('cardMiniMap').addEventListener('touchstart', e => {
 // ── EVENT CONTROL ─────────────────────────────────────────────────────────
 let _ecReplyToId = null;
 
+// Legacy type field (old entries)
 const EC_TYPE_LABEL = { medical: 'Medical', marshal_update: 'Marshal Update', other: 'Other' };
 const EC_TYPE_COL   = { medical: '#c0392b', marshal_update: '#3a82f7', other: '#6a6a6a' };
+// From field colours
+const EC_FROM_COL = { marshal: '#3a82f7', staff: '#8855cc', security: '#c07800', other: '#6a6a6a' };
+
+function _getEcMarshalOptions() {
+  const seen = new Set();
+  const opts = [];
+  ALLCARDS.forEach(card => {
+    const code = _getMarshalCode(card);
+    if (code && !seen.has(code)) {
+      seen.add(code);
+      opts.push({ code, loc: effectiveCard(card).loc || '' });
+    }
+  });
+  opts.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+  return opts;
+}
+
+function onEcFromTypeChange() {
+  const v = document.getElementById('ecFromType').value;
+  document.getElementById('ecFromMarshal').style.display = v === 'marshal' ? '' : 'none';
+  document.getElementById('ecFromStaff').style.display   = v === 'staff'   ? '' : 'none';
+}
+
+function _ecBadge(entry) {
+  if (entry.from) {
+    const col = EC_FROM_COL[entry.from] || '#6a6a6a';
+    let label;
+    if (entry.from === 'marshal') label = entry.fromDetail || 'Marshal';
+    else if (entry.from === 'staff') label = entry.fromDetail || 'Staff';
+    else if (entry.from === 'security') label = 'Security';
+    else label = 'Other';
+    return { col, label };
+  }
+  // Backward compat: old entries used `type`
+  return { col: EC_TYPE_COL[entry.type] || '#6a6a6a', label: EC_TYPE_LABEL[entry.type] || (entry.type || 'Log') };
+}
 
 function openEcPanel() {
   _pushRoute('ec');
@@ -6022,20 +6059,27 @@ function openEcCompose(replyToId) {
   const heading = document.getElementById('ecComposeHeading');
   if (_ecReplyToId) {
     const root = (state.controlLogs || []).find(e => e.id === _ecReplyToId);
-    ctx.textContent = 'Replying to: ' + (root ? root.title : 'thread');
+    const rootLabel = root ? (root.title || root.description || 'thread') : 'thread';
+    ctx.textContent = 'Update on: ' + rootLabel.slice(0, 60);
     ctx.style.display = '';
     heading.textContent = 'Add Update';
   } else {
     ctx.style.display = 'none';
     heading.textContent = 'New Log Entry';
   }
-  document.getElementById('ecTypeSelect').value = 'medical';
+  // Reset from fields
+  document.getElementById('ecFromType').value = '';
+  document.getElementById('ecFromMarshal').style.display = 'none';
+  document.getElementById('ecFromStaff').style.display = 'none';
+  // Populate marshal list fresh each time
+  const opts = _getEcMarshalOptions();
+  document.getElementById('ecFromMarshal').innerHTML = opts.length
+    ? opts.map(o => `<option value="${escHtml(o.code)}">${escHtml(o.code)}${o.loc ? ' — ' + escHtml(o.loc) : ''}</option>`).join('')
+    : '<option value="">No marshals pinned yet</option>';
   document.getElementById('ecTitleInput').value = '';
   document.getElementById('ecDescInput').value = '';
-  document.getElementById('ecTitleRow').style.display = _ecReplyToId ? 'none' : '';
-  document.getElementById('ecDescInput').placeholder = _ecReplyToId ? 'Update…' : 'Description (optional)';
   document.getElementById('ecComposeModal').classList.add('open');
-  setTimeout(() => (_ecReplyToId ? document.getElementById('ecDescInput') : document.getElementById('ecTitleInput')).focus(), 300);
+  setTimeout(() => document.getElementById('ecFromType').focus(), 300);
 }
 
 function closeEcCompose() {
@@ -6044,15 +6088,19 @@ function closeEcCompose() {
 }
 
 function submitEcEntry() {
-  const isReply = !!_ecReplyToId;
-  const title = isReply ? '' : document.getElementById('ecTitleInput').value.trim();
+  const fromType = document.getElementById('ecFromType').value;
+  if (!fromType) { document.getElementById('ecFromType').focus(); return; }
+  let fromDetail = '';
+  if (fromType === 'marshal') fromDetail = document.getElementById('ecFromMarshal').value;
+  else if (fromType === 'staff') fromDetail = document.getElementById('ecFromStaff').value;
+  const title       = document.getElementById('ecTitleInput').value.trim();
   const description = document.getElementById('ecDescInput').value.trim();
-  if (!isReply && !title) { document.getElementById('ecTitleInput').focus(); return; }
-  if (isReply && !description) { document.getElementById('ecDescInput').focus(); return; }
+  if (!description) { document.getElementById('ecDescInput').focus(); return; }
   const entry = {
     id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
     ts: new Date().toISOString(),
-    type: document.getElementById('ecTypeSelect').value,
+    from: fromType,
+    fromDetail,
     title,
     description,
     user: currentUser.name || 'Unknown',
@@ -6085,14 +6133,13 @@ function renderEcFeed() {
       ? `<div class="ec-replies">${replies.map(r => _ecEntryHtml(r, true)).join('')}</div>`
       : '';
     return `<div class="ec-thread">${_ecEntryHtml(root, false)}${repliesHtml}
-      <button class="ec-reply-btn" onclick="openEcCompose('${escHtml(root.id)}')">&#8617; Add update to this thread</button>
+      <button class="ec-reply-btn" onclick="openEcCompose('${escHtml(root.id)}')">&#8617; Add update</button>
     </div>`;
   }).join('');
 }
 
 function _ecEntryHtml(entry, isReply) {
-  const col   = EC_TYPE_COL[entry.type]   || '#666';
-  const label = EC_TYPE_LABEL[entry.type] || entry.type;
+  const { col, label } = _ecBadge(entry);
   const t = new Date(entry.ts);
   const timeStr = t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   const dateStr = t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -6945,17 +6992,26 @@ if (currentUser.name && activeEventId) {
     <div class="modal-handle"></div>
     <div class="modal-title" id="ecComposeHeading">New Log Entry</div>
     <div class="ec-compose-reply-ctx" id="ecReplyCtx" style="display:none"></div>
-    <select class="ec-compose-select" id="ecTypeSelect">
-      <option value="medical">Medical</option>
-      <option value="marshal_update">Marshal Update</option>
+    <select class="ec-compose-select" id="ecFromType" onchange="onEcFromTypeChange()">
+      <option value="">From…</option>
+      <option value="marshal">Marshal</option>
+      <option value="staff">Staff</option>
+      <option value="security">Security</option>
       <option value="other">Other</option>
     </select>
-    <div id="ecTitleRow">
-      <input class="route-name-modal-input" id="ecTitleInput" type="text" placeholder="Title" maxlength="80"
-        onkeydown="if(event.key==='Enter')document.getElementById('ecDescInput').focus()">
-    </div>
-    <textarea class="route-name-modal-input" id="ecDescInput" placeholder="Description (optional)"
-      style="resize:none;min-height:72px;font-family:inherit;font-size:14px"></textarea>
+    <select class="ec-compose-select" id="ecFromMarshal" style="display:none"></select>
+    <select class="ec-compose-select" id="ecFromStaff" style="display:none">
+      <option value="Event Manager">Event Manager</option>
+      <option value="Site Ops">Site Ops</option>
+      <option value="Start Manager">Start Manager</option>
+      <option value="Finish Manager">Finish Manager</option>
+      <option value="Obstacle Manager">Obstacle Manager</option>
+      <option value="Course Manager">Course Manager</option>
+    </select>
+    <input class="route-name-modal-input" id="ecTitleInput" type="text" placeholder="Title (optional)" maxlength="80"
+      onkeydown="if(event.key==='Enter')document.getElementById('ecDescInput').focus()">
+    <textarea class="route-name-modal-input" id="ecDescInput" placeholder="Description"
+      style="resize:none;min-height:80px;font-family:inherit;font-size:14px"></textarea>
     <div class="modal-actions" style="margin-top:4px">
       <button class="modal-btn secondary" onclick="closeEcCompose()">Cancel</button>
       <button class="modal-btn primary" onclick="submitEcEntry()">Log Entry</button>
