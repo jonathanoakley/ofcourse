@@ -6,8 +6,8 @@
 <title>ofCourse</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous" onerror="window._leafletFailed=true"></script>
 <style>
 :root {
   --bg: #0d1209;
@@ -4215,9 +4215,14 @@ function openMap() {
   document.getElementById('btnFeatMode').classList.remove('active');
   renderRouteSelector();
   setMapLayer(activeLayer);
-  panel.addEventListener('transitionend', function once(e) {
-    if (e.target !== panel) return;  // ignore bubbled events from children
-    panel.removeEventListener('transitionend', once);
+
+  // initMapView must be idempotent: skip if already done for this open(),
+  // and skip if the panel was closed before the transition finished.
+  let _mapViewInitDone = false;
+  function _initMapView() {
+    if (_mapViewInitDone) return;
+    if (!document.getElementById('mapPanel').classList.contains('open')) return;
+    _mapViewInitDone = true;
     if (!lmap) initLeaflet();
     else {
       lmap.invalidateSize();
@@ -4226,7 +4231,17 @@ function openMap() {
       requestAnimationFrame(() => mapFitBounds());
     }
     fetchRoutesFromFirebase();
+  }
+
+  panel.addEventListener('transitionend', function once(e) {
+    if (e.propertyName !== 'transform' || e.target !== panel) return;
+    panel.removeEventListener('transitionend', once);
+    _initMapView();
   });
+  // Fallback: transitionend can silently fail on mobile (Reduce Motion,
+  // rapid navigation, same-frame add/remove of class). Fire after
+  // transition duration + a small buffer.
+  setTimeout(_initMapView, 350);
 }
 function closeMap() { document.getElementById('mapPanel').classList.remove('open'); }
 
@@ -4310,6 +4325,11 @@ function setMapLayer(layer) {
 }
 
 function initLeaflet() {
+  if (typeof L === 'undefined' || window._leafletFailed) {
+    const el = document.getElementById('leafletMap');
+    if (el) el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#888;font-family:\'DM Mono\',monospace;font-size:12px;text-align:center;padding:40px;line-height:1.8">Map library failed to load.<br>Check your connection and refresh the page.</div>';
+    return;
+  }
   const evtMeta = getAllEvents().find(e => e.id === activeEventId) || BUILTIN_EVENT_META;
   const clat = evtMeta.lat || 55.823, clng = evtMeta.lng || -4.298;
   lmap = L.map('leafletMap', { zoomControl: true }).setView([clat, clng], 15);
