@@ -2366,7 +2366,7 @@ a.w3w-link:active { opacity: 0.7; }
       </div>
       <div class="choice-option-arrow">&#8594;</div>
     </button>
-    <button class="choice-option" onclick="hideChoiceScreen(() => openEcPanel())">
+    <button class="choice-option" onclick="openEcPanel(); hideChoiceScreen()">
       <div class="choice-option-icon" style="color:#5580cc">&#9889;</div>
       <div class="choice-option-body">
         <div class="choice-option-title">Event Control</div>
@@ -2374,7 +2374,7 @@ a.w3w-link:active { opacity: 0.7; }
       </div>
       <div class="choice-option-arrow">&#8594;</div>
     </button>
-    <button class="choice-option" onclick="hideChoiceScreen(() => openObstaclePanel())">
+    <button class="choice-option" onclick="openObstaclePanel(); hideChoiceScreen()">
       <div class="choice-option-icon" style="color:#c0392b">&#9888;</div>
       <div class="choice-option-body">
         <div class="choice-option-title">Obstacle Management</div>
@@ -2391,7 +2391,7 @@ a.w3w-link:active { opacity: 0.7; }
       <div class="choice-option-arrow">&#8594;</div>
     </button>
   </div>
-  <button class="choice-config-btn" onclick="hideChoiceScreen(() => openConfigPanel())">
+  <button class="choice-config-btn" onclick="openConfigPanel(); hideChoiceScreen()">
     <span style="font-size:15px">&#9881;</span> Configuration
     <span style="margin-left:auto;font-size:15px;color:#333">&#8250;</span>
   </button>
@@ -3068,12 +3068,15 @@ function hideChoiceScreen(cb) {
 
 function goToSetup() {
   _pushRoute('course');
-  hideChoiceScreen(() => { renderCard(state.currentIndex); updateProgress(); });
+  renderCard(state.currentIndex);
+  updateProgress();
+  hideChoiceScreen();
 }
 
 function goToMap() {
   _pushRoute('map');
-  hideChoiceScreen(() => { openMap(); });
+  openMap();
+  hideChoiceScreen();
 }
 
 function backToLanding() {
@@ -6175,7 +6178,7 @@ function openEcPanel() {
   if (el) el.textContent = getActiveEventName() + ' / Event Control';
   renderEcFeed();
   document.getElementById('ecFab').classList.add('visible');
-  hideChoiceScreen(() => document.getElementById('ecPanel').classList.add('open'));
+  document.getElementById('ecPanel').classList.add('open');
 }
 
 function closeEcPanel() {
@@ -6303,7 +6306,8 @@ function goToLive() {
   if (el) el.textContent = getActiveEventName() + ' / Live Status';
   _applyLiveQueryParams();
   renderLiveFeed();
-  hideChoiceScreen(() => { document.getElementById('livePanel').classList.add('open'); });
+  document.getElementById('livePanel').classList.add('open');
+  hideChoiceScreen();
 }
 
 function closeLivePanel() {
