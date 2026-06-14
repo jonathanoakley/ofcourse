@@ -95,13 +95,15 @@ html, body {
 }
 .header-btn:active { background: var(--border); color: #aaa; }
 .sync-dot {
-  width: 9px; height: 9px; border-radius: 50%;
+  width: 11px; height: 11px; border-radius: 50%;
   border: none; padding: 0; cursor: pointer; flex-shrink: 0;
-  background: #2a2a2a; transition: background 0.4s;
+  background: #333; transition: background 0.4s;
 }
-.sync-dot.s-syncing { background: #c07800; }
+.sync-dot.s-syncing { background: #c07800; animation: sync-pulse 1s ease-in-out infinite; }
 .sync-dot.s-synced  { background: #2a9a3a; }
+.sync-dot.s-stale   { background: #c07800; }
 .sync-dot.s-error   { background: #aa2222; }
+@keyframes sync-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
 /* ── STAGE ──────────────────────────────── */
 .stage {
@@ -2400,7 +2402,6 @@ a.w3w-link:active { opacity: 0.7; }
 <!-- HEADER -->
 <header class="header">
   <div class="header-logo" onclick="activeEventId ? showChoiceScreen() : showLanding()" style="cursor:pointer">OfCourse</div>
-  <button class="sync-dot s-idle" id="syncDot" onclick="forceSyncNow()" aria-label="Sync status"></button>
   <div class="count-pill" id="countPill"><div class="count-fill" id="countFill"></div><span id="countText">0%</span></div>
   <div class="dist-bar">
     <div class="dist-track" id="distTrack">
@@ -2415,6 +2416,7 @@ a.w3w-link:active { opacity: 0.7; }
       <span style="left:99.4%">5k</span>
     </div>
   </div>
+  <button class="sync-dot s-idle" id="syncDot" onclick="forceSyncNow()" title="Sync · tap to sync now"></button>
   <button class="header-btn" onclick="openMenu()" title="Menu">&#9776;</button>
 </header>
 
@@ -3434,11 +3436,24 @@ const _syncTimers = {};
 let _syncPollTimer = null;
 let _syncInFlight = 0;
 let _syncDotTimer = null;
+let _lastSyncSuccess = 0;
 
 function _setSyncDot(cls) {
   const d = document.getElementById('syncDot');
   if (!d) return;
   d.className = 'sync-dot ' + cls;
+}
+
+function _noteGoodConnection() {
+  _lastSyncSuccess = Date.now();
+}
+
+function _setSyncDotFromAge() {
+  if (!activeEventId || _lastSyncSuccess === 0) { _setSyncDot('s-idle'); return; }
+  const age = Date.now() - _lastSyncSuccess;
+  if (age > 180000) _setSyncDot('s-error');     // >3 min: red
+  else if (age > 60000) _setSyncDot('s-stale'); // >1 min: amber
+  else _setSyncDot('s-idle');
 }
 
 function _syncBegan() {
@@ -3450,15 +3465,22 @@ function _syncBegan() {
 function _syncDone(ok) {
   _syncInFlight = Math.max(0, _syncInFlight - 1);
   if (_syncInFlight > 0) return;
-  _setSyncDot(ok ? 's-synced' : 's-error');
-  if (ok) _syncDotTimer = setTimeout(() => _setSyncDot('s-idle'), 3000);
+  if (ok) {
+    _noteGoodConnection();
+    _setSyncDot('s-synced');
+    _syncDotTimer = setTimeout(() => _setSyncDotFromAge(), 3000);
+  } else {
+    _setSyncDot('s-error');
+  }
 }
 
 async function _sGet(key) {
   try {
     const r = await fetch('/api/data/' + key);
     if (!r.ok) return null;
-    return await r.json();
+    const data = await r.json();
+    _noteGoodConnection();
+    return data;
   } catch { return null; }
 }
 
@@ -3512,6 +3534,12 @@ function _mergeAudit(local, remote) {
   }).sort((a, b) => (a.ts > b.ts ? 1 : -1));
 }
 
+function _mergeControlLogs(local, remote) {
+  const byId = {};
+  [...(remote || []), ...(local || [])].forEach(e => { if (e && e.id) byId[e.id] = e; });
+  return Object.values(byId).sort((a, b) => (a.ts > b.ts ? 1 : -1));
+}
+
 function _mergeCustomCards(local, remote) {
   const byRef = {};
   [...(remote || []), ...(local || [])].forEach(c => { byRef[c.ref] = c; });
@@ -3546,6 +3574,8 @@ function _mergeStateObj(local, remote) {
     obstacleCapacity: { ...(remote.obstacleCapacity || {}), ...(local.obstacleCapacity || {}) },
     audit:           _mergeAudit(local.audit, remote.audit),
     customCards:     _mergeCustomCards(local.customCards, remote.customCards),
+    controlLogs:     _mergeControlLogs(local.controlLogs, remote.controlLogs),
+    ecConfig:        { ...(remote.ecConfig || {}), ...(local.ecConfig || {}) },
     currentIndex:    local.currentIndex,
   };
 }
@@ -3560,6 +3590,7 @@ async function _syncPullState() {
   localStorage.setItem(LS_KEY, JSON.stringify(state));
   refreshAllCards(); updateProgress(); renderCard(state.currentIndex);
   if (document.getElementById('livePanel')?.classList.contains('open')) renderLiveFeed();
+  if (document.getElementById('ecPanel')?.classList.contains('open')) renderEcFeed();
 }
 
 async function _syncPullPins() {
@@ -3619,7 +3650,7 @@ async function _syncPullEvents() {
 function _syncStartPoll() {
   _syncStopPoll();
   if (!SERVER_SYNC) return;
-  _syncPollTimer = setInterval(() => { _syncPullState(); _syncPullPins(); }, 30000);
+  _syncPollTimer = setInterval(() => { _syncPullState(); _syncPullPins(); _setSyncDotFromAge(); }, 30000);
 }
 
 function _syncStopPoll() {
