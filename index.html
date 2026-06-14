@@ -1944,11 +1944,30 @@ a.w3w-link:active { opacity: 0.7; }
   font-family: 'DM Mono', monospace; font-size: 12px; color: #888;
   text-align: center; padding: 48px 24px; line-height: 1.8;
 }
+.ec-thread-wrap {
+  position: relative; overflow: hidden; border-radius: 14px;
+}
+.ec-swipe-delete {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 88px;
+  background: #c0392b;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; color: #fff; cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ec-swipe-delete-icon { font-size: 20px; line-height: 1; }
+.ec-swipe-delete-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
 .ec-thread {
   background: var(--card); border-radius: 14px;
   border: 1px solid var(--border);
   clip-path: inset(0 round 14px);
+  position: relative;
+  transition: transform 0.22s cubic-bezier(0.32, 1, 0.6, 1);
+  will-change: transform;
 }
+.ec-thread.ec-swiping { transition: none; }
 .ec-entry {
   padding: 12px 14px; border-bottom: 1px solid var(--border);
 }
@@ -6042,6 +6061,7 @@ loadUser();
 loadUserEvents();
 loadW3WKey();
 _syncPullEvents(); // pull latest events list from server in background
+_initEcSwipe();
 
 // Restore previously active event
 if (currentUser.event) {
@@ -6359,14 +6379,27 @@ function submitEcEntry() {
   };
   if (!state.controlLogs) state.controlLogs = [];
   state.controlLogs.push(entry);
+  auditEntry('ec', entry.parentId ? 'ec_reply' : 'ec_log', { label: (entry.title || entry.description || '').slice(0, 50) });
   saveState();
   closeEcCompose();
+  renderEcFeed();
+}
+
+function deleteEcThread(rootId) {
+  if (!confirm('Delete this thread and all its updates? This cannot be undone.')) return;
+  const root = (state.controlLogs || []).find(e => e.id === rootId);
+  const label = root ? (root.title || root.description || '').slice(0, 50) : '';
+  const threadIds = new Set((state.controlLogs || []).filter(e => e.id === rootId || e.parentId === rootId).map(e => e.id));
+  state.controlLogs = (state.controlLogs || []).filter(e => !threadIds.has(e.id));
+  auditEntry('ec', 'ec_thread_delete', { label, count: threadIds.size });
+  saveState();
   renderEcFeed();
 }
 
 function renderEcFeed() {
   const feed = document.getElementById('ecFeed');
   if (!feed) return;
+  _ecSwipeThread = null; _ecOpenThread = null;
   const logs = state.controlLogs || [];
   const roots = logs.filter(e => !e.parentId).sort((a, b) => new Date(b.ts) - new Date(a.ts));
   const byParent = {};
@@ -6380,7 +6413,13 @@ function renderEcFeed() {
     return _ecEntryHtml(entry, depth) + children.map(c => renderSubtree(c, depth + 1)).join('');
   }
   feed.innerHTML = roots.map(root => {
-    return `<div class="ec-thread">${renderSubtree(root, 0)}<button class="ec-add-update-btn" onclick="openEcCompose('${escHtml(root.id)}')">+ Add update</button></div>`;
+    return `<div class="ec-thread-wrap">
+      <div class="ec-swipe-delete" onclick="deleteEcThread('${escHtml(root.id)}')">
+        <span class="ec-swipe-delete-icon">&#10006;</span>
+        <span class="ec-swipe-delete-label">Delete</span>
+      </div>
+      <div class="ec-thread" data-thread-id="${escHtml(root.id)}">${renderSubtree(root, 0)}<button class="ec-add-update-btn" onclick="openEcCompose('${escHtml(root.id)}')">+ Add update</button></div>
+    </div>`;
   }).join('');
 }
 
@@ -6406,6 +6445,77 @@ function _ecEntryHtml(entry, depth) {
   </div>`;
 }
 
+// ── EC SWIPE-TO-DELETE ───────────────────────────────────────────────────────
+
+let _ecSwipeThread = null;  // { el, startX, startY, axis, currentX, startTime }
+let _ecOpenThread  = null;  // .ec-thread element currently swiped open
+const _EC_REVEAL   = 88;    // px width of delete strip
+const _EC_THRESHOLD = 56;   // px to trigger snap-open
+
+function _ecSnapBack(el) {
+  el.classList.remove('ec-swiping');
+  el.style.transform = '';
+}
+
+function _ecSwipeStart(x, y, target) {
+  if (target.closest('.ec-swipe-delete')) return; // let the onclick fire
+  const threadEl = target.closest('.ec-thread');
+  if (_ecOpenThread) {
+    _ecSnapBack(_ecOpenThread);
+    _ecOpenThread = null;
+    _ecSwipeThread = null;
+    return; // consume this touch to close — don't start a new swipe
+  }
+  if (!threadEl) return;
+  _ecSwipeThread = { el: threadEl, startX: x, startY: y, axis: null, currentX: 0, startTime: Date.now() };
+}
+
+function _ecSwipeMove(x, y) {
+  if (!_ecSwipeThread) return false;
+  const s = _ecSwipeThread;
+  const dx = x - s.startX;
+  const dy = y - s.startY;
+  if (!s.axis && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+    s.axis = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+  }
+  if (!s.axis || s.axis === 'v') return false;
+  s.currentX = Math.min(0, dx);
+  s.el.classList.add('ec-swiping');
+  s.el.style.transform = `translateX(${Math.max(-_EC_REVEAL, s.currentX)}px)`;
+  return true;
+}
+
+function _ecSwipeEnd() {
+  if (!_ecSwipeThread) return;
+  const s = _ecSwipeThread;
+  s.el.classList.remove('ec-swiping');
+  const velocity = Math.abs(s.currentX) / Math.max(1, Date.now() - s.startTime);
+  if (s.axis === 'h' && (Math.abs(s.currentX) >= _EC_THRESHOLD || velocity > 0.3)) {
+    s.el.style.transform = `translateX(-${_EC_REVEAL}px)`;
+    _ecOpenThread = s.el;
+  } else {
+    _ecSnapBack(s.el);
+  }
+  _ecSwipeThread = null;
+}
+
+function _initEcSwipe() {
+  const feed = document.getElementById('ecFeed');
+  if (!feed || feed._ecSwipeInited) return;
+  feed._ecSwipeInited = true;
+  // Touch
+  feed.addEventListener('touchstart', e => { _ecSwipeStart(e.touches[0].clientX, e.touches[0].clientY, e.target); }, { passive: true });
+  feed.addEventListener('touchmove', e => { if (_ecSwipeMove(e.touches[0].clientX, e.touches[0].clientY)) e.preventDefault(); }, { passive: false });
+  feed.addEventListener('touchend', () => _ecSwipeEnd(), { passive: true });
+  feed.addEventListener('touchcancel', () => { if (_ecSwipeThread) { _ecSnapBack(_ecSwipeThread.el); _ecSwipeThread = null; } }, { passive: true });
+  // Mouse (desktop)
+  let _md = false;
+  feed.addEventListener('mousedown', e => { _ecSwipeStart(e.clientX, e.clientY, e.target); _md = !!_ecSwipeThread; });
+  feed.addEventListener('mousemove', e => { if (_md) _ecSwipeMove(e.clientX, e.clientY); });
+  feed.addEventListener('mouseup', () => { if (_md) { _ecSwipeEnd(); _md = false; } });
+  feed.addEventListener('mouseleave', () => { if (_md) { _ecSwipeEnd(); _md = false; } });
+}
+
 function goToLive() {
   openConfigPanel();
   hideChoiceScreen();
@@ -6427,7 +6537,7 @@ function _buildLiveEvents() {
   (state.audit || []).forEach(e => {
     const card = ALLCARDS.find(c => c.ref === e.ref);
     const ec = card ? effectiveCard(card) : null;
-    const locName = ec ? (ec.loc || e.ref) : e.ref;
+    const locName = ec ? (ec.loc || e.ref) : (e.ref === 'ec' ? 'Event Control' : e.ref);
     let desc = '', dotCls = 'live-feed-dot-edit', noteText = '';
 
     if (e.action === 'complete') {
@@ -6450,6 +6560,12 @@ function _buildLiveEvents() {
       desc = 'Obstacle zone updated' + (e.field ? ' (' + e.field + ')' : ''); dotCls = 'live-feed-dot-edit';
     } else if (e.action === 'obstacle_zone_remove') {
       desc = 'Obstacle zone removed'; dotCls = 'live-feed-dot-undo';
+    } else if (e.action === 'ec_log') {
+      desc = 'EC log entry' + (e.label ? ': ' + e.label : ''); dotCls = 'live-feed-dot-edit';
+    } else if (e.action === 'ec_reply') {
+      desc = 'EC update added' + (e.label ? ': ' + e.label : ''); dotCls = 'live-feed-dot-edit';
+    } else if (e.action === 'ec_thread_delete') {
+      desc = 'EC thread deleted' + (e.label ? ': ' + e.label : ''); dotCls = 'live-feed-dot-undo';
     } else {
       desc = e.action;
     }
