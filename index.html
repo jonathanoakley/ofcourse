@@ -94,6 +94,14 @@ html, body {
   transition: background 0.15s, color 0.15s;
 }
 .header-btn:active { background: var(--border); color: #aaa; }
+.sync-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  border: none; padding: 0; cursor: pointer; flex-shrink: 0;
+  background: #2a2a2a; transition: background 0.4s;
+}
+.sync-dot.s-syncing { background: #c07800; }
+.sync-dot.s-synced  { background: #2a9a3a; }
+.sync-dot.s-error   { background: #aa2222; }
 
 /* ── STAGE ──────────────────────────────── */
 .stage {
@@ -2260,6 +2268,7 @@ a.w3w-link:active { opacity: 0.7; }
 <!-- HEADER -->
 <header class="header">
   <div class="header-logo" onclick="showLanding()" style="cursor:pointer">OfCourse</div>
+  <button class="sync-dot s-idle" id="syncDot" onclick="forceSyncNow()" aria-label="Sync status"></button>
   <div class="count-pill" id="countPill"><div class="count-fill" id="countFill"></div><span id="countText">0%</span></div>
   <div class="dist-bar">
     <div class="dist-track" id="distTrack">
@@ -3284,6 +3293,27 @@ function saveState() {
 const SERVER_SYNC = true;
 const _syncTimers = {};
 let _syncPollTimer = null;
+let _syncInFlight = 0;
+let _syncDotTimer = null;
+
+function _setSyncDot(cls) {
+  const d = document.getElementById('syncDot');
+  if (!d) return;
+  d.className = 'sync-dot ' + cls;
+}
+
+function _syncBegan() {
+  _syncInFlight++;
+  clearTimeout(_syncDotTimer);
+  _setSyncDot('s-syncing');
+}
+
+function _syncDone(ok) {
+  _syncInFlight = Math.max(0, _syncInFlight - 1);
+  if (_syncInFlight > 0) return;
+  _setSyncDot(ok ? 's-synced' : 's-error');
+  if (ok) _syncDotTimer = setTimeout(() => _setSyncDot('s-idle'), 3000);
+}
 
 async function _sGet(key) {
   try {
@@ -3294,18 +3324,30 @@ async function _sGet(key) {
 }
 
 async function _sPut(key, data) {
+  _syncBegan();
   try {
-    await fetch('/api/data/' + key, {
+    const r = await fetch('/api/data/' + key, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-  } catch {}
+    _syncDone(r.ok);
+  } catch { _syncDone(false); }
 }
 
 function _sPush(key, data, delay = 1200) {
   if (!SERVER_SYNC || !key || key.startsWith('state_null') || key.startsWith('pins_null')) return;
   clearTimeout(_syncTimers[key]);
   _syncTimers[key] = setTimeout(() => _sPut(key, data), delay);
+}
+
+async function forceSyncNow() {
+  if (!activeEventId) return;
+  await _sPut('state_' + activeEventId, state);
+  if (Object.keys(mapPins).length) await _sPut('pins_' + activeEventId, mapPins);
+  if (Object.keys(routes).length) await _sPut('routes_' + activeEventId, routes);
+  await _syncPullState();
+  await _syncPullPins();
+  await _syncPullRoutes();
 }
 
 // ── Merge helpers ─────────────────────────────────────────────────────────────
