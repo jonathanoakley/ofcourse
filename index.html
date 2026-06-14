@@ -2474,6 +2474,7 @@ a.w3w-link:active { opacity: 0.7; }
   </div>
   <!-- Overlay toggles -->
   <div class="map-overlay-bar">
+    <button class="map-overlay-btn active" id="overlayBtnCards" onclick="toggleCardPins()">⊙ Course Cards</button>
     <button class="map-overlay-btn" id="overlayBtnStaff" onclick="toggleMarshalOverlay()">◎ Marshals &amp; Obstacles</button>
   </div>
   <!-- Route selector (always visible) -->
@@ -4260,6 +4261,7 @@ let lRouteLines = []; // L.Polyline[] — one per terrain run
 let lRouteNodes = []; // draggable node markers
 let lOverlayMarkers = []; // marshal + obstacle overlay circles
 let showMarshalOverlay = false;
+let showCardPins = true;
 
 // UI state
 let mapEditMode = false;
@@ -4443,9 +4445,11 @@ function openMap() {
   panel.classList.add('open');
   document.getElementById('mapEditBtn').textContent = 'Edit';
   document.getElementById('mapEditBtn').classList.remove('editing');
-  // Sync overlay button to current state
+  // Sync overlay buttons to current state
   const ob = document.getElementById('overlayBtnStaff');
   if (ob) ob.classList.toggle('active', showMarshalOverlay);
+  const cb = document.getElementById('overlayBtnCards');
+  if (cb) cb.classList.toggle('active', showCardPins);
   document.getElementById('mapSubmodeBar').style.display = 'none';
   document.getElementById('mapRouteToolbar').style.display = 'none';
   document.getElementById('terrainRow').style.display = 'none';
@@ -4746,27 +4750,36 @@ function pinIcon(idx) {
   });
 }
 
+function toggleCardPins() {
+  showCardPins = !showCardPins;
+  const btn = document.getElementById('overlayBtnCards');
+  if (btn) btn.classList.toggle('active', showCardPins);
+  refreshMapMarkers();
+}
+
 function refreshMapMarkers() {
   if (!lmap) return;
   Object.values(lMarkers).forEach(m => m.remove());
   lMarkers = {};
   if (lFeatLine) { lFeatLine.remove(); lFeatLine = null; }
   const placed = ALLCARDS.map((c, i) => ({ ref: c.ref, idx: i, pos: mapPins[c.ref] })).filter(x => x.pos);
-  if (placed.length > 1) {
-    lFeatLine = L.polyline(placed.map(x => [x.pos.lat, x.pos.lng]), {
-      color: '#888', weight: 1, opacity: 0.35, dashArray: '3 5'
-    }).addTo(lmap);
-    lFeatLine.bringToBack();
-  }
-  placed.forEach(({ ref, idx, pos }) => {
-    const m = L.marker([pos.lat, pos.lng], { icon: pinIcon(idx) }).addTo(lmap);
-    m.on('click', e => {
-      e.originalEvent.stopPropagation();
-      if (!mapEditMode) { closeMap(); goToCard(idx); return; }
-      if (mapSubMode === 'features') { mapPickIdx = idx; refreshMapMarkers(); refreshMapToolbar(); }
+  if (showCardPins) {
+    if (placed.length > 1) {
+      lFeatLine = L.polyline(placed.map(x => [x.pos.lat, x.pos.lng]), {
+        color: '#888', weight: 1, opacity: 0.35, dashArray: '3 5'
+      }).addTo(lmap);
+      lFeatLine.bringToBack();
+    }
+    placed.forEach(({ ref, idx, pos }) => {
+      const m = L.marker([pos.lat, pos.lng], { icon: pinIcon(idx) }).addTo(lmap);
+      m.on('click', e => {
+        e.originalEvent.stopPropagation();
+        if (!mapEditMode) { closeMap(); goToCard(idx); return; }
+        if (mapSubMode === 'features') { mapPickIdx = idx; refreshMapMarkers(); refreshMapToolbar(); }
+      });
+      lMarkers[ref] = m;
     });
-    lMarkers[ref] = m;
-  });
+  }
   document.getElementById('mapCount').textContent = `${placed.length} / ${ALLCARDS.length} pinned`;
   refreshMarshalOverlay();
 }
