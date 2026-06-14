@@ -4794,25 +4794,23 @@ function _getMarshalCode(card) {
 
 function _marshalCircleIcon(label, isSteward) {
   const col = isSteward ? '#c07800' : '#3a82f7';
-  const bg  = isSteward ? 'rgba(192,120,0,0.18)' : 'rgba(58,130,247,0.18)';
+  const bg  = isSteward ? 'rgba(192,120,0,0.22)' : 'rgba(58,130,247,0.22)';
   return L.divIcon({
     className: '',
-    html: `<div style="width:34px;height:34px;border-radius:50%;background:${bg};border:2.5px solid ${col};display:flex;align-items:center;justify-content:center;color:${col};font-family:'Bebas Neue',cursive;font-size:14px;letter-spacing:0.5px;box-shadow:0 2px 8px rgba(0,0,0,0.55),0 0 0 3px ${bg}">${escHtml(label)}</div>`,
-    iconSize: [34, 34], iconAnchor: [17, 17]
+    html: `<div style="width:36px;height:36px;border-radius:50%;background:${bg};border:3px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:${col};font-family:'DM Mono',monospace;font-size:11px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.5)">${escHtml(label)}</div>`,
+    iconSize: [36, 36], iconAnchor: [18, 18]
   });
 }
 
 function _obstacleCircleIcon(name) {
-  const words = name.split(' ');
-  const top = words[0] || '';
-  const bot = words[1] || '';
-  const inner = bot
-    ? `<span style="font-size:7px;line-height:1.2;text-align:center">${escHtml(top)}<br>${escHtml(bot)}</span>`
-    : `<span style="font-size:8px">${escHtml(top)}</span>`;
+  const safeLabel = escHtml(name);
   return L.divIcon({
     className: '',
-    html: `<div style="width:42px;height:42px;border-radius:50%;background:rgba(255,45,120,0.15);border:2.5px solid #ff2d78;display:flex;align-items:center;justify-content:center;color:#ff2d78;font-family:'DM Mono',monospace;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.55),0 0 0 3px rgba(255,45,120,0.1)">${inner}</div>`,
-    iconSize: [42, 42], iconAnchor: [21, 21]
+    html: `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">` +
+      `<div style="background:rgba(0,0,0,0.62);backdrop-filter:blur(2px);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;color:#ff2d78;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;line-height:1.4">${safeLabel}</div>` +
+      `<div style="width:36px;height:36px;border-radius:50%;background:rgba(255,45,120,0.22);border:3px solid rgba(255,255,255,.35);box-shadow:0 2px 6px rgba(0,0,0,.5)"></div>` +
+      `</div>`,
+    iconSize: [90, 54], iconAnchor: [45, 54]
   });
 }
 
