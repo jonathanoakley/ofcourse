@@ -845,6 +845,15 @@ a.w3w-link:active { opacity: 0.7; }
 .map-nav-btn:disabled { opacity: 0.3; pointer-events: none; }
 .map-nav-btn:active { background: #2a3a26; color: #aaa; }
 .map-layer-bar { display: flex; gap: 5px; padding: 6px 12px 7px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; align-items: center; }
+.map-overlay-bar { display: flex; gap: 6px; padding: 4px 12px 5px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.map-overlay-btn {
+  display: flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px;
+  background: transparent; border: 1.5px solid var(--border); border-radius: 6px;
+  color: #555; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.5px;
+  cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.map-overlay-btn.active { background: rgba(58,130,247,0.08); color: #3a82f7; border-color: rgba(58,130,247,0.35); }
 .map-cache-pill {
   font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.5px;
   padding: 0 8px; height: 28px; border-radius: 6px; border: 1.5px solid;
@@ -2463,6 +2472,10 @@ a.w3w-link:active { opacity: 0.7; }
     <button class="map-layer-btn"        id="layerBtnTerrain"   onclick="setMapLayer('terrain')">Terrain</button>
     <div class="map-cache-pill" id="mapCachePill"></div>
   </div>
+  <!-- Overlay toggles -->
+  <div class="map-overlay-bar">
+    <button class="map-overlay-btn" id="overlayBtnStaff" onclick="toggleMarshalOverlay()">◎ Marshals &amp; Obstacles</button>
+  </div>
   <!-- Route selector (always visible) -->
   <div class="route-selector-bar" id="routeSelectorBar"></div>
   <!-- Edit sub-mode selector (shown in edit mode only) -->
@@ -2761,7 +2774,7 @@ function activateEvent(id) {
   }
   resolvedDists = computeResolvedDists(activeCards);
   // Reset Leaflet so it re-initialises with new event coordinates
-  if (lmap) { lmap.remove(); lmap = null; lTileLayer = null; lMarkers = {}; lFeatLine = null; lRouteLines = []; lRouteNodes = []; }
+  if (lmap) { lmap.remove(); lmap = null; lTileLayer = null; lMarkers = {}; lFeatLine = null; lRouteLines = []; lRouteNodes = []; lOverlayMarkers = []; }
   mapPins = {};
   routes = {}; activeRouteId = null; routePoints = [];
   state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, obstacleCapacity: {} };
@@ -4245,6 +4258,8 @@ let lMarkers = {};    // ref → L.Marker  (feature pins)
 let lFeatLine = null; // faint connector between feature pins
 let lRouteLines = []; // L.Polyline[] — one per terrain run
 let lRouteNodes = []; // draggable node markers
+let lOverlayMarkers = []; // marshal + obstacle overlay circles
+let showMarshalOverlay = false;
 
 // UI state
 let mapEditMode = false;
@@ -4428,6 +4443,9 @@ function openMap() {
   panel.classList.add('open');
   document.getElementById('mapEditBtn').textContent = 'Edit';
   document.getElementById('mapEditBtn').classList.remove('editing');
+  // Sync overlay button to current state
+  const ob = document.getElementById('overlayBtnStaff');
+  if (ob) ob.classList.toggle('active', showMarshalOverlay);
   document.getElementById('mapSubmodeBar').style.display = 'none';
   document.getElementById('mapRouteToolbar').style.display = 'none';
   document.getElementById('terrainRow').style.display = 'none';
@@ -4750,6 +4768,75 @@ function refreshMapMarkers() {
     lMarkers[ref] = m;
   });
   document.getElementById('mapCount').textContent = `${placed.length} / ${ALLCARDS.length} pinned`;
+  refreshMarshalOverlay();
+}
+
+// ── MARSHAL / OBSTACLE OVERLAY ────────────────────────────────────────────────
+
+function _getMarshalCode(card) {
+  const s = effectiveCard(card).staff || '';
+  const m = s.match(/^([MS]\d+)/);
+  return m ? m[1] : null;
+}
+
+function _marshalCircleIcon(label, isSteward) {
+  const col = isSteward ? '#c07800' : '#3a82f7';
+  const bg  = isSteward ? 'rgba(192,120,0,0.18)' : 'rgba(58,130,247,0.18)';
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:34px;height:34px;border-radius:50%;background:${bg};border:2.5px solid ${col};display:flex;align-items:center;justify-content:center;color:${col};font-family:'Bebas Neue',cursive;font-size:14px;letter-spacing:0.5px;box-shadow:0 2px 8px rgba(0,0,0,0.55),0 0 0 3px ${bg}">${escHtml(label)}</div>`,
+    iconSize: [34, 34], iconAnchor: [17, 17]
+  });
+}
+
+function _obstacleCircleIcon(name) {
+  const words = name.split(' ');
+  const top = words[0] || '';
+  const bot = words[1] || '';
+  const inner = bot
+    ? `<span style="font-size:7px;line-height:1.2;text-align:center">${escHtml(top)}<br>${escHtml(bot)}</span>`
+    : `<span style="font-size:8px">${escHtml(top)}</span>`;
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:42px;height:42px;border-radius:50%;background:rgba(255,45,120,0.15);border:2.5px solid #ff2d78;display:flex;align-items:center;justify-content:center;color:#ff2d78;font-family:'DM Mono',monospace;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.55),0 0 0 3px rgba(255,45,120,0.1)">${inner}</div>`,
+    iconSize: [42, 42], iconAnchor: [21, 21]
+  });
+}
+
+function toggleMarshalOverlay() {
+  showMarshalOverlay = !showMarshalOverlay;
+  const btn = document.getElementById('overlayBtnStaff');
+  if (btn) btn.classList.toggle('active', showMarshalOverlay);
+  refreshMarshalOverlay();
+}
+
+function refreshMarshalOverlay() {
+  lOverlayMarkers.forEach(m => m.remove());
+  lOverlayMarkers = [];
+  if (!lmap || !showMarshalOverlay) return;
+
+  ALLCARDS.forEach(card => {
+    const pin = mapPins[card.ref];
+    if (!pin) return;
+    const ec = effectiveCard(card);
+
+    const code = _getMarshalCode(card);
+    if (code) {
+      const marker = L.marker([pin.lat, pin.lng], {
+        icon: _marshalCircleIcon(code, code.startsWith('S')),
+        zIndexOffset: 200, interactive: false
+      }).addTo(lmap);
+      lOverlayMarkers.push(marker);
+    }
+
+    if (ec.obstacle) {
+      const marker = L.marker([pin.lat, pin.lng], {
+        icon: _obstacleCircleIcon(getObstacleName(card)),
+        zIndexOffset: 100, interactive: false
+      }).addTo(lmap);
+      lOverlayMarkers.push(marker);
+    }
+  });
 }
 
 function placePin(idx, lat, lng) {
