@@ -2279,6 +2279,49 @@ a.w3w-link:active { opacity: 0.7; }
   flex: 1; min-height: 0; width: 100%; object-fit: contain;
   padding: 0 8px 16px;
 }
+
+/* ── DESKTOP LAYOUT ─────────────────────────────────────────────────────── */
+@media (min-width: 900px) {
+  /* Constrain all fixed chrome and panels to a centred 80% column */
+  .header,
+  .stage,
+  .actions,
+  .choice-screen,
+  .landing,
+  .overview,
+  .map-panel,
+  .ec-panel,
+  .live-panel,
+  .config-panel,
+  .obstacle-panel,
+  .new-event-screen {
+    left: 10%;
+    right: 10%;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+
+  /* Slide-in panels: translateX(100%) won't clear the screen when left:10%,
+     so override to use a fixed 100vw shift which always exits to the right */
+  .ec-panel,
+  .live-panel,
+  .config-panel,
+  .obstacle-panel,
+  .new-event-screen {
+    transform: translateX(100vw);
+  }
+  .ec-panel.open,
+  .live-panel.open,
+  .config-panel.open,
+  .obstacle-panel.open,
+  .new-event-screen.open {
+    transform: translateX(0);
+  }
+
+  /* Sync dot and FAB: offset from the panel's right edge, not the viewport */
+  .sync-dot { right: calc(10% + 61px); }
+  .ec-fab   { right: calc(10% + 20px); }
+}
 </style>
 </head>
 <body>
