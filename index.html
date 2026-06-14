@@ -2468,19 +2468,15 @@ a.w3w-link:active { opacity: 0.7; }
       </div>
       <div class="choice-option-arrow">&#8594;</div>
     </button>
-    <button class="choice-option" onclick="goToLive()">
-      <div class="choice-option-icon" style="color:#5580cc">&#9679;</div>
+    <button class="choice-option" onclick="openConfigPanel(); hideChoiceScreen()">
+      <div class="choice-option-icon">&#9881;</div>
       <div class="choice-option-body">
-        <div class="choice-option-title">Live Status Updates</div>
-        <div class="choice-option-desc">Full activity feed for this event</div>
+        <div class="choice-option-title">Administration</div>
+        <div class="choice-option-desc">Audit log · event control · obstacle config</div>
       </div>
       <div class="choice-option-arrow">&#8594;</div>
     </button>
   </div>
-  <button class="choice-config-btn" onclick="openConfigPanel(); hideChoiceScreen()">
-    <span style="font-size:15px">&#9881;</span> Configuration
-    <span style="margin-left:auto;font-size:15px;color:#333">&#8250;</span>
-  </button>
 </div>
 
 <!-- HEADER -->
@@ -3167,7 +3163,7 @@ function goToMap() {
 
 function backToLanding() {
   document.getElementById('mapPanel')?.classList.remove('open');
-  ['obstaclePanel', 'obstacleCheckView', 'configPanel', 'livePanel', 'ecPanel'].forEach(function(id) {
+  ['obstaclePanel', 'obstacleCheckView', 'configPanel', 'ecPanel'].forEach(function(id) {
     document.getElementById(id)?.classList.remove('open');
   });
   document.getElementById('ecFab')?.classList.remove('visible');
@@ -3674,7 +3670,7 @@ async function _syncPullState() {
   state = merged;
   localStorage.setItem(LS_KEY, JSON.stringify(state));
   refreshAllCards(); updateProgress(); renderCard(state.currentIndex);
-  if (document.getElementById('livePanel')?.classList.contains('open')) renderLiveFeed();
+  if (document.getElementById('configPanel')?.classList.contains('open')) renderLiveFeed();
   if (ecLogsChanged && document.getElementById('ecPanel')?.classList.contains('open')) renderEcFeed();
 }
 
@@ -6028,6 +6024,7 @@ function deleteCustomCard(ref) {
   if (!confirm('Remove this field addition? This cannot be undone.')) return;
   const idx = (state.customCards || []).findIndex(c => c.ref === ref);
   if (idx === -1) return;
+  auditEntry(ref, 'field_addition_delete', {});
   state.customCards.splice(idx, 1);
   delete state.completed[ref];
   delete state.notes[ref];
@@ -6410,18 +6407,8 @@ function _ecEntryHtml(entry, depth) {
 }
 
 function goToLive() {
-  _pushRoute('live');
-  const el = document.getElementById('liveBreadcrumb');
-  if (el) el.textContent = getActiveEventName() + ' / Live Status';
-  _applyLiveQueryParams();
-  renderLiveFeed();
-  document.getElementById('livePanel').classList.add('open');
+  openConfigPanel();
   hideChoiceScreen();
-}
-
-function closeLivePanel() {
-  document.getElementById('livePanel').classList.remove('open');
-  showChoiceScreen();
 }
 
 function _applyLiveQueryParams() {
@@ -6457,6 +6444,12 @@ function _buildLiveEvents() {
       desc = 'Card edits reverted'; dotCls = 'live-feed-dot-undo';
     } else if (e.action === 'field_addition') {
       desc = 'Field addition added'; if (e.loc) noteText = e.loc; dotCls = 'live-feed-dot-field';
+    } else if (e.action === 'field_addition_delete') {
+      desc = 'Field addition removed'; dotCls = 'live-feed-dot-undo';
+    } else if (e.action === 'obstacle_zone_edit') {
+      desc = 'Obstacle zone updated' + (e.field ? ' (' + e.field + ')' : ''); dotCls = 'live-feed-dot-edit';
+    } else if (e.action === 'obstacle_zone_remove') {
+      desc = 'Obstacle zone removed'; dotCls = 'live-feed-dot-undo';
     } else {
       desc = e.action;
     }
@@ -6547,7 +6540,7 @@ function shareLiveFeed() {
 
   const btn = document.getElementById('liveShareBtn');
   if (navigator.share) {
-    navigator.share({ title: getActiveEventName() + ' · Live Status', url }).catch(() => {});
+    navigator.share({ title: getActiveEventName() + ' · Audit Log', url }).catch(() => {});
   } else {
     navigator.clipboard.writeText(url).then(() => {
       if (btn) { const orig = btn.innerHTML; btn.innerHTML = '✓ Copied!'; setTimeout(() => { btn.innerHTML = orig; }, 1800); }
@@ -6560,6 +6553,7 @@ function shareLiveFeed() {
 function openConfigPanel() {
   _pushRoute('config');
   _updateConfigBreadcrumb();
+  renderLiveFeed();
   renderEcConfig();
   renderObstacleConfig();
   renderMapCacheSection();
@@ -6647,6 +6641,7 @@ function saveObstacleZoneField(ref, idx, field, value) {
     zones[idx].name = value.trim();
   }
   _saveZones(ref, zones.filter(z => z.cap > 0 || z.name));
+  auditEntry(ref, 'obstacle_zone_edit', { field, value });
   _rerenderZones(ref);
 }
 
@@ -6668,6 +6663,7 @@ function removeObstacleZone(ref, idx) {
   const zones = getObstacleZones(ref);
   zones.splice(idx, 1);
   _saveZones(ref, zones);
+  auditEntry(ref, 'obstacle_zone_remove', {});
   _rerenderZones(ref);
 }
 
@@ -7107,7 +7103,7 @@ function _updateObstBreadcrumb() {
 
 function _updateConfigBreadcrumb() {
   const el = document.getElementById('configBreadcrumb');
-  if (el) el.textContent = getActiveEventName() + ' / Configuration';
+  if (el) el.textContent = getActiveEventName() + ' / Administration';
 }
 
 function _updateObstCheckBreadcrumb(ref) {
@@ -7126,7 +7122,7 @@ function _routeFromPath() {
   const section = segs[1] || '';
   const sub = decodeURIComponent(segs[2] || '');
 
-  ['obstaclePanel', 'obstacleCheckView', 'configPanel', 'livePanel', 'ecPanel'].forEach(function(id) {
+  ['obstaclePanel', 'obstacleCheckView', 'configPanel', 'ecPanel'].forEach(function(id) {
     const el = document.getElementById(id);
     if (el) el.classList.remove('open');
   });
@@ -7167,11 +7163,13 @@ function _routeFromPath() {
     _updateConfigBreadcrumb();
   } else if (section === 'live') {
     cs.style.display = 'none';
-    const el = document.getElementById('liveBreadcrumb');
-    if (el) el.textContent = getActiveEventName() + ' / Live Status';
+    _updateConfigBreadcrumb();
     _applyLiveQueryParams();
     renderLiveFeed();
-    document.getElementById('livePanel').classList.add('open');
+    renderEcConfig();
+    renderObstacleConfig();
+    renderMapCacheSection();
+    document.getElementById('configPanel').classList.add('open');
   } else if (section === 'ec') {
     cs.style.display = 'none';
     const el = document.getElementById('ecBreadcrumb');
@@ -7191,35 +7189,6 @@ if (currentUser.name && activeEventId) {
   showLanding();
 }
 </script>
-
-<!-- LIVE STATUS PANEL -->
-<div class="live-panel" id="livePanel">
-  <div class="live-panel-head">
-    <button class="header-btn" onclick="closeLivePanel()">&#8592;</button>
-    <div class="panel-head-center">
-      <span class="live-panel-title">Live Status Updates</span>
-      <div class="panel-breadcrumb" id="liveBreadcrumb"></div>
-    </div>
-    <button class="header-btn" onclick="renderLiveFeed()" title="Refresh" style="font-size:16px">&#8635;</button>
-  </div>
-  <div class="live-filter-bar">
-    <div class="live-filter-row">
-      <span class="live-filter-label">From</span>
-      <input type="datetime-local" id="liveFromDt" class="live-dt-input" oninput="renderLiveFeed()">
-    </div>
-    <div class="live-filter-row">
-      <span class="live-filter-label">To</span>
-      <input type="datetime-local" id="liveToDt" class="live-dt-input" oninput="renderLiveFeed()">
-    </div>
-    <div class="live-filter-actions">
-      <span class="live-filter-count" id="liveFilterCount"></span>
-      <button class="live-share-btn" id="liveShareBtn" onclick="shareLiveFeed()">&#8679; Share</button>
-    </div>
-  </div>
-  <div class="live-panel-body">
-    <div id="liveFeedList" class="live-feed-list"></div>
-  </div>
-</div>
 
 <!-- EVENT CONTROL PANEL -->
 <div class="ec-panel" id="ecPanel">
@@ -7261,16 +7230,33 @@ if (currentUser.name && activeEventId) {
   </div>
 </div>
 
-<!-- CONFIGURATION PANEL -->
+<!-- ADMINISTRATION PANEL -->
 <div class="config-panel" id="configPanel">
   <div class="config-panel-head">
     <button class="header-btn" onclick="closeConfigPanel()">&#8592;</button>
     <div class="panel-head-center">
-      <span class="config-panel-title">Configuration</span>
+      <span class="config-panel-title">Administration</span>
       <div class="panel-breadcrumb" id="configBreadcrumb"></div>
     </div>
+    <button class="header-btn" onclick="renderLiveFeed()" title="Refresh audit log" style="font-size:16px">&#8635;</button>
   </div>
   <div class="config-body">
+    <div class="config-section-head">Audit Log</div>
+    <div class="live-filter-bar">
+      <div class="live-filter-row">
+        <span class="live-filter-label">From</span>
+        <input type="datetime-local" id="liveFromDt" class="live-dt-input" oninput="renderLiveFeed()">
+      </div>
+      <div class="live-filter-row">
+        <span class="live-filter-label">To</span>
+        <input type="datetime-local" id="liveToDt" class="live-dt-input" oninput="renderLiveFeed()">
+      </div>
+      <div class="live-filter-actions">
+        <span class="live-filter-count" id="liveFilterCount"></span>
+        <button class="live-share-btn" id="liveShareBtn" onclick="shareLiveFeed()">&#8679; Share</button>
+      </div>
+    </div>
+    <div id="liveFeedList" class="live-feed-list"></div>
     <div class="config-section-head">Event Control</div>
     <div id="ecConfigSection"></div>
     <div class="config-section-head">Map Cache</div>
