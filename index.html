@@ -109,7 +109,7 @@ html, body {
 /* ── STAGE ──────────────────────────────── */
 .stage {
   position: fixed;
-  top: 58px; left: 0; right: 0; bottom: 84px;
+  top: 58px; left: 0; right: 0; bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -339,7 +339,7 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: 12px 16px 16px;
+  padding: 12px 16px 100px;
   overscroll-behavior: contain;
 }
 .section { margin-bottom: 13px; }
@@ -483,16 +483,16 @@ html, body {
 .actions {
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  height: 84px;
-  background: var(--surface);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 0 16px;
-  border-top: 1px solid var(--border);
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
   z-index: 100;
+  pointer-events: none;
 }
+.actions > * { pointer-events: auto; }
 .nav-btn {
   width: 42px; height: 42px;
   background: var(--border);
@@ -522,6 +522,7 @@ html, body {
   transition: transform 0.1s, filter 0.1s;
 }
 .action-btn:active { transform: scale(0.95); filter: brightness(1.1); }
+.action-btn, .nav-btn, .btn-add { box-shadow: 0 4px 16px rgba(0,0,0,0.45); }
 .btn-notes {
   background: #0e1e30;
   color: #5aabef;
