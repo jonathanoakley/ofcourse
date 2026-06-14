@@ -4995,43 +4995,31 @@ function _getMarshalCode(card) {
   return m ? m[1] : null;
 }
 
-function _overlayItemStyle(item) {
-  if (item.type === 'marshal') {
-    const col = item.isSteward ? '#c07800' : '#3a82f7';
-    return { col, bg: item.isSteward ? 'rgba(192,120,0,0.08)' : 'rgba(58,130,247,0.08)', label: item.code };
-  }
-  return { col: '#ff2d78', bg: 'rgba(255,45,120,0.08)', label: (item.name || '').split(' ')[0].slice(0, 6) };
-}
-
-function _overlayRingHtml(style, sz) {
-  return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${style.bg};border:2px solid ${style.col};display:flex;align-items:center;justify-content:center;color:${style.col};font-family:'DM Mono',monospace;font-size:10px;font-weight:500">${escHtml(style.label)}</div>`;
-}
-
-function _groupCircleIcon(group) {
-  const SZ = 34, GAP = 5;
-  const totalH = group.length * SZ + (group.length - 1) * GAP;
-  const html = `<div style="display:flex;flex-direction:column;align-items:center;gap:${GAP}px">` +
-    group.map(item => _overlayRingHtml(_overlayItemStyle(item), SZ)).join('') +
-    '</div>';
-  return L.divIcon({ className: '', html, iconSize: [SZ, totalH], iconAnchor: [SZ / 2, totalH / 2] });
-}
-
-function _obstacleCircleIcon(name) {
-  const SZ = 34, LABEL_H = 16, GAP = 3;
-  const style = { col: '#ff2d78', bg: 'rgba(255,45,120,0.08)', label: '' };
-  return L.divIcon({
-    className: '',
-    html: `<div style="display:flex;flex-direction:column;align-items:center;gap:${GAP}px">` +
-      `<div style="background:rgba(0,0,0,0.55);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;color:#ff2d78;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;line-height:1.4">${escHtml(name)}</div>` +
-      `<div style="width:${SZ}px;height:${SZ}px;border-radius:50%;background:${style.bg};border:2px solid ${style.col}"></div>` +
-      '</div>',
-    iconSize: [90, LABEL_H + GAP + SZ], iconAnchor: [45, LABEL_H + GAP + SZ / 2],
-  });
-}
-
 function _pxDist(a, b) {
   const dx = a.x - b.x, dy = a.y - b.y;
   return Math.sqrt(dx * dx + dy * dy);
+}
+
+function _overlayDotIcon(group) {
+  const n = group.length;
+  // Grows with item count — heat-map effect
+  const sz = Math.min(36 + (n - 1) * 9, 62);
+  const marshal = group.find(it => it.type === 'marshal');
+  const col = marshal ? (marshal.isSteward ? '#c07800' : '#3a82f7') : '#e55a00';
+  const label = marshal ? escHtml(marshal.code) : escHtml((group[0].name || '').split(' ')[0].slice(0, 5));
+  const fs = sz <= 40 ? 11 : sz <= 50 ? 10 : 9;
+  const circleHtml = `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};border:4px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:${fs}px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.5)">${label}</div>`;
+  // Solo obstacle: float the full name above the circle as a label pill
+  if (n === 1 && !marshal) {
+    const LH = 16, G = 3;
+    const W = Math.max(sz, 100);
+    return L.divIcon({
+      className: '',
+      html: `<div style="display:flex;flex-direction:column;align-items:center;gap:${G}px"><div style="background:rgba(0,0,0,0.6);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;color:#e55a00;white-space:nowrap;max-width:${W}px;overflow:hidden;text-overflow:ellipsis;line-height:1.4">${escHtml(group[0].name)}</div>${circleHtml}</div>`,
+      iconSize: [W, LH + G + sz], iconAnchor: [W / 2, LH + G + sz / 2],
+    });
+  }
+  return L.divIcon({ className: '', html: circleHtml, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
 }
 
 function toggleMarshalOverlay() {
@@ -5046,7 +5034,6 @@ function refreshMarshalOverlay() {
   lOverlayMarkers = [];
   if (!lmap || !showMarshalOverlay) return;
 
-  // Collect all overlay items
   const items = [];
   ALLCARDS.forEach(card => {
     const pin = mapPins[card.ref];
@@ -5058,7 +5045,7 @@ function refreshMarshalOverlay() {
   });
   if (!items.length) return;
 
-  // Group items that overlap at the current zoom level (within 44px)
+  // Merge items within 44px at the current zoom into one larger dot
   const THRESHOLD = 44;
   const withPx = items.map(it => ({ ...it, px: lmap.latLngToLayerPoint([it.lat, it.lng]) }));
   const assigned = new Array(withPx.length).fill(false);
@@ -5075,15 +5062,10 @@ function refreshMarshalOverlay() {
     groups.push(group);
   }
 
-  // Place one marker per group, stacked vertically when multiple items
   groups.forEach(group => {
     const centLat = group.reduce((s, p) => s + p.lat, 0) / group.length;
     const centLng = group.reduce((s, p) => s + p.lng, 0) / group.length;
-    const isSolo = group.length === 1;
-    const icon = (isSolo && group[0].type === 'obstacle')
-      ? _obstacleCircleIcon(group[0].name)
-      : _groupCircleIcon(group);
-    lOverlayMarkers.push(L.marker([centLat, centLng], { icon, zIndexOffset: 100, interactive: false }).addTo(lmap));
+    lOverlayMarkers.push(L.marker([centLat, centLng], { icon: _overlayDotIcon(group), zIndexOffset: 100, interactive: false }).addTo(lmap));
   });
 }
 
