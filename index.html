@@ -1911,6 +1911,93 @@ a.w3w-link:active { opacity: 0.7; }
   padding: 2px 0; margin-left: 6px;
 }
 
+/* ── EVENT CONTROL PANEL ────────────────────────────────────────────────── */
+.ec-panel {
+  position: fixed; inset: 0; background: var(--bg); z-index: 150;
+  display: flex; flex-direction: column; overflow: hidden;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.32,1,0.6,1);
+}
+.ec-panel.open { transform: translateX(0); }
+.ec-panel-head {
+  padding: 52px 12px 12px; background: var(--surface);
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1.5px solid var(--border); flex-shrink: 0;
+}
+.ec-panel-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px; letter-spacing: 2px; color: #5580cc;
+}
+.ec-feed {
+  flex: 1; overflow-y: auto; padding: 12px 12px 100px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.ec-empty {
+  font-family: 'DM Mono', monospace; font-size: 12px; color: #555;
+  text-align: center; padding: 48px 24px; line-height: 1.8;
+}
+.ec-thread {
+  background: var(--card); border-radius: 14px;
+  border: 1px solid var(--border); overflow: hidden;
+}
+.ec-entry {
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+}
+.ec-replies { background: rgba(0,0,0,0.18); }
+.ec-entry.is-reply { padding-left: 22px; border-left: 3px solid #2a2a2a; }
+.ec-entry-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
+}
+.ec-type-badge {
+  font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 600;
+  letter-spacing: 0.5px; padding: 2px 7px; border-radius: 20px;
+  color: #fff; flex-shrink: 0; text-transform: uppercase;
+}
+.ec-entry-time {
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #555;
+  margin-left: auto; white-space: nowrap;
+}
+.ec-entry-title {
+  font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px;
+}
+.ec-entry-desc {
+  font-size: 13px; color: #999; line-height: 1.5; margin-bottom: 3px;
+}
+.ec-entry-meta {
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #555; margin-top: 4px;
+}
+.ec-reply-btn {
+  display: block; width: 100%; background: none; border: none;
+  border-top: 1px solid var(--border); padding: 10px 14px;
+  text-align: left; font-family: 'DM Mono', monospace; font-size: 11px;
+  color: #4a6ab0; cursor: pointer; letter-spacing: 0.2px;
+  -webkit-tap-highlight-color: transparent;
+}
+.ec-reply-btn:active { background: var(--surface); }
+.ec-fab {
+  position: fixed; bottom: 28px; right: 20px;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: #5580cc; border: none; color: #fff;
+  font-size: 30px; line-height: 1; cursor: pointer; z-index: 160;
+  box-shadow: 0 4px 18px rgba(85,128,204,0.45);
+  display: none; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.ec-panel.open ~ .ec-fab, .ec-fab.visible { display: flex; }
+.ec-compose-reply-ctx {
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #5580cc;
+  margin-bottom: 12px; padding: 7px 10px;
+  background: rgba(85,128,204,0.1); border-radius: 8px;
+  border-left: 3px solid #5580cc; line-height: 1.4;
+}
+.ec-compose-select {
+  width: 100%; background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 10px; color: var(--text); padding: 11px 14px;
+  font-family: 'DM Mono', monospace; font-size: 13px; margin-bottom: 10px;
+  -webkit-appearance: none; appearance: none; box-sizing: border-box;
+}
+.ec-compose-select:focus { outline: none; border-color: #5580cc; }
+
 /* ── OBSTACLE PANEL ─────────────────────────────────────────────────────── */
 .obstacle-panel {
   position: fixed; inset: 0; background: var(--bg); z-index: 150;
@@ -2242,6 +2329,14 @@ a.w3w-link:active { opacity: 0.7; }
       </div>
       <div class="choice-option-arrow">&#8594;</div>
     </button>
+    <button class="choice-option" onclick="hideChoiceScreen(() => openEcPanel())">
+      <div class="choice-option-icon" style="color:#5580cc">&#9889;</div>
+      <div class="choice-option-body">
+        <div class="choice-option-title">Event Control</div>
+        <div class="choice-option-desc">Medical · marshal updates · incident log</div>
+      </div>
+      <div class="choice-option-arrow">&#8594;</div>
+    </button>
     <button class="choice-option" onclick="hideChoiceScreen(() => openObstaclePanel())">
       <div class="choice-option-icon" style="color:#c0392b">&#9888;</div>
       <div class="choice-option-body">
@@ -2380,6 +2475,11 @@ a.w3w-link:active { opacity: 0.7; }
       <button class="menu-option" onclick="closeMenu(); openMap()">
         <span class="menu-option-icon">&#x2316;</span>
         <span class="menu-option-text">Course Map</span>
+        <span class="menu-option-arrow">&#8594;</span>
+      </button>
+      <button class="menu-option" onclick="closeMenu(); openEcPanel()">
+        <span class="menu-option-icon" style="color:#5580cc">&#9889;</span>
+        <span class="menu-option-text">Event Control</span>
         <span class="menu-option-arrow">&#8594;</span>
       </button>
       <button class="menu-option" onclick="closeMenu(); openObstaclePanel()">
@@ -5894,6 +5994,116 @@ document.getElementById('cardMiniMap').addEventListener('touchstart', e => {
 
 // ── LIVE STATUS ───────────────────────────────────────────────────────────────
 
+// ── EVENT CONTROL ─────────────────────────────────────────────────────────
+let _ecReplyToId = null;
+
+const EC_TYPE_LABEL = { medical: 'Medical', marshal_update: 'Marshal Update', other: 'Other' };
+const EC_TYPE_COL   = { medical: '#c0392b', marshal_update: '#3a82f7', other: '#6a6a6a' };
+
+function openEcPanel() {
+  _pushRoute('ec');
+  const el = document.getElementById('ecBreadcrumb');
+  if (el) el.textContent = getActiveEventName() + ' / Event Control';
+  renderEcFeed();
+  document.getElementById('ecFab').classList.add('visible');
+  hideChoiceScreen(() => document.getElementById('ecPanel').classList.add('open'));
+}
+
+function closeEcPanel() {
+  document.getElementById('ecPanel').classList.remove('open');
+  document.getElementById('ecFab').classList.remove('visible');
+  showChoiceScreen();
+}
+
+function openEcCompose(replyToId) {
+  _ecReplyToId = replyToId || null;
+  const ctx = document.getElementById('ecReplyCtx');
+  const heading = document.getElementById('ecComposeHeading');
+  if (_ecReplyToId) {
+    const root = (state.controlLogs || []).find(e => e.id === _ecReplyToId);
+    ctx.textContent = 'Replying to: ' + (root ? root.title : 'thread');
+    ctx.style.display = '';
+    heading.textContent = 'Add Update';
+  } else {
+    ctx.style.display = 'none';
+    heading.textContent = 'New Log Entry';
+  }
+  document.getElementById('ecTypeSelect').value = 'medical';
+  document.getElementById('ecTitleInput').value = '';
+  document.getElementById('ecDescInput').value = '';
+  document.getElementById('ecComposeModal').classList.add('open');
+  setTimeout(() => document.getElementById('ecTitleInput').focus(), 300);
+}
+
+function closeEcCompose() {
+  document.getElementById('ecComposeModal').classList.remove('open');
+  _ecReplyToId = null;
+}
+
+function submitEcEntry() {
+  const title = document.getElementById('ecTitleInput').value.trim();
+  if (!title) { document.getElementById('ecTitleInput').focus(); return; }
+  const entry = {
+    id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    ts: new Date().toISOString(),
+    type: document.getElementById('ecTypeSelect').value,
+    title,
+    description: document.getElementById('ecDescInput').value.trim(),
+    user: currentUser.name || 'Unknown',
+    role: currentUser.role || '',
+    parentId: _ecReplyToId,
+  };
+  if (!state.controlLogs) state.controlLogs = [];
+  state.controlLogs.push(entry);
+  saveState();
+  closeEcCompose();
+  renderEcFeed();
+}
+
+function renderEcFeed() {
+  const feed = document.getElementById('ecFeed');
+  if (!feed) return;
+  const logs = state.controlLogs || [];
+  const roots = logs.filter(e => !e.parentId).sort((a, b) => new Date(b.ts) - new Date(a.ts));
+  const byParent = {};
+  logs.filter(e => e.parentId).forEach(e => {
+    (byParent[e.parentId] = byParent[e.parentId] || []).push(e);
+  });
+  if (!roots.length) {
+    feed.innerHTML = '<div class="ec-empty">No log entries yet.<br>Tap <strong>+</strong> to log a medical, marshal update, or other incident.</div>';
+    return;
+  }
+  feed.innerHTML = roots.map(root => {
+    const replies = (byParent[root.id] || []).sort((a, b) => new Date(a.ts) - new Date(b.ts));
+    const repliesHtml = replies.length
+      ? `<div class="ec-replies">${replies.map(r => _ecEntryHtml(r, true)).join('')}</div>`
+      : '';
+    return `<div class="ec-thread">${_ecEntryHtml(root, false)}${repliesHtml}
+      <button class="ec-reply-btn" onclick="openEcCompose('${escHtml(root.id)}')">&#8617; Add update to this thread</button>
+    </div>`;
+  }).join('');
+}
+
+function _ecEntryHtml(entry, isReply) {
+  const col   = EC_TYPE_COL[entry.type]   || '#666';
+  const label = EC_TYPE_LABEL[entry.type] || entry.type;
+  const t = new Date(entry.ts);
+  const timeStr = t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const descHtml = entry.description
+    ? `<div class="ec-entry-desc">${escHtml(entry.description)}</div>` : '';
+  const meta = [entry.user, entry.role].filter(Boolean).join(' · ');
+  return `<div class="ec-entry${isReply ? ' is-reply' : ''}">
+    <div class="ec-entry-head">
+      <span class="ec-type-badge" style="background:${col}">${escHtml(label)}</span>
+      <span class="ec-entry-time">${timeStr}&thinsp;<span style="color:#444">${dateStr}</span></span>
+    </div>
+    <div class="ec-entry-title">${escHtml(entry.title)}</div>
+    ${descHtml}
+    <div class="ec-entry-meta">${escHtml(meta)}</div>
+  </div>`;
+}
+
 function goToLive() {
   _pushRoute('live');
   const el = document.getElementById('liveBreadcrumb');
@@ -6609,7 +6819,7 @@ function _routeFromPath() {
   const section = segs[1] || '';
   const sub = decodeURIComponent(segs[2] || '');
 
-  ['obstaclePanel', 'obstacleCheckView', 'configPanel', 'livePanel'].forEach(function(id) {
+  ['obstaclePanel', 'obstacleCheckView', 'configPanel', 'livePanel', 'ecPanel'].forEach(function(id) {
     const el = document.getElementById(id);
     if (el) el.classList.remove('open');
   });
@@ -6654,6 +6864,13 @@ function _routeFromPath() {
     _applyLiveQueryParams();
     renderLiveFeed();
     document.getElementById('livePanel').classList.add('open');
+  } else if (section === 'ec') {
+    cs.style.display = 'none';
+    const el = document.getElementById('ecBreadcrumb');
+    if (el) el.textContent = getActiveEventName() + ' / Event Control';
+    renderEcFeed();
+    document.getElementById('ecFab').classList.add('visible');
+    document.getElementById('ecPanel').classList.add('open');
   }
 }
 
@@ -6698,6 +6915,42 @@ if (currentUser.name && activeEventId) {
   </div>
   <div class="live-panel-body">
     <div id="liveFeedList" class="live-feed-list"></div>
+  </div>
+</div>
+
+<!-- EVENT CONTROL PANEL -->
+<div class="ec-panel" id="ecPanel">
+  <div class="ec-panel-head">
+    <button class="header-btn" onclick="closeEcPanel()">&#8592;</button>
+    <div class="panel-head-center">
+      <span class="ec-panel-title">Event Control</span>
+      <div class="panel-breadcrumb" id="ecBreadcrumb"></div>
+    </div>
+    <div style="width:44px"></div>
+  </div>
+  <div class="ec-feed" id="ecFeed"></div>
+</div>
+<button class="ec-fab" id="ecFab" onclick="openEcCompose(null)">+</button>
+
+<!-- EC COMPOSE MODAL -->
+<div class="modal-backdrop" id="ecComposeModal" onclick="if(event.target===this)closeEcCompose()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="ecComposeHeading">New Log Entry</div>
+    <div class="ec-compose-reply-ctx" id="ecReplyCtx" style="display:none"></div>
+    <select class="ec-compose-select" id="ecTypeSelect">
+      <option value="medical">Medical</option>
+      <option value="marshal_update">Marshal Update</option>
+      <option value="other">Other</option>
+    </select>
+    <input class="route-name-modal-input" id="ecTitleInput" type="text" placeholder="Title" maxlength="80"
+      onkeydown="if(event.key==='Enter')document.getElementById('ecDescInput').focus()">
+    <textarea class="route-name-modal-input" id="ecDescInput" placeholder="Description (optional)"
+      style="resize:none;min-height:72px;font-family:inherit;font-size:14px"></textarea>
+    <div class="modal-actions" style="margin-top:4px">
+      <button class="modal-btn secondary" onclick="closeEcCompose()">Cancel</button>
+      <button class="modal-btn primary" onclick="submitEcEntry()">Log Entry</button>
+    </div>
   </div>
 </div>
 

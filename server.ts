@@ -137,6 +137,19 @@ function mergeData(key: string, existing: unknown, incoming: unknown): unknown {
       ...incAudit.filter((e) => !seen.has(`${e.ts}|${e.ref}|${e.action}`)),
     ].sort((a, b) => (a.ts > b.ts ? 1 : -1));
 
+    // controlLogs: merge by id, preserve order by ts
+    type ControlLog = { id: string; ts: string };
+    const logById: Obj = {};
+    for (const e of [
+      ...(ex.controlLogs as ControlLog[] || []),
+      ...(inc.controlLogs as ControlLog[] || []),
+    ]) {
+      if (e && typeof e === "object" && "id" in e) logById[(e as ControlLog).id] = e;
+    }
+    const controlLogs = Object.values(logById).sort((a, b) =>
+      ((a as ControlLog).ts > (b as ControlLog).ts ? 1 : -1)
+    );
+
     return {
       ...ex,
       ...inc,
@@ -150,6 +163,7 @@ function mergeData(key: string, existing: unknown, incoming: unknown): unknown {
       obstacleCapacity,
       customCards: Object.values(customCardsByRef),
       audit: mergedAudit,
+      controlLogs,
     };
   }
 
