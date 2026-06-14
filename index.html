@@ -1947,7 +1947,11 @@ a.w3w-link:active { opacity: 0.7; }
   padding: 12px 14px; border-bottom: 1px solid var(--border);
 }
 .ec-replies { background: rgba(0,0,0,0.18); }
-.ec-entry.is-reply { padding-left: 22px; border-left: 3px solid #2a2a2a; }
+.ec-entry.is-reply { padding: 8px 10px 8px 18px; border-left: 3px solid #2a2a2a; }
+.ec-entry.is-reply .ec-entry-title { font-size: 12px; }
+.ec-entry.is-reply .ec-entry-desc { font-size: 11px; }
+.ec-entry.is-reply .ec-entry-time { font-size: 9px; }
+.ec-entry.is-reply .ec-type-badge { font-size: 8px; padding: 1px 5px; }
 .ec-entry-head {
   display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
 }
@@ -7111,12 +7115,7 @@ window.addEventListener('popstate', _routeFromPath);
 
 if (currentUser.name && activeEventId) {
   document.getElementById('landingScreen').style.display = 'none';
-  const _segs = location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
-  if (_segs.length && _segs[0] === _eventSlug()) {
-    _routeFromPath();
-  } else {
-    showChoiceScreen();
-  }
+  showChoiceScreen();
 } else {
   showLanding();
 }
