@@ -1941,13 +1941,14 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .ec-thread {
   background: var(--card); border-radius: 14px;
-  border: 1px solid var(--border); overflow: hidden;
+  border: 1px solid var(--border);
+  clip-path: inset(0 round 14px);
 }
 .ec-entry {
   padding: 12px 14px; border-bottom: 1px solid var(--border);
 }
 .ec-entry.is-reply { padding-left: 28px; border-left: 3px solid var(--border); }
-.ec-thread > .ec-entry:last-child { border-bottom: none; padding-bottom: 16px; }
+.ec-thread > .ec-entry:last-child { border-bottom: none; }
 .ec-entry-head {
   display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
 }
