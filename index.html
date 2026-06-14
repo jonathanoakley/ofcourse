@@ -3030,13 +3030,11 @@ function startSession() {
   if (w3wApiKey) autoResolveW3WPins();
   initDistBar();
   updateHeader();
+  // Show choice screen first so it sits behind the landing fade — no card flash
+  showChoiceScreen();
   const el = document.getElementById('landingScreen');
   el.classList.add('out');
-  setTimeout(() => {
-    el.style.display = 'none';
-    const _initSegs = location.pathname.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
-    if (_initSegs.length && _initSegs[0] === _eventSlug()) { _routeFromPath(); } else { showChoiceScreen(); }
-  }, 350);
+  setTimeout(() => { el.style.display = 'none'; }, 350);
 }
 
 function updateHeader() {
