@@ -1933,7 +1933,7 @@ a.w3w-link:active { opacity: 0.7; }
   display: flex; flex-direction: column; gap: 10px;
 }
 .ec-empty {
-  font-family: 'DM Mono', monospace; font-size: 12px; color: #555;
+  font-family: 'DM Mono', monospace; font-size: 12px; color: #888;
   text-align: center; padding: 48px 24px; line-height: 1.8;
 }
 .ec-thread {
@@ -1954,17 +1954,17 @@ a.w3w-link:active { opacity: 0.7; }
   color: #fff; flex-shrink: 0; text-transform: uppercase;
 }
 .ec-entry-time {
-  font-family: 'DM Mono', monospace; font-size: 10px; color: #555;
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #888;
   margin-left: auto; white-space: nowrap;
 }
 .ec-entry-title {
   font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px;
 }
 .ec-entry-desc {
-  font-size: 13px; color: #999; line-height: 1.5; margin-bottom: 3px;
+  font-size: 13px; color: #4a4a3a; line-height: 1.5; margin-bottom: 3px;
 }
 .ec-entry-meta {
-  font-family: 'DM Mono', monospace; font-size: 10px; color: #555; margin-top: 4px;
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #777; margin-top: 4px;
 }
 .ec-reply-btn {
   display: block; width: 100%; background: none; border: none;
@@ -1991,12 +1991,13 @@ a.w3w-link:active { opacity: 0.7; }
   border-left: 3px solid #5580cc; line-height: 1.4;
 }
 .ec-compose-select {
-  width: 100%; background: var(--surface); border: 1.5px solid var(--border);
-  border-radius: 10px; color: var(--text); padding: 11px 14px;
+  width: 100%; background: #0d1209; border: 1.5px solid #2a3a26;
+  border-radius: 12px; color: #d8d5c8; padding: 0 14px; height: 46px;
   font-family: 'DM Mono', monospace; font-size: 13px; margin-bottom: 10px;
   -webkit-appearance: none; appearance: none; box-sizing: border-box;
+  transition: border-color 0.15s;
 }
-.ec-compose-select:focus { outline: none; border-color: #5580cc; }
+.ec-compose-select:focus { outline: none; border-color: var(--accent); }
 
 /* ── OBSTACLE PANEL ─────────────────────────────────────────────────────── */
 .obstacle-panel {
@@ -6031,8 +6032,10 @@ function openEcCompose(replyToId) {
   document.getElementById('ecTypeSelect').value = 'medical';
   document.getElementById('ecTitleInput').value = '';
   document.getElementById('ecDescInput').value = '';
+  document.getElementById('ecTitleRow').style.display = _ecReplyToId ? 'none' : '';
+  document.getElementById('ecDescInput').placeholder = _ecReplyToId ? 'Update…' : 'Description (optional)';
   document.getElementById('ecComposeModal').classList.add('open');
-  setTimeout(() => document.getElementById('ecTitleInput').focus(), 300);
+  setTimeout(() => (_ecReplyToId ? document.getElementById('ecDescInput') : document.getElementById('ecTitleInput')).focus(), 300);
 }
 
 function closeEcCompose() {
@@ -6041,14 +6044,17 @@ function closeEcCompose() {
 }
 
 function submitEcEntry() {
-  const title = document.getElementById('ecTitleInput').value.trim();
-  if (!title) { document.getElementById('ecTitleInput').focus(); return; }
+  const isReply = !!_ecReplyToId;
+  const title = isReply ? '' : document.getElementById('ecTitleInput').value.trim();
+  const description = document.getElementById('ecDescInput').value.trim();
+  if (!isReply && !title) { document.getElementById('ecTitleInput').focus(); return; }
+  if (isReply && !description) { document.getElementById('ecDescInput').focus(); return; }
   const entry = {
     id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
     ts: new Date().toISOString(),
     type: document.getElementById('ecTypeSelect').value,
     title,
-    description: document.getElementById('ecDescInput').value.trim(),
+    description,
     user: currentUser.name || 'Unknown',
     role: currentUser.role || '',
     parentId: _ecReplyToId,
@@ -6092,14 +6098,15 @@ function _ecEntryHtml(entry, isReply) {
   const dateStr = t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const descHtml = entry.description
     ? `<div class="ec-entry-desc">${escHtml(entry.description)}</div>` : '';
+  const titleHtml = entry.title
+    ? `<div class="ec-entry-title">${escHtml(entry.title)}</div>` : '';
   const meta = [entry.user, entry.role].filter(Boolean).join(' · ');
   return `<div class="ec-entry${isReply ? ' is-reply' : ''}">
     <div class="ec-entry-head">
       <span class="ec-type-badge" style="background:${col}">${escHtml(label)}</span>
-      <span class="ec-entry-time">${timeStr}&thinsp;<span style="color:#444">${dateStr}</span></span>
+      <span class="ec-entry-time">${timeStr}&thinsp;<span style="color:#999">${dateStr}</span></span>
     </div>
-    <div class="ec-entry-title">${escHtml(entry.title)}</div>
-    ${descHtml}
+    ${titleHtml}${descHtml}
     <div class="ec-entry-meta">${escHtml(meta)}</div>
   </div>`;
 }
@@ -6943,8 +6950,10 @@ if (currentUser.name && activeEventId) {
       <option value="marshal_update">Marshal Update</option>
       <option value="other">Other</option>
     </select>
-    <input class="route-name-modal-input" id="ecTitleInput" type="text" placeholder="Title" maxlength="80"
-      onkeydown="if(event.key==='Enter')document.getElementById('ecDescInput').focus()">
+    <div id="ecTitleRow">
+      <input class="route-name-modal-input" id="ecTitleInput" type="text" placeholder="Title" maxlength="80"
+        onkeydown="if(event.key==='Enter')document.getElementById('ecDescInput').focus()">
+    </div>
     <textarea class="route-name-modal-input" id="ecDescInput" placeholder="Description (optional)"
       style="resize:none;min-height:72px;font-family:inherit;font-size:14px"></textarea>
     <div class="modal-actions" style="margin-top:4px">
