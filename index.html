@@ -3659,7 +3659,7 @@ async function _syncPullEvents() {
 function _syncStartPoll() {
   _syncStopPoll();
   if (!SERVER_SYNC) return;
-  _syncPollTimer = setInterval(() => { _syncPullState(); _syncPullPins(); _setSyncDotFromAge(); }, 30000);
+  _syncPollTimer = setInterval(() => { _syncPullState(); _syncPullPins(); _syncPullRoutes(); _setSyncDotFromAge(); }, 5000);
 }
 
 function _syncStopPoll() {
