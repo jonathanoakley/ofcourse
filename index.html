@@ -4790,6 +4790,7 @@ function initLeaflet() {
     else if (mapSubMode === 'features') placePin(mapPickIdx, e.latlng.lat, e.latlng.lng);
   });
   lmap.on('movestart', _resetTileStats);
+  lmap.on('zoomend', () => { if (showMarshalOverlay) refreshMarshalOverlay(); });
   refreshMapMarkers();
   redrawRoute(false);
   requestAnimationFrame(() => mapFitBounds());
@@ -4994,26 +4995,43 @@ function _getMarshalCode(card) {
   return m ? m[1] : null;
 }
 
-function _marshalCircleIcon(label, isSteward) {
-  const col = isSteward ? '#c07800' : '#3a82f7';
-  const bg  = isSteward ? 'rgba(192,120,0,0.22)' : 'rgba(58,130,247,0.22)';
-  return L.divIcon({
-    className: '',
-    html: `<div style="width:36px;height:36px;border-radius:50%;background:${bg};border:3px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:${col};font-family:'DM Mono',monospace;font-size:11px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.5)">${escHtml(label)}</div>`,
-    iconSize: [36, 36], iconAnchor: [18, 18]
-  });
+function _overlayItemStyle(item) {
+  if (item.type === 'marshal') {
+    const col = item.isSteward ? '#c07800' : '#3a82f7';
+    return { col, bg: item.isSteward ? 'rgba(192,120,0,0.08)' : 'rgba(58,130,247,0.08)', label: item.code };
+  }
+  return { col: '#ff2d78', bg: 'rgba(255,45,120,0.08)', label: (item.name || '').split(' ')[0].slice(0, 6) };
+}
+
+function _overlayRingHtml(style, sz) {
+  return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${style.bg};border:2px solid ${style.col};display:flex;align-items:center;justify-content:center;color:${style.col};font-family:'DM Mono',monospace;font-size:10px;font-weight:500">${escHtml(style.label)}</div>`;
+}
+
+function _groupCircleIcon(group) {
+  const SZ = 34, GAP = 5;
+  const totalH = group.length * SZ + (group.length - 1) * GAP;
+  const html = `<div style="display:flex;flex-direction:column;align-items:center;gap:${GAP}px">` +
+    group.map(item => _overlayRingHtml(_overlayItemStyle(item), SZ)).join('') +
+    '</div>';
+  return L.divIcon({ className: '', html, iconSize: [SZ, totalH], iconAnchor: [SZ / 2, totalH / 2] });
 }
 
 function _obstacleCircleIcon(name) {
-  const safeLabel = escHtml(name);
+  const SZ = 34, LABEL_H = 16, GAP = 3;
+  const style = { col: '#ff2d78', bg: 'rgba(255,45,120,0.08)', label: '' };
   return L.divIcon({
     className: '',
-    html: `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">` +
-      `<div style="background:rgba(0,0,0,0.62);backdrop-filter:blur(2px);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;color:#ff2d78;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;line-height:1.4">${safeLabel}</div>` +
-      `<div style="width:36px;height:36px;border-radius:50%;background:rgba(255,45,120,0.22);border:3px solid rgba(255,255,255,.35);box-shadow:0 2px 6px rgba(0,0,0,.5)"></div>` +
-      `</div>`,
-    iconSize: [90, 54], iconAnchor: [45, 54]
+    html: `<div style="display:flex;flex-direction:column;align-items:center;gap:${GAP}px">` +
+      `<div style="background:rgba(0,0,0,0.55);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;color:#ff2d78;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;line-height:1.4">${escHtml(name)}</div>` +
+      `<div style="width:${SZ}px;height:${SZ}px;border-radius:50%;background:${style.bg};border:2px solid ${style.col}"></div>` +
+      '</div>',
+    iconSize: [90, LABEL_H + GAP + SZ], iconAnchor: [45, LABEL_H + GAP + SZ / 2],
   });
+}
+
+function _pxDist(a, b) {
+  const dx = a.x - b.x, dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 function toggleMarshalOverlay() {
@@ -5028,27 +5046,44 @@ function refreshMarshalOverlay() {
   lOverlayMarkers = [];
   if (!lmap || !showMarshalOverlay) return;
 
+  // Collect all overlay items
+  const items = [];
   ALLCARDS.forEach(card => {
     const pin = mapPins[card.ref];
     if (!pin) return;
     const ec = effectiveCard(card);
-
     const code = _getMarshalCode(card);
-    if (code) {
-      const marker = L.marker([pin.lat, pin.lng], {
-        icon: _marshalCircleIcon(code, code.startsWith('S')),
-        zIndexOffset: 200, interactive: false
-      }).addTo(lmap);
-      lOverlayMarkers.push(marker);
-    }
+    if (code) items.push({ lat: pin.lat, lng: pin.lng, type: 'marshal', code, isSteward: code.startsWith('S'), name: '' });
+    if (ec.obstacle) items.push({ lat: pin.lat, lng: pin.lng, type: 'obstacle', code: '', isSteward: false, name: getObstacleName(card) });
+  });
+  if (!items.length) return;
 
-    if (ec.obstacle) {
-      const marker = L.marker([pin.lat, pin.lng], {
-        icon: _obstacleCircleIcon(getObstacleName(card)),
-        zIndexOffset: 100, interactive: false
-      }).addTo(lmap);
-      lOverlayMarkers.push(marker);
+  // Group items that overlap at the current zoom level (within 44px)
+  const THRESHOLD = 44;
+  const withPx = items.map(it => ({ ...it, px: lmap.latLngToLayerPoint([it.lat, it.lng]) }));
+  const assigned = new Array(withPx.length).fill(false);
+  const groups = [];
+  for (let i = 0; i < withPx.length; i++) {
+    if (assigned[i]) continue;
+    const group = [withPx[i]];
+    assigned[i] = true;
+    for (let j = i + 1; j < withPx.length; j++) {
+      if (!assigned[j] && _pxDist(withPx[i].px, withPx[j].px) < THRESHOLD) {
+        group.push(withPx[j]); assigned[j] = true;
+      }
     }
+    groups.push(group);
+  }
+
+  // Place one marker per group, stacked vertically when multiple items
+  groups.forEach(group => {
+    const centLat = group.reduce((s, p) => s + p.lat, 0) / group.length;
+    const centLng = group.reduce((s, p) => s + p.lng, 0) / group.length;
+    const isSolo = group.length === 1;
+    const icon = (isSolo && group[0].type === 'obstacle')
+      ? _obstacleCircleIcon(group[0].name)
+      : _groupCircleIcon(group);
+    lOverlayMarkers.push(L.marker([centLat, centLng], { icon, zIndexOffset: 100, interactive: false }).addTo(lmap));
   });
 }
 
