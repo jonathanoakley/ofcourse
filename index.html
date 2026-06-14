@@ -844,7 +844,32 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .map-nav-btn:disabled { opacity: 0.3; pointer-events: none; }
 .map-nav-btn:active { background: #2a3a26; color: #aaa; }
-.map-layer-bar { display: flex; gap: 5px; padding: 6px 12px 7px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.map-layer-bar { display: flex; gap: 5px; padding: 6px 12px 7px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; align-items: center; }
+.map-cache-pill {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.5px;
+  padding: 0 8px; height: 28px; border-radius: 6px; border: 1.5px solid;
+  display: none; align-items: center; white-space: nowrap; flex-shrink: 0; margin-left: auto;
+}
+.map-cache-pill.visible { display: flex; }
+.map-cache-pill-cached { color: #2a8a3a; border-color: rgba(42,138,58,0.35); background: rgba(42,138,58,0.08); }
+.map-cache-pill-live { color: #444; border-color: var(--border); }
+.map-cache-pill-partial { color: #c07800; border-color: rgba(192,120,0,0.35); background: rgba(192,120,0,0.08); }
+.cache-status-row { display: flex; border-bottom: 1px solid var(--border); }
+.cache-stat { flex: 1; padding: 14px 12px; text-align: center; border-right: 1px solid var(--border); }
+.cache-stat:last-child { border-right: none; }
+.cache-stat-num { font-family: 'Bebas Neue', cursive; font-size: 28px; letter-spacing: 1px; color: #ddd; line-height: 1; }
+.cache-stat-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; color: #555; margin-top: 3px; }
+.cache-progress-wrap { padding: 10px 16px 4px; }
+.cache-progress-track { height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+.cache-progress-fill { height: 100%; background: #e55a00; border-radius: 2px; transition: width 0.15s; width: 0%; }
+.cache-progress-label { font-family: 'DM Mono', monospace; font-size: 10px; color: #555; margin-top: 5px; letter-spacing: 0.3px; }
+.cache-btns { display: flex; gap: 8px; padding: 12px 16px 10px; }
+.cache-btn { flex: 1; height: 38px; border-radius: 8px; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.3px; border: 1.5px solid var(--border); background: none; color: #888; }
+.cache-btn:disabled { opacity: 0.45; cursor: default; }
+.cache-btn-primary { border-color: rgba(229,90,0,0.35); background: rgba(229,90,0,0.08); color: #e55a00; }
+.cache-btn-primary:not(:disabled):active { background: rgba(229,90,0,0.2); }
+.cache-btn:not(.cache-btn-primary):active { background: rgba(255,255,255,0.05); }
+.cache-note { font-family: 'DM Mono', monospace; font-size: 9px; color: #3a3a34; letter-spacing: 0.3px; padding: 0 16px 14px; }
 .map-layer-btn { flex: 1; height: 28px; background: transparent; border: 1.5px solid var(--border); border-radius: 6px; color: #555; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.5px; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
 .map-layer-btn.active { background: rgba(229,90,0,0.1); color: var(--accent); border-color: rgba(229,90,0,0.35); }
 .minimap-layer-bar { display: flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.48); border-radius: 7px; backdrop-filter: blur(6px); }
@@ -2436,6 +2461,7 @@ a.w3w-link:active { opacity: 0.7; }
     <button class="map-layer-btn active" id="layerBtnMap"       onclick="setMapLayer('map')">Map</button>
     <button class="map-layer-btn"        id="layerBtnSatellite" onclick="setMapLayer('satellite')">Satellite</button>
     <button class="map-layer-btn"        id="layerBtnTerrain"   onclick="setMapLayer('terrain')">Terrain</button>
+    <div class="map-cache-pill" id="mapCachePill"></div>
   </div>
   <!-- Route selector (always visible) -->
   <div class="route-selector-bar" id="routeSelectorBar"></div>
@@ -4016,6 +4042,202 @@ const TILE_LAYERS = {
 const LAYER_KEY = 'pmg2026_layer';
 let activeLayer = localStorage.getItem(LAYER_KEY) || 'map';
 
+// ── TILE CACHE ────────────────────────────────────────────────────────────────
+const TILE_CACHE_NAME = 'ofcourse-tiles-v1';
+const CACHE_BBOX = { minLat: 55.808, maxLat: 55.842, minLng: -4.335, maxLng: -4.260 };
+const CACHE_MIN_ZOOM = 13;
+const CACHE_MAX_ZOOM = 17;
+
+function _latLngToTile(lat, lng, z) {
+  const n = Math.pow(2, z);
+  const x = Math.floor((lng + 180) / 360 * n);
+  const latRad = lat * Math.PI / 180;
+  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+  return { x, y };
+}
+
+function _normalizeTileUrl(url) {
+  return url.replace(/^https:\/\/[abc]\.tile\.openstreetmap/, 'https://a.tile.openstreetmap');
+}
+
+function _getCacheTileUrls() {
+  const urls = [];
+  for (let z = CACHE_MIN_ZOOM; z <= CACHE_MAX_ZOOM; z++) {
+    const tl = _latLngToTile(CACHE_BBOX.maxLat, CACHE_BBOX.minLng, z);
+    const br = _latLngToTile(CACHE_BBOX.minLat, CACHE_BBOX.maxLng, z);
+    for (let x = tl.x; x <= br.x; x++) {
+      for (let y = tl.y; y <= br.y; y++) {
+        urls.push(`https://a.tile.openstreetmap.org/${z}/${x}/${y}.png`);
+      }
+    }
+  }
+  return urls;
+}
+
+// Tile source tracking for the cache pill
+let _tileStats = { cache: 0, network: 0 };
+let _tileStatsTimer = null;
+
+function _recordTileSource(source) {
+  _tileStats[source]++;
+  clearTimeout(_tileStatsTimer);
+  _tileStatsTimer = setTimeout(_updateCachePill, 700);
+}
+
+function _resetTileStats() {
+  _tileStats = { cache: 0, network: 0 };
+  const pill = document.getElementById('mapCachePill');
+  if (pill) pill.classList.remove('visible');
+}
+
+function _updateCachePill() {
+  const pill = document.getElementById('mapCachePill');
+  if (!pill) return;
+  const { cache, network } = _tileStats;
+  const total = cache + network;
+  if (!total) { pill.classList.remove('visible'); return; }
+  pill.classList.add('visible');
+  if (network === 0) {
+    pill.textContent = '● Cached';
+    pill.className = 'map-cache-pill visible map-cache-pill-cached';
+  } else if (cache === 0) {
+    pill.textContent = '○ Live';
+    pill.className = 'map-cache-pill visible map-cache-pill-live';
+  } else {
+    pill.textContent = '◑ Partial';
+    pill.className = 'map-cache-pill visible map-cache-pill-partial';
+  }
+}
+
+// Custom Leaflet tile layer that checks Cache API before hitting the network.
+// Defined lazily in initLeaflet() once L is confirmed available; this is a placeholder.
+let OfflineTileLayer = null;
+function _ensureOfflineTileLayer() {
+  if (OfflineTileLayer || typeof L === 'undefined') return;
+  OfflineTileLayer = L.TileLayer.extend({
+  createTile(coords, done) {
+    const img = document.createElement('img');
+    img.setAttribute('role', 'presentation');
+    img.setAttribute('alt', '');
+    const url = this.getTileUrl(coords);
+    const cacheKey = _normalizeTileUrl(url);
+
+    if (!window.caches) {
+      _recordTileSource('network');
+      img.crossOrigin = ''; img.src = url;
+      img.onload = () => done(null, img);
+      img.onerror = e => done(e, img);
+      return img;
+    }
+
+    caches.open(TILE_CACHE_NAME)
+      .then(c => c.match(cacheKey))
+      .then(resp => {
+        if (resp) {
+          _recordTileSource('cache');
+          resp.blob().then(blob => {
+            const objUrl = URL.createObjectURL(blob);
+            img.onload = () => { URL.revokeObjectURL(objUrl); done(null, img); };
+            img.onerror = e => { URL.revokeObjectURL(objUrl); done(e, img); };
+            img.src = objUrl;
+          });
+        } else {
+          _recordTileSource('network');
+          img.crossOrigin = ''; img.src = url;
+          img.onload = () => done(null, img);
+          img.onerror = e => done(e, img);
+        }
+      })
+      .catch(() => {
+        _recordTileSource('network');
+        img.crossOrigin = ''; img.src = url;
+        img.onload = () => done(null, img);
+        img.onerror = e => done(e, img);
+      });
+
+    return img;
+  }
+  });
+}
+
+async function precacheMapTiles() {
+  if (!window.caches) return;
+  const urls = _getCacheTileUrls();
+  const total = urls.length;
+  let done = 0;
+
+  const barEl = document.getElementById('cacheProgressBar');
+  const lblEl = document.getElementById('cacheProgressLabel');
+  const update = () => {
+    const pct = Math.round(done / total * 100);
+    if (barEl) barEl.style.width = pct + '%';
+    if (lblEl) lblEl.textContent = done + ' / ' + total + ' tiles';
+  };
+  update();
+
+  const cache = await caches.open(TILE_CACHE_NAME);
+  const BATCH = 8;
+  for (let i = 0; i < urls.length; i += BATCH) {
+    await Promise.all(urls.slice(i, i + BATCH).map(async url => {
+      try {
+        if (!await cache.match(url)) {
+          const r = await fetch(url, { mode: 'cors' });
+          if (r.ok) await cache.put(url, r);
+        }
+      } catch {}
+      done++;
+      update();
+    }));
+  }
+  renderMapCacheSection();
+}
+
+async function startPrecache() {
+  const wrap = document.getElementById('cacheProgressWrap');
+  const btn = document.getElementById('cachePrimaryBtn');
+  if (wrap) wrap.style.display = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Downloading…'; }
+  await precacheMapTiles();
+}
+
+async function clearMapCache() {
+  if (!window.caches) return;
+  await caches.delete(TILE_CACHE_NAME);
+  _resetTileStats();
+  renderMapCacheSection();
+}
+
+async function renderMapCacheSection() {
+  const el = document.getElementById('mapCacheSection');
+  if (!el) return;
+  if (!window.caches) {
+    el.innerHTML = '<div class="cache-note" style="padding-top:14px">Cache API not available — use Chrome or Safari.</div>';
+    return;
+  }
+  const cache = await caches.open(TILE_CACHE_NAME);
+  const total = _getCacheTileUrls().length;
+  const cached = (await cache.keys()).length;
+  const pct = total ? Math.round(cached / total * 100) : 0;
+  const full = cached >= total;
+  el.innerHTML = `
+    <div class="cache-status-row">
+      <div class="cache-stat"><div class="cache-stat-num">${cached}</div><div class="cache-stat-label">cached</div></div>
+      <div class="cache-stat"><div class="cache-stat-num">${total}</div><div class="cache-stat-label">total</div></div>
+      <div class="cache-stat"><div class="cache-stat-num">${pct}%</div><div class="cache-stat-label">coverage</div></div>
+    </div>
+    <div class="cache-progress-wrap" id="cacheProgressWrap" style="display:none">
+      <div class="cache-progress-track"><div class="cache-progress-fill" id="cacheProgressBar"></div></div>
+      <div class="cache-progress-label" id="cacheProgressLabel">0 / ${total} tiles</div>
+    </div>
+    <div class="cache-btns">
+      <button class="cache-btn cache-btn-primary" id="cachePrimaryBtn" onclick="startPrecache()" ${full ? 'disabled' : ''}>
+        ${full ? '✓ Fully cached' : '↓ Download map tiles'}
+      </button>
+      ${cached > 0 ? '<button class="cache-btn" onclick="clearMapCache()">Clear</button>' : ''}
+    </div>
+    <div class="cache-note">Glasgow 2026 area · Z${CACHE_MIN_ZOOM}–Z${CACHE_MAX_ZOOM} · OSM map layer</div>`;
+}
+
 // Leaflet state
 let lmap = null;
 let lTileLayer = null;
@@ -4316,8 +4538,10 @@ function setMapLayer(layer) {
   if (!lmap) return;
   if (lTileLayer) { lTileLayer.remove(); lTileLayer = null; }
   const cfg = TILE_LAYERS[layer] || TILE_LAYERS.map;
-  lTileLayer = L.tileLayer(cfg.url, { attribution: cfg.attribution, maxZoom: cfg.maxZoom }).addTo(lmap);
+  const TileLayerClass = (layer === 'map' && OfflineTileLayer) ? OfflineTileLayer : L.TileLayer;
+  lTileLayer = new TileLayerClass(cfg.url, { attribution: cfg.attribution, maxZoom: cfg.maxZoom }).addTo(lmap);
   lTileLayer.bringToBack();
+  _resetTileStats();
   if (cardMiniLmap && cardMiniTileLayer) {
     cardMiniTileLayer.remove();
     cardMiniTileLayer = L.tileLayer(cfg.url, { maxZoom: 19 }).addTo(cardMiniLmap);
@@ -4325,6 +4549,7 @@ function setMapLayer(layer) {
 }
 
 function initLeaflet() {
+  _ensureOfflineTileLayer();
   if (typeof L === 'undefined' || window._leafletFailed) {
     const el = document.getElementById('leafletMap');
     if (el) el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#888;font-family:\'DM Mono\',monospace;font-size:12px;text-align:center;padding:40px;line-height:1.8">Map library failed to load.<br>Check your connection and refresh the page.</div>';
@@ -4340,6 +4565,7 @@ function initLeaflet() {
     if (mapSubMode === 'route') addRouteNode(e.latlng.lat, e.latlng.lng);
     else if (mapSubMode === 'features') placePin(mapPickIdx, e.latlng.lat, e.latlng.lng);
   });
+  lmap.on('movestart', _resetTileStats);
   refreshMapMarkers();
   redrawRoute(false);
   requestAnimationFrame(() => mapFitBounds());
@@ -5442,6 +5668,7 @@ function openConfigPanel() {
   _pushRoute('config');
   _updateConfigBreadcrumb();
   renderObstacleConfig();
+  renderMapCacheSection();
   document.getElementById('configPanel').classList.add('open');
 }
 
@@ -6040,6 +6267,7 @@ function _routeFromPath() {
   } else if (section === 'config') {
     cs.style.display = 'none';
     renderObstacleConfig();
+    renderMapCacheSection();
     document.getElementById('configPanel').classList.add('open');
     _updateConfigBreadcrumb();
   } else if (section === 'live') {
@@ -6106,6 +6334,8 @@ if (currentUser.name && activeEventId) {
     </div>
   </div>
   <div class="config-body">
+    <div class="config-section-head">Map Cache</div>
+    <div id="mapCacheSection"></div>
     <div class="config-section-head">Obstacle Configuration</div>
     <div id="obstacleConfigList"></div>
   </div>
