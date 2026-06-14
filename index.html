@@ -1998,6 +1998,42 @@ a.w3w-link:active { opacity: 0.7; }
   transition: border-color 0.15s;
 }
 .ec-compose-select:focus { outline: none; border-color: var(--accent); }
+.ec-config-section { padding: 10px 16px 4px; }
+.ec-config-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: #888; margin-bottom: 8px; margin-top: 4px;
+}
+.ec-config-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ec-config-chip {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 10px 5px 12px;
+  font-family: 'DM Mono', monospace; font-size: 11px; color: #ccc;
+}
+.ec-config-chip.locked { padding-right: 12px; color: #888; }
+.ec-config-chip-del {
+  background: none; border: none; color: #555; cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0; margin: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.ec-config-chip-del:active { color: #c0392b; }
+.ec-config-add-row {
+  display: flex; gap: 7px; margin-bottom: 14px;
+}
+.ec-config-add-input {
+  flex: 1; background: #0d1209; border: 1.5px solid #2a3a26;
+  border-radius: 10px; color: #d8d5c8; padding: 8px 12px;
+  font-family: 'DM Mono', monospace; font-size: 12px; outline: none;
+  transition: border-color 0.15s;
+}
+.ec-config-add-input:focus { border-color: var(--accent); }
+.ec-config-add-btn {
+  background: var(--accent); border: none; border-radius: 10px;
+  color: #fff; padding: 8px 16px; font-family: 'Bebas Neue', cursive;
+  font-size: 16px; letter-spacing: 1px; cursor: pointer; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.ec-config-add-btn:active { filter: brightness(1.1); }
 
 /* ── OBSTACLE PANEL ─────────────────────────────────────────────────────── */
 .obstacle-panel {
@@ -6001,8 +6037,97 @@ let _ecReplyToId = null;
 // Legacy type field (old entries)
 const EC_TYPE_LABEL = { medical: 'Medical', marshal_update: 'Marshal Update', other: 'Other' };
 const EC_TYPE_COL   = { medical: '#c0392b', marshal_update: '#3a82f7', other: '#6a6a6a' };
-// From field colours
+// From field colours — built-in keys + fallback for custom options
 const EC_FROM_COL = { marshal: '#3a82f7', staff: '#8855cc', security: '#c07800', other: '#6a6a6a' };
+
+const EC_DEFAULT_FROM_OPTIONS = ['Marshal', 'Staff', 'Security', 'Other'];
+const EC_DEFAULT_STAFF_ROLES  = ['Event Control', 'Event Manager', 'Site Ops', 'Start Manager', 'Finish Manager', 'Obstacle Manager', 'Course Manager'];
+// Marshal and Staff always keep their sub-select behaviour regardless of label customisation
+const EC_LOCKED_FROM = new Set(['Marshal', 'Staff']);
+
+function _ecGetFromOptions() {
+  return (state.ecConfig && state.ecConfig.fromOptions) ? state.ecConfig.fromOptions : [...EC_DEFAULT_FROM_OPTIONS];
+}
+function _ecGetStaffRoles() {
+  return (state.ecConfig && state.ecConfig.staffRoles) ? state.ecConfig.staffRoles : [...EC_DEFAULT_STAFF_ROLES];
+}
+function _ecSaveConfig(patch) {
+  if (!state.ecConfig) state.ecConfig = {};
+  Object.assign(state.ecConfig, patch);
+  saveState();
+}
+function _ecFromBehavior(label) {
+  const l = (label || '').toLowerCase();
+  if (l === 'marshal') return 'marshal';
+  if (l === 'staff')   return 'staff';
+  return 'other';
+}
+function _ecFromCol(label) {
+  return EC_FROM_COL[_ecFromBehavior(label)] || '#6a6a6a';
+}
+
+// ── EC config panel ──────────────────────────────────────────────────────────
+function renderEcConfig() {
+  const el = document.getElementById('ecConfigSection');
+  if (!el) return;
+  const fromOpts  = _ecGetFromOptions();
+  const staffOpts = _ecGetStaffRoles();
+
+  const chipsHtml = (items, locked, delFn, addInputId, addFn) => `
+    <div class="ec-config-chips">
+      ${items.map((item, i) => locked.has(item)
+        ? `<span class="ec-config-chip locked">${escHtml(item)}</span>`
+        : `<span class="ec-config-chip">${escHtml(item)}
+             <button class="ec-config-chip-del" onclick="${delFn}(${i})" title="Remove">×</button>
+           </span>`
+      ).join('')}
+    </div>
+    <div class="ec-config-add-row">
+      <input class="ec-config-add-input" id="${addInputId}" type="text" placeholder="Add option…" maxlength="40"
+        onkeydown="if(event.key==='Enter')${addFn}()">
+      <button class="ec-config-add-btn" onclick="${addFn}()">Add</button>
+    </div>`;
+
+  el.innerHTML = `
+    <div class="ec-config-section">
+      <div class="ec-config-label">"From" dropdown</div>
+      ${chipsHtml(fromOpts, EC_LOCKED_FROM, 'ecDelFromOption', 'ecAddFromInput', 'ecAddFromOption')}
+      <div class="ec-config-label">Staff roles</div>
+      ${chipsHtml(staffOpts, new Set(), 'ecDelStaffRole', 'ecAddStaffInput', 'ecAddStaffRole')}
+    </div>`;
+}
+
+function ecDelFromOption(idx) {
+  const opts = _ecGetFromOptions();
+  if (EC_LOCKED_FROM.has(opts[idx])) return;
+  opts.splice(idx, 1);
+  _ecSaveConfig({ fromOptions: opts });
+  renderEcConfig();
+}
+function ecAddFromOption() {
+  const input = document.getElementById('ecAddFromInput');
+  const val = (input.value || '').trim();
+  if (!val) return;
+  const opts = _ecGetFromOptions();
+  if (!opts.includes(val)) { opts.push(val); _ecSaveConfig({ fromOptions: opts }); }
+  input.value = '';
+  renderEcConfig();
+}
+function ecDelStaffRole(idx) {
+  const roles = _ecGetStaffRoles();
+  roles.splice(idx, 1);
+  _ecSaveConfig({ staffRoles: roles });
+  renderEcConfig();
+}
+function ecAddStaffRole() {
+  const input = document.getElementById('ecAddStaffInput');
+  const val = (input.value || '').trim();
+  if (!val) return;
+  const roles = _ecGetStaffRoles();
+  if (!roles.includes(val)) { roles.push(val); _ecSaveConfig({ staffRoles: roles }); }
+  input.value = '';
+  renderEcConfig();
+}
 
 function _getEcMarshalOptions() {
   const seen = new Set();
@@ -6020,18 +6145,25 @@ function _getEcMarshalOptions() {
 
 function onEcFromTypeChange() {
   const v = document.getElementById('ecFromType').value;
-  document.getElementById('ecFromMarshal').style.display = v === 'marshal' ? '' : 'none';
-  document.getElementById('ecFromStaff').style.display   = v === 'staff'   ? '' : 'none';
+  const behaviour = _ecFromBehavior(v);
+  document.getElementById('ecFromMarshal').style.display = behaviour === 'marshal' ? '' : 'none';
+  document.getElementById('ecFromStaff').style.display   = behaviour === 'staff'   ? '' : 'none';
+  // Default Staff sub-select to "Event Control" if present
+  if (behaviour === 'staff') {
+    const sel = document.getElementById('ecFromStaff');
+    const ecOpt = [...sel.options].find(o => o.value === 'Event Control');
+    if (ecOpt) sel.value = 'Event Control';
+  }
 }
 
 function _ecBadge(entry) {
   if (entry.from) {
-    const col = EC_FROM_COL[entry.from] || '#6a6a6a';
+    const behaviour = _ecFromBehavior(entry.from);
+    const col = _ecFromCol(entry.from);
     let label;
-    if (entry.from === 'marshal') label = entry.fromDetail || 'Marshal';
-    else if (entry.from === 'staff') label = entry.fromDetail || 'Staff';
-    else if (entry.from === 'security') label = 'Security';
-    else label = 'Other';
+    if (behaviour === 'marshal') label = entry.fromDetail || entry.from;
+    else if (behaviour === 'staff') label = entry.fromDetail || entry.from;
+    else label = entry.from;
     return { col, label };
   }
   // Backward compat: old entries used `type`
@@ -6067,14 +6199,22 @@ function openEcCompose(replyToId) {
     ctx.style.display = 'none';
     heading.textContent = 'New Log Entry';
   }
-  // Reset from fields
+  // Populate From dropdown from config
+  const fromOpts = _ecGetFromOptions();
+  document.getElementById('ecFromType').innerHTML =
+    `<option value="">From…</option>` +
+    fromOpts.map(o => `<option value="${escHtml(o)}">${escHtml(o)}</option>`).join('');
+  // Populate Staff roles from config
+  document.getElementById('ecFromStaff').innerHTML =
+    _ecGetStaffRoles().map(r => `<option value="${escHtml(r)}">${escHtml(r)}</option>`).join('');
+  // Reset from sub-selects
   document.getElementById('ecFromType').value = '';
   document.getElementById('ecFromMarshal').style.display = 'none';
   document.getElementById('ecFromStaff').style.display = 'none';
-  // Populate marshal list fresh each time
-  const opts = _getEcMarshalOptions();
-  document.getElementById('ecFromMarshal').innerHTML = opts.length
-    ? opts.map(o => `<option value="${escHtml(o.code)}">${escHtml(o.code)}${o.loc ? ' — ' + escHtml(o.loc) : ''}</option>`).join('')
+  // Populate marshal list fresh
+  const marshOpts = _getEcMarshalOptions();
+  document.getElementById('ecFromMarshal').innerHTML = marshOpts.length
+    ? marshOpts.map(o => `<option value="${escHtml(o.code)}">${escHtml(o.code)}${o.loc ? ' — ' + escHtml(o.loc) : ''}</option>`).join('')
     : '<option value="">No marshals pinned yet</option>';
   document.getElementById('ecTitleInput').value = '';
   document.getElementById('ecDescInput').value = '';
@@ -6308,6 +6448,7 @@ function shareLiveFeed() {
 function openConfigPanel() {
   _pushRoute('config');
   _updateConfigBreadcrumb();
+  renderEcConfig();
   renderObstacleConfig();
   renderMapCacheSection();
   document.getElementById('configPanel').classList.add('open');
@@ -7000,14 +7141,7 @@ if (currentUser.name && activeEventId) {
       <option value="other">Other</option>
     </select>
     <select class="ec-compose-select" id="ecFromMarshal" style="display:none"></select>
-    <select class="ec-compose-select" id="ecFromStaff" style="display:none">
-      <option value="Event Manager">Event Manager</option>
-      <option value="Site Ops">Site Ops</option>
-      <option value="Start Manager">Start Manager</option>
-      <option value="Finish Manager">Finish Manager</option>
-      <option value="Obstacle Manager">Obstacle Manager</option>
-      <option value="Course Manager">Course Manager</option>
-    </select>
+    <select class="ec-compose-select" id="ecFromStaff" style="display:none"></select>
     <input class="route-name-modal-input" id="ecTitleInput" type="text" placeholder="Title (optional)" maxlength="80"
       onkeydown="if(event.key==='Enter')document.getElementById('ecDescInput').focus()">
     <textarea class="route-name-modal-input" id="ecDescInput" placeholder="Description"
@@ -7029,6 +7163,8 @@ if (currentUser.name && activeEventId) {
     </div>
   </div>
   <div class="config-body">
+    <div class="config-section-head">Event Control</div>
+    <div id="ecConfigSection"></div>
     <div class="config-section-head">Map Cache</div>
     <div id="mapCacheSection"></div>
     <div class="config-section-head">Obstacle Configuration</div>

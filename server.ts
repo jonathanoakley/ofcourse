@@ -137,6 +137,9 @@ function mergeData(key: string, existing: unknown, incoming: unknown): unknown {
       ...incAudit.filter((e) => !seen.has(`${e.ts}|${e.ref}|${e.action}`)),
     ].sort((a, b) => (a.ts > b.ts ? 1 : -1));
 
+    // ecConfig: last-write-wins per field (shallow merge)
+    const ecConfig = { ...(ex.ecConfig as Obj || {}), ...(inc.ecConfig as Obj || {}) };
+
     // controlLogs: merge by id, preserve order by ts
     type ControlLog = { id: string; ts: string };
     const logById: Obj = {};
@@ -164,6 +167,7 @@ function mergeData(key: string, existing: unknown, incoming: unknown): unknown {
       customCards: Object.values(customCardsByRef),
       audit: mergedAudit,
       controlLogs,
+      ecConfig,
     };
   }
 
