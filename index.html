@@ -5044,7 +5044,7 @@ function _pxDist(a, b) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function _overlayDotIcon(group) {
+function _overlayDotIcon(group, showLabel = true) {
   const n = group.length;
   // Grows with item count — heat-map effect
   const sz = Math.min(36 + (n - 1) * 9, 62);
@@ -5058,7 +5058,7 @@ function _overlayDotIcon(group) {
     label = marshal.code;
   } else {
     label = '!';
-    showNameAbove = true;
+    showNameAbove = showLabel;
   }
   const circleHtml = `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};border:4px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:${fs}px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.5)">${escHtml(label)}</div>`;
   if (showNameAbove) {
@@ -5112,10 +5112,19 @@ function refreshMarshalOverlay() {
     groups.push(group);
   }
 
-  groups.forEach(group => {
+  const groupCentPx = groups.map(g => lmap.latLngToLayerPoint([
+    g.reduce((s, p) => s + p.lat, 0) / g.length,
+    g.reduce((s, p) => s + p.lng, 0) / g.length,
+  ]));
+
+  groups.forEach((group, gi) => {
     const centLat = group.reduce((s, p) => s + p.lat, 0) / group.length;
     const centLng = group.reduce((s, p) => s + p.lng, 0) / group.length;
-    lOverlayMarkers.push(L.marker([centLat, centLng], { icon: _overlayDotIcon(group), zIndexOffset: 100, interactive: false }).addTo(lmap));
+    const isStandaloneObstacle = group.length === 1 && group[0].type === 'obstacle';
+    const nearOtherGroup = isStandaloneObstacle && groupCentPx.some((px, oi) =>
+      oi !== gi && _pxDist(groupCentPx[gi], px) < THRESHOLD * 2
+    );
+    lOverlayMarkers.push(L.marker([centLat, centLng], { icon: _overlayDotIcon(group, !nearOtherGroup), zIndexOffset: 100, interactive: false }).addTo(lmap));
   });
 }
 
