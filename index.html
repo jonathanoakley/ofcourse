@@ -2737,7 +2737,7 @@ let activeEventId = null;
 function loadUserEvents() {
   try { const s = localStorage.getItem(EVENTS_LIST_KEY); if (s) userEvents = JSON.parse(s); } catch(e) {}
 }
-function saveUserEvents() { localStorage.setItem(EVENTS_LIST_KEY, JSON.stringify(userEvents)); }
+function saveUserEvents() { localStorage.setItem(EVENTS_LIST_KEY, JSON.stringify(userEvents)); _sPush('events', userEvents, 0); }
 function getAllEvents() { return [BUILTIN_EVENT_META, ...userEvents]; }
 
 function getActiveEventName() {
@@ -2774,6 +2774,7 @@ function activateEvent(id) {
     ACTIVE_ROUTE_KEY = 'ofcourse_aeroute_' + id;
   }
   resolvedDists = computeResolvedDists(activeCards);
+  _syncStopPoll();
   // Reset Leaflet so it re-initialises with new event coordinates
   if (lmap) { lmap.remove(); lmap = null; lTileLayer = null; lMarkers = {}; lFeatLine = null; lRouteLines = []; lRouteNodes = []; lOverlayMarkers = []; }
   mapPins = {};
@@ -2782,6 +2783,24 @@ function activateEvent(id) {
   loadState();
   if (id === BUILTIN_EVENT_ID) _applyBuiltinObstacleCaps();
   loadMapPins(); loadRoutes(); refreshAllCards();
+  // Pull fresh data from server in background, then keep polling
+  (async () => {
+    if (id !== BUILTIN_EVENT_ID && !activeCards.length) {
+      const remoteCards = await _sGet('cards_' + id);
+      if (Array.isArray(remoteCards) && remoteCards.length) {
+        activeCards = remoteCards;
+        localStorage.setItem('ofcourse_cards_' + id, JSON.stringify(remoteCards));
+        activeTotalDist = computeEventTotalDist(remoteCards);
+        resolvedDists = computeResolvedDists(remoteCards);
+        refreshAllCards();
+      }
+    }
+    await _syncPullState();
+    await _syncPullPins();
+    await _syncPullRoutes();
+    if (id === BUILTIN_EVENT_ID) _applyBuiltinObstacleCaps();
+  })();
+  _syncStartPoll();
 }
 
 function renderEventsList() {
@@ -2971,6 +2990,7 @@ function createNewEvent() {
   };
   if (parsedCSVCards.length) {
     localStorage.setItem('ofcourse_cards_' + id, JSON.stringify(parsedCSVCards));
+    _sPush('cards_' + id, parsedCSVCards, 0);
     newEvt.cardCount = parsedCSVCards.length;
     newEvt.fromCSV = true;
   }
@@ -3252,6 +3272,172 @@ function loadState() {
 }
 function saveState() {
   localStorage.setItem(LS_KEY, JSON.stringify(state));
+  _sPush('state_' + activeEventId, state);
+}
+
+// ── SERVER SYNC ───────────────────────────────────────────────────────────────
+const SERVER_SYNC = true;
+const _syncTimers = {};
+let _syncPollTimer = null;
+
+async function _sGet(key) {
+  try {
+    const r = await fetch('/api/data/' + key);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+async function _sPut(key, data) {
+  try {
+    await fetch('/api/data/' + key, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+  } catch {}
+}
+
+function _sPush(key, data, delay = 1200) {
+  if (!SERVER_SYNC || !key || key.startsWith('state_null') || key.startsWith('pins_null')) return;
+  clearTimeout(_syncTimers[key]);
+  _syncTimers[key] = setTimeout(() => _sPut(key, data), delay);
+}
+
+// ── Merge helpers ─────────────────────────────────────────────────────────────
+function _mergeUnion(local, remote) {
+  const out = { ...(remote || {}) };
+  Object.entries(local || {}).forEach(([k, v]) => { if (v) out[k] = v; });
+  return out;
+}
+
+function _mergeByRefTs(local, remote, tsGetter) {
+  const out = { ...(remote || {}) };
+  Object.entries(local || {}).forEach(([k, v]) => {
+    if (!out[k] || tsGetter(v) >= tsGetter(out[k])) out[k] = v;
+  });
+  return out;
+}
+
+function _mergeAudit(local, remote) {
+  const seen = new Set();
+  return [...(remote || []), ...(local || [])].filter(e => {
+    const k = (e.ts || '') + '|' + (e.ref || '') + '|' + (e.action || '');
+    return seen.has(k) ? false : (seen.add(k), true);
+  }).sort((a, b) => (a.ts > b.ts ? 1 : -1));
+}
+
+function _mergeCustomCards(local, remote) {
+  const byRef = {};
+  [...(remote || []), ...(local || [])].forEach(c => { byRef[c.ref] = c; });
+  return Object.values(byRef);
+}
+
+function _mergeTags(local, remote) {
+  const out = { ...(remote || {}) };
+  Object.entries(local || {}).forEach(([ref, tags]) => {
+    out[ref] = [...new Set([...(out[ref] || []), ...tags])];
+  });
+  return out;
+}
+
+function _mergeStateObj(local, remote) {
+  if (!remote) return local;
+  const notes = { ...(remote.notes || {}) };
+  Object.keys(local.notes || {}).forEach(ref => {
+    const lts = local.noteMeta?.[ref]?.ts || '';
+    const rts = remote.noteMeta?.[ref]?.ts || '';
+    if (lts >= rts) notes[ref] = local.notes[ref];
+  });
+  return {
+    ...local,
+    completed:       _mergeUnion(local.completed, remote.completed),
+    reviewed:        _mergeUnion(local.reviewed, remote.reviewed),
+    notes,
+    noteMeta:        _mergeByRefTs(local.noteMeta, remote.noteMeta, v => v?.ts || ''),
+    cardEdits:       _mergeByRefTs(local.cardEdits, remote.cardEdits, v => v?._ts || ''),
+    cardEditSummary: _mergeByRefTs(local.cardEditSummary, remote.cardEditSummary, v => v?._ts || ''),
+    tags:            _mergeTags(local.tags, remote.tags),
+    obstacleCapacity: { ...(remote.obstacleCapacity || {}), ...(local.obstacleCapacity || {}) },
+    audit:           _mergeAudit(local.audit, remote.audit),
+    customCards:     _mergeCustomCards(local.customCards, remote.customCards),
+    currentIndex:    local.currentIndex,
+  };
+}
+
+async function _syncPullState() {
+  if (!SERVER_SYNC || !activeEventId) return;
+  const remote = await _sGet('state_' + activeEventId);
+  if (!remote) return;
+  const merged = _mergeStateObj(state, remote);
+  if (JSON.stringify(merged) === JSON.stringify(state)) return;
+  state = merged;
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  refreshAllCards(); updateProgress(); renderCard(state.currentIndex);
+  if (document.getElementById('livePanel')?.classList.contains('open')) renderLiveFeed();
+}
+
+async function _syncPullPins() {
+  if (!SERVER_SYNC || !activeEventId) return;
+  const remote = await _sGet('pins_' + activeEventId);
+  if (!remote || typeof remote !== 'object') return;
+  const merged = { ...remote, ...mapPins };
+  if (JSON.stringify(merged) === JSON.stringify(mapPins)) return;
+  mapPins = merged;
+  localStorage.setItem(MAP_KEY, JSON.stringify(mapPins));
+  if (lmap) refreshMapMarkers();
+}
+
+async function _syncPullRoutes() {
+  if (!SERVER_SYNC || !activeEventId) return;
+  let remote = await _sGet('routes_' + activeEventId);
+  // One-time migration: built-in event previously stored at /api/routes
+  if ((!remote || !Object.keys(remote).length) && activeEventId === BUILTIN_EVENT_ID) {
+    try {
+      const r = await fetch('/api/routes');
+      if (r.ok) { const old = await r.json(); if (old && Object.keys(old).length) { remote = old; await _sPut('routes_' + activeEventId, old); } }
+    } catch {}
+  }
+  if (!remote || typeof remote !== 'object') return;
+  let changed = false;
+  Object.entries(remote).forEach(([id, r]) => {
+    if (!r || !Array.isArray(r.points)) return;
+    if (!routes[id] || (r.updatedAt || '') > (routes[id].updatedAt || '')) { routes[id] = r; changed = true; }
+  });
+  if (!changed) return;
+  saveRoutesLocal();
+  renderRouteSelector();
+  if (activeRouteId && routes[activeRouteId]) {
+    routePoints = routes[activeRouteId].points || [];
+    redrawRoute(false); updateRouteCount();
+    if (document.getElementById('mapPanel')?.classList.contains('open'))
+      requestAnimationFrame(() => mapFitBounds());
+  } else if (!activeRouteId) {
+    const ids = Object.keys(routes);
+    if (ids.length) { activeRouteId = ids[0]; localStorage.setItem(ACTIVE_ROUTE_KEY, activeRouteId); routePoints = routes[activeRouteId].points || []; redrawRoute(false); }
+  }
+}
+
+async function _syncPullEvents() {
+  if (!SERVER_SYNC) return;
+  const remote = await _sGet('events');
+  if (!Array.isArray(remote)) return;
+  const byId = {};
+  [...remote, ...userEvents].forEach(e => { byId[e.id] = e; });
+  const merged = Object.values(byId);
+  if (JSON.stringify(merged) === JSON.stringify(userEvents)) return;
+  userEvents = merged;
+  localStorage.setItem(EVENTS_LIST_KEY, JSON.stringify(userEvents));
+  renderEventsList();
+}
+
+function _syncStartPoll() {
+  _syncStopPoll();
+  if (!SERVER_SYNC) return;
+  _syncPollTimer = setInterval(() => { _syncPullState(); _syncPullPins(); }, 30000);
+}
+
+function _syncStopPoll() {
+  if (_syncPollTimer) { clearInterval(_syncPollTimer); _syncPollTimer = null; }
 }
 
 function auditEntry(ref, action, extra = {}) {
@@ -4274,7 +4460,7 @@ let selectedNodeIdx = null;
 function loadMapPins() {
   try { const s = localStorage.getItem(MAP_KEY); if (s) mapPins = JSON.parse(s); } catch(e) {}
 }
-function saveMapPins() { localStorage.setItem(MAP_KEY, JSON.stringify(mapPins)); }
+function saveMapPins() { localStorage.setItem(MAP_KEY, JSON.stringify(mapPins)); _sPush('pins_' + activeEventId, mapPins, 800); }
 
 function genRouteId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -4311,6 +4497,7 @@ function loadRoutes() {
 
 function saveRoutesLocal() {
   localStorage.setItem(ROUTES_KEY, JSON.stringify(routes));
+  _sPush('routes_' + activeEventId, routes, 800);
 }
 
 function saveActiveRoute() {
@@ -4397,44 +4584,12 @@ function closeRouteNameModal() {
 }
 
 // ── Route sync (own server /api/routes) ──────────────────────────────────────
-async function pushRouteToFirebase(id) {
-  if (!ROUTE_SYNC || !routes[id] || activeEventId !== BUILTIN_EVENT_ID) return;
-  try {
-    await fetch('/api/routes/' + id, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(routes[id]),
-    });
-  } catch(e) {}
+async function pushRouteToFirebase(_id) {
+  // Route push is now handled by saveRoutesLocal() → _sPush()
 }
 
 async function fetchRoutesFromFirebase() {
-  if (!ROUTE_SYNC || activeEventId !== BUILTIN_EVENT_ID) return;
-  try {
-    const res = await fetch('/api/routes');
-    if (!res.ok) return;
-    const remote = await res.json();
-    if (!remote || typeof remote !== 'object') return;
-    let changed = false;
-    Object.entries(remote).forEach(([id, r]) => {
-      if (!r || !Array.isArray(r.points)) return;
-      const localTs  = routes[id]?.updatedAt || '';
-      const remoteTs = r.updatedAt || '';
-      if (!routes[id] || remoteTs > localTs) { routes[id] = r; changed = true; }
-    });
-    if (changed) {
-      saveRoutesLocal();
-      renderRouteSelector();
-      if (activeRouteId && routes[activeRouteId]) {
-        routePoints = routes[activeRouteId].points || [];
-        redrawRoute(mapSubMode === 'route' && mapEditMode);
-        updateRouteCount();
-        if (document.getElementById('mapPanel').classList.contains('open')) {
-          requestAnimationFrame(() => mapFitBounds());
-        }
-      }
-    }
-  } catch(e) {}
+  await _syncPullRoutes();
 }
 
 // ── Panel open/close ──────────────────────────────────────────────────────────
@@ -5516,6 +5671,7 @@ function deleteCustomCard(ref) {
 loadUser();
 loadUserEvents();
 loadW3WKey();
+_syncPullEvents(); // pull latest events list from server in background
 
 // Restore previously active event
 if (currentUser.event) {
