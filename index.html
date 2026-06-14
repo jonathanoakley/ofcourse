@@ -116,6 +116,15 @@ html, body {
   padding: 12px 14px;
   overflow: hidden;
 }
+.stage::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 140px;
+  background: linear-gradient(to top, rgba(0,0,0,0.55), transparent);
+  pointer-events: none;
+  z-index: 15;
+}
 
 /* ── CARD STACK ─────────────────────────── */
 .card-stack {
@@ -435,15 +444,9 @@ html, body {
   font-weight: 500;
   white-space: pre-wrap;
 }
-.complete-strip {
-  background: var(--green);
-  color: white;
-  text-align: center;
-  padding: 7px;
-  font-family: 'Bebas Neue', cursive;
-  font-size: 13px;
-  letter-spacing: 4px;
-  flex-shrink: 0;
+.complete-strip { display: none !important; }
+.card.is-done {
+  box-shadow: inset 0 0 0 5px #5adf7a, 0 16px 48px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
 }
 
 /* Residual risk row */
@@ -501,7 +504,8 @@ html, body {
   border-radius: 50%;
   font-size: 18px;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: none; /* hidden on mobile */
+  align-items: center; justify-content: center;
   flex-shrink: 0;
   transition: background 0.12s, color 0.12s;
   font-family: 'Bebas Neue', cursive;
@@ -2340,6 +2344,16 @@ a.w3w-link:active { opacity: 0.7; }
   /* Sync dot and FAB: offset from the panel's right edge, not the viewport */
   .sync-dot { right: calc(10% + 61px); }
   .ec-fab   { right: calc(10% + 20px); }
+
+  /* Nav buttons: show on desktop, float outside the 80% card column */
+  .nav-btn {
+    display: flex;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .actions .nav-btn:first-child { left: -62px; }
+  .actions .nav-btn:last-child  { right: -62px; }
 }
 </style>
 </head>
@@ -3912,10 +3926,8 @@ function renderCard(idx) {
   updateCardMiniMap(idx);
   renderCardMedia(idx);
 
-  // Complete strip
-  const strip = document.getElementById('completeStrip');
-  strip.style.display = isDone ? 'block' : 'none';
-  strip.style.background = '';
+  // Complete indicator
+  document.getElementById('mainCard').classList.toggle('is-done', isDone);
 
   // Update buttons
   updateActionBar(isDone);
@@ -5588,7 +5600,7 @@ function openCardEdit() {
   _renderCardInlineEdit(state.currentIndex);
   setCardEditingState(true);
   setEditActionBar('edit');
-  document.getElementById('completeStrip').style.display = 'none';
+  document.getElementById('mainCard').classList.remove('is-done');
 }
 
 function _renderCardInlineEdit(idx) {
@@ -5836,10 +5848,7 @@ function renderCustomCard(card, isDone, myNote) {
   updateCardMiniMap(state.currentIndex);
   renderCardMedia(state.currentIndex);
 
-  document.getElementById('completeStrip').style.display = isDone ? 'block' : 'none';
-  // Tint the complete strip for custom cards
-  const strip = document.getElementById('completeStrip');
-  strip.style.background = isDone ? '#4a2a6a' : '';
+  document.getElementById('mainCard').classList.toggle('is-done', isDone);
   updateActionBar(isDone);
 }
 
@@ -5860,7 +5869,7 @@ function openAddCard() {
   _renderAddCardInline(parentRef, newRef);
   setCardEditingState(true);
   setEditActionBar('add');
-  document.getElementById('completeStrip').style.display = 'none';
+  document.getElementById('mainCard').classList.remove('is-done');
   setTimeout(() => _initAddCardMap(parentRef), 80);
 }
 
