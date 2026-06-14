@@ -95,8 +95,9 @@ html, body {
 }
 .header-btn:active { background: var(--border); color: #aaa; }
 .sync-dot {
+  position: fixed; top: 23px; right: 61px; z-index: 1200;
   width: 11px; height: 11px; border-radius: 50%;
-  border: none; padding: 0; cursor: pointer; flex-shrink: 0;
+  border: none; padding: 0; cursor: pointer;
   background: #333; transition: background 0.4s;
 }
 .sync-dot.s-syncing { background: #c07800; animation: sync-pulse 1s ease-in-out infinite; }
@@ -1969,7 +1970,8 @@ a.w3w-link:active { opacity: 0.7; }
   font-family: 'DM Mono', monospace; font-size: 10px; color: #777; margin-top: 4px;
 }
 .ec-reply-btn {
-  display: block; width: 100%; background: none; border: none;
+  display: flex; align-items: center; width: 100%; min-height: 44px;
+  background: none; border: none;
   border-top: 1px solid var(--border); padding: 10px 14px;
   text-align: left; font-family: 'DM Mono', monospace; font-size: 11px;
   color: #4a6ab0; cursor: pointer; letter-spacing: 0.2px;
@@ -2416,9 +2418,9 @@ a.w3w-link:active { opacity: 0.7; }
       <span style="left:99.4%">5k</span>
     </div>
   </div>
-  <button class="sync-dot s-idle" id="syncDot" onclick="forceSyncNow()" title="Sync · tap to sync now"></button>
   <button class="header-btn" onclick="openMenu()" title="Menu">&#9776;</button>
 </header>
+<button class="sync-dot s-idle" id="syncDot" onclick="forceSyncNow()" title="Sync · tap to sync now"></button>
 
 <!-- STAGE -->
 <div class="stage" id="stage">
@@ -3586,11 +3588,12 @@ async function _syncPullState() {
   if (!remote) return;
   const merged = _mergeStateObj(state, remote);
   if (JSON.stringify(merged) === JSON.stringify(state)) return;
+  const ecLogsChanged = JSON.stringify(state.controlLogs) !== JSON.stringify(merged.controlLogs);
   state = merged;
   localStorage.setItem(LS_KEY, JSON.stringify(state));
   refreshAllCards(); updateProgress(); renderCard(state.currentIndex);
   if (document.getElementById('livePanel')?.classList.contains('open')) renderLiveFeed();
-  if (document.getElementById('ecPanel')?.classList.contains('open')) renderEcFeed();
+  if (ecLogsChanged && document.getElementById('ecPanel')?.classList.contains('open')) renderEcFeed();
 }
 
 async function _syncPullPins() {
