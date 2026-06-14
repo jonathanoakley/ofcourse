@@ -2785,7 +2785,7 @@ function activateEvent(id) {
   resolvedDists = computeResolvedDists(activeCards);
   _syncStopPoll();
   // Reset Leaflet so it re-initialises with new event coordinates
-  if (lmap) { lmap.remove(); lmap = null; lTileLayer = null; lMarkers = {}; lFeatLine = null; lRouteLines = []; lRouteNodes = []; lOverlayMarkers = []; }
+  if (lmap) { lmap.remove(); lmap = null; lTileLayer = null; lMarkers = {}; lFeatLine = null; lRouteLines = []; lRouteNodes = []; lOverlayMarkers = []; lGroupMarkers = []; }
   mapPins = {};
   routes = {}; activeRouteId = null; routePoints = [];
   state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, obstacleCapacity: {} };
@@ -4493,6 +4493,7 @@ let lFeatLine = null; // faint connector between feature pins
 let lRouteLines = []; // L.Polyline[] — one per terrain run
 let lRouteNodes = []; // draggable node markers
 let lOverlayMarkers = []; // marshal + obstacle overlay circles
+let lGroupMarkers = [];   // merged "+" cluster markers for C card pins
 let showMarshalOverlay = false;
 let showCardPins = true;
 
@@ -4979,6 +4980,8 @@ function refreshMapMarkers() {
   if (!lmap) return;
   Object.values(lMarkers).forEach(m => m.remove());
   lMarkers = {};
+  lGroupMarkers.forEach(m => m.remove());
+  lGroupMarkers = [];
   if (lFeatLine) { lFeatLine.remove(); lFeatLine = null; }
   const placed = ALLCARDS.map((c, i) => ({ ref: c.ref, idx: i, pos: mapPins[c.ref] })).filter(x => x.pos);
   if (showCardPins) {
@@ -5020,6 +5023,7 @@ function refreshMapMarkers() {
           e.originalEvent.stopPropagation();
           if (!mapEditMode) { closeMap(); goToCard(group[0].idx); }
         });
+        lGroupMarkers.push(m);
       }
     });
   }
