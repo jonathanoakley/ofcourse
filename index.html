@@ -4790,7 +4790,7 @@ function initLeaflet() {
     else if (mapSubMode === 'features') placePin(mapPickIdx, e.latlng.lat, e.latlng.lng);
   });
   lmap.on('movestart', _resetTileStats);
-  lmap.on('zoomend', () => { if (showMarshalOverlay) refreshMarshalOverlay(); });
+  lmap.on('zoomend', () => { if (showCardPins || showMarshalOverlay) refreshMapMarkers(); });
   refreshMapMarkers();
   redrawRoute(false);
   requestAnimationFrame(() => mapFitBounds());
@@ -4960,6 +4960,21 @@ function toggleCardPins() {
   refreshMapMarkers();
 }
 
+function _clusterByPx(pts, threshold) {
+  const withPx = pts.map(p => ({ ...p, px: lmap.latLngToLayerPoint([p.pos.lat, p.pos.lng]) }));
+  const assigned = new Array(withPx.length).fill(false);
+  const groups = [];
+  for (let i = 0; i < withPx.length; i++) {
+    if (assigned[i]) continue;
+    const g = [withPx[i]]; assigned[i] = true;
+    for (let j = i + 1; j < withPx.length; j++) {
+      if (!assigned[j] && _pxDist(withPx[i].px, withPx[j].px) < threshold) { g.push(withPx[j]); assigned[j] = true; }
+    }
+    groups.push(g);
+  }
+  return groups;
+}
+
 function refreshMapMarkers() {
   if (!lmap) return;
   Object.values(lMarkers).forEach(m => m.remove());
@@ -4973,14 +4988,39 @@ function refreshMapMarkers() {
       }).addTo(lmap);
       lFeatLine.bringToBack();
     }
-    placed.forEach(({ ref, idx, pos }) => {
-      const m = L.marker([pos.lat, pos.lng], { icon: pinIcon(idx) }).addTo(lmap);
-      m.on('click', e => {
-        e.originalEvent.stopPropagation();
-        if (!mapEditMode) { closeMap(); goToCard(idx); return; }
-        if (mapSubMode === 'features') { mapPickIdx = idx; refreshMapMarkers(); refreshMapToolbar(); }
-      });
-      lMarkers[ref] = m;
+    // In feature-edit mode show every pin individually so the user can select them.
+    // Otherwise cluster pins that overlap at the current zoom level.
+    const editPicking = mapEditMode && mapSubMode === 'features';
+    const groups = editPicking ? placed.map(p => [p]) : _clusterByPx(placed, 44);
+    groups.forEach(group => {
+      if (group.length === 1) {
+        const { ref, idx, pos } = group[0];
+        const m = L.marker([pos.lat, pos.lng], { icon: pinIcon(idx) }).addTo(lmap);
+        m.on('click', e => {
+          e.originalEvent.stopPropagation();
+          if (!mapEditMode) { closeMap(); goToCard(idx); return; }
+          if (mapSubMode === 'features') { mapPickIdx = idx; refreshMapMarkers(); refreshMapToolbar(); }
+        });
+        lMarkers[ref] = m;
+      } else {
+        const centLat = group.reduce((s, p) => s + p.pos.lat, 0) / group.length;
+        const centLng = group.reduce((s, p) => s + p.pos.lng, 0) / group.length;
+        const n = group.length;
+        const sz = Math.min(36 + (n - 1) * 9, 62);
+        const allDone = group.every(g => state.completed[g.ref]);
+        const col = allDone ? '#2a7a3a' : '#1a5c8a';
+        const fs = sz <= 40 ? 14 : 12;
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};border:4px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:${fs}px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.5)">+</div>`,
+          iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
+        });
+        const m = L.marker([centLat, centLng], { icon }).addTo(lmap);
+        m.on('click', e => {
+          e.originalEvent.stopPropagation();
+          if (!mapEditMode) { closeMap(); goToCard(group[0].idx); }
+        });
+      }
     });
   }
   document.getElementById('mapCount').textContent = `${placed.length} / ${ALLCARDS.length} pinned`;
@@ -5006,13 +5046,19 @@ function _overlayDotIcon(group) {
   const sz = Math.min(36 + (n - 1) * 9, 62);
   const marshal = group.find(it => it.type === 'marshal');
   const col = marshal ? (marshal.isSteward ? '#c07800' : '#3a82f7') : '#e55a00';
-  const label = marshal ? escHtml(marshal.code) : escHtml((group[0].name || '').split(' ')[0].slice(0, 5));
   const fs = sz <= 40 ? 11 : sz <= 50 ? 10 : 9;
-  const circleHtml = `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};border:4px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:${fs}px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.5)">${label}</div>`;
-  // Solo obstacle: float the full name above the circle as a label pill
-  if (n === 1 && !marshal) {
-    const LH = 16, G = 3;
-    const W = Math.max(sz, 100);
+  let label, showNameAbove = false;
+  if (n > 1) {
+    label = '+';
+  } else if (marshal) {
+    label = marshal.code;
+  } else {
+    label = (group[0].name || '').split(' ')[0].slice(0, 5);
+    showNameAbove = true;
+  }
+  const circleHtml = `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};border:4px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'DM Mono',monospace;font-size:${fs}px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.5)">${escHtml(label)}</div>`;
+  if (showNameAbove) {
+    const LH = 16, G = 3, W = Math.max(sz, 100);
     return L.divIcon({
       className: '',
       html: `<div style="display:flex;flex-direction:column;align-items:center;gap:${G}px"><div style="background:rgba(0,0,0,0.6);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;color:#e55a00;white-space:nowrap;max-width:${W}px;overflow:hidden;text-overflow:ellipsis;line-height:1.4">${escHtml(group[0].name)}</div>${circleHtml}</div>`,
