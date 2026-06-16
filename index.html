@@ -1357,6 +1357,59 @@ a.w3w-link:active { opacity: 0.7; }
   text-transform: uppercase; letter-spacing: 2px; color: #888;
   border-bottom: 1px solid var(--border);
 }
+/* ── ROLES BUILDER (new event form) ─────────────────────────── */
+.role-chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.role-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 5px 6px 5px 12px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text);
+}
+.role-chip button {
+  background: none; border: none; color: #aaa; cursor: pointer; font-size: 11px;
+  width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
+}
+.role-chip button:hover { color: #c0392b; }
+.role-chip-empty { font-family: 'DM Mono', monospace; font-size: 10px; color: #aaa; margin-top: 4px; }
+/* ── EVENT HUB ───────────────────────────────────────────────── */
+.hub-event-head { padding: 18px 16px 16px; border-bottom: 1px solid var(--border); }
+.hub-event-name { font-family: 'Bebas Neue', cursive; font-size: 24px; letter-spacing: 1px; color: var(--text); }
+.hub-event-meta { font-family: 'DM Mono', monospace; font-size: 11px; color: #888; margin-top: 4px; }
+.hub-state-badge {
+  display: inline-block; margin-top: 10px;
+  font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px;
+  padding: 4px 10px; border-radius: 12px;
+  background: rgba(136,136,136,0.1); color: #888; border: 1px solid rgba(136,136,136,0.25);
+}
+.hub-state-badge.hub-state-published { background: rgba(42,154,58,0.1); color: #2a9a3a; border-color: rgba(42,154,58,0.25); }
+.hub-state-badge.hub-state-live { background: rgba(192,57,43,0.1); color: #c0392b; border-color: rgba(192,57,43,0.25); }
+.hub-state-badge.hub-state-closed { background: rgba(85,85,85,0.1); color: #555; border-color: rgba(85,85,85,0.25); }
+.hub-deliverable-cards { padding: 0 16px 8px; display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.hub-deliverable-card {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 12px 14px;
+}
+.hub-deliverable-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.hub-required-flag {
+  font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--accent); border: 1px solid rgba(229,90,0,0.3); border-radius: 8px; padding: 1px 6px; margin-left: 6px;
+}
+.hub-deliverable-state {
+  font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+  padding: 4px 9px; border-radius: 10px; flex-shrink: 0; margin-left: 10px;
+  background: rgba(136,136,136,0.1); color: #888;
+}
+.hub-dstate-draft { background: rgba(85,128,204,0.1); color: #5580cc; }
+.hub-dstate-in_review { background: rgba(192,120,0,0.1); color: #c07800; }
+.hub-dstate-complete { background: rgba(42,154,58,0.1); color: #2a9a3a; }
+.hub-dstate-published { background: rgba(229,90,0,0.1); color: var(--accent); }
+.hub-role-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  font-size: 13px; color: var(--text);
+}
+.hub-role-count { font-family: 'DM Mono', monospace; font-size: 10px; color: #888; }
+.hub-role-empty, .hub-gate-note { font-family: 'DM Mono', monospace; font-size: 11px; color: #888; }
 .obs-config-item {
   display: flex; align-items: center; gap: 12px;
   padding: 14px 16px; border-bottom: 1px solid var(--border);
@@ -2621,25 +2674,46 @@ a.w3w-link:active { opacity: 0.7; }
   </div>
   <div class="new-event-body">
     <div class="landing-field">
-      <label class="landing-label">Event Name *</label>
-      <input class="landing-input" id="newEventName" type="text" placeholder="e.g. Glasgow Pretty Muddy 2026" oninput="validateNewEvent()">
+      <label class="landing-label">Event Name * <span style="color:#aaa">(max 120 chars)</span></label>
+      <input class="landing-input" id="newEventName" type="text" maxlength="120" placeholder="e.g. Glasgow Pretty Muddy 2026" oninput="validateNewEvent()">
     </div>
     <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
       <div style="flex:1">
-        <label class="landing-label">Location / Venue</label>
-        <input class="landing-input" id="newEventLoc" type="text" placeholder="e.g. Pollok Country Park">
+        <label class="landing-label">Event Date *</label>
+        <input class="landing-input" id="newEventDate" type="date" oninput="validateNewEvent()">
+      </div>
+      <div style="flex-shrink:0;font-family:'DM Mono',monospace;font-size:10px;color:#888;padding-bottom:11px" id="newEventTzLabel"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
+      <div style="flex:1">
+        <label class="landing-label">Location / Venue *</label>
+        <input class="landing-input" id="newEventLoc" type="text" placeholder="e.g. Pollok Country Park" oninput="validateNewEvent()">
       </div>
       <button class="geocode-btn" id="geocodeBtn" onclick="doGeocode()">Find</button>
     </div>
     <div id="geocodeResult" style="display:none;margin-bottom:10px" class="geocode-result"></div>
     <div class="latlon-row" style="margin-bottom:14px">
       <div class="landing-field">
-        <label class="landing-label">Latitude</label>
+        <label class="landing-label">Latitude <span style="color:#aaa">(optional)</span></label>
         <input class="landing-input" id="newEventLat" type="number" step="0.001" placeholder="55.823">
       </div>
       <div class="landing-field">
-        <label class="landing-label">Longitude</label>
+        <label class="landing-label">Longitude <span style="color:#aaa">(optional)</span></label>
         <input class="landing-input" id="newEventLng" type="number" step="0.001" placeholder="-4.298">
+      </div>
+    </div>
+    <div class="landing-field">
+      <label class="landing-label">Event Type *</label>
+      <select class="landing-input" id="newEventType" onchange="validateNewEvent()"></select>
+    </div>
+    <div class="landing-field">
+      <label class="landing-label">Roles Required *</label>
+      <div id="newRolesList" class="role-chip-list"></div>
+      <div style="display:flex;gap:6px;align-items:flex-end;margin-top:8px">
+        <select class="landing-input" id="newRoleTypeSelect" style="flex:1.4" onchange="onRoleTypeSelectChange()"></select>
+        <input class="landing-input" id="newRoleCustomText" type="text" placeholder="Role name" style="flex:1.4;display:none">
+        <input class="landing-input" id="newRoleCount" type="number" min="1" value="1" style="flex:0.6;width:60px">
+        <button class="geocode-btn" type="button" style="margin-bottom:0" onclick="addPendingRole()">+ Add</button>
       </div>
     </div>
     <div class="landing-field">
@@ -2655,6 +2729,29 @@ a.w3w-link:active { opacity: 0.7; }
   </div>
   <div class="new-event-foot">
     <button class="export-btn" id="createEventBtn" onclick="createNewEvent()" style="opacity:.35" disabled>Create Event</button>
+  </div>
+</div>
+
+<!-- EVENT HUB -->
+<div class="config-panel" id="eventHubScreen" style="z-index:160">
+  <div class="config-panel-head">
+    <button class="header-btn" onclick="closeEventHub()" style="color:#666;font-size:20px">&#8592;</button>
+    <div class="panel-head-center">
+      <span class="config-panel-title">Event Hub</span>
+    </div>
+  </div>
+  <div class="config-body">
+    <div class="hub-event-head">
+      <div class="hub-event-name" id="hubEventName"></div>
+      <div class="hub-event-meta" id="hubEventMeta"></div>
+      <div class="hub-state-badge" id="hubEventStateBadge"></div>
+    </div>
+    <div class="config-section-head">Deliverables</div>
+    <div id="hubDeliverableCards" class="hub-deliverable-cards"></div>
+    <div class="config-section-head">Publish Gate</div>
+    <div id="hubPublishGate" style="padding:0 16px 20px"></div>
+    <div class="config-section-head">Roles Summary</div>
+    <div id="hubRolesSummary" style="padding:0 16px 24px"></div>
   </div>
 </div>
 
@@ -3526,9 +3623,89 @@ function showLanding() {
 
 // ── NEW EVENT FORM ────────────────────────────────────────────────────────────
 let parsedCSVCards = [];
+let pendingRoles = [];
+
+const EVENT_TYPE_CATALOG = [
+  { value: 'trail_run', label: 'Trail Run' },
+  { value: 'obstacle_course', label: 'Obstacle Course' },
+  { value: 'road_race', label: 'Road Race' },
+  { value: 'multi_sport', label: 'Multi-Sport' },
+  { value: 'other', label: 'Other' },
+];
+
+const ROLE_TYPE_CATALOG = [
+  { value: 'event_director', label: 'Event Director' },
+  { value: 'event_manager', label: 'Event Manager' },
+  { value: 'hs_officer', label: 'H&S Officer' },
+  { value: 'head_marshal', label: 'Head Marshal' },
+  { value: 'course_marshal', label: 'Course Marshal' },
+  { value: 'water_station_marshal', label: 'Water Station Marshal' },
+  { value: 'sweep_marshal', label: 'Sweep Marshal' },
+  { value: '__other__', label: 'Other…' },
+];
+
+const DELIVERABLE_DEFS = [
+  { key: 'courseMap', label: 'Course Map', requiredToPublish: false },
+  { key: 'riskAssessment', label: 'Risk Assessment', requiredToPublish: true },
+  { key: 'sitePlan', label: 'Site Plan', requiredToPublish: false },
+  { key: 'roles', label: 'Roles', requiredToPublish: true },
+  { key: 'runningOrder', label: 'Running Order', requiredToPublish: false },
+];
+
+const DELIVERABLE_STATE_LABEL = { not_started: 'Not Started', draft: 'Draft', in_review: 'In Review', complete: 'Complete', published: 'Published' };
+const EVENT_STATE_LABEL = { draft: 'Draft', published: 'Published', live: 'Live', closed: 'Closed' };
+
+function emptyDeliverables() {
+  const d = {};
+  DELIVERABLE_DEFS.forEach(def => { d[def.key] = { state: 'not_started' }; });
+  return d;
+}
+
+function onRoleTypeSelectChange() {
+  const sel = document.getElementById('newRoleTypeSelect');
+  const customInput = document.getElementById('newRoleCustomText');
+  if (customInput) customInput.style.display = sel.value === '__other__' ? '' : 'none';
+}
+
+function addPendingRole() {
+  const sel = document.getElementById('newRoleTypeSelect');
+  const countInput = document.getElementById('newRoleCount');
+  let roleType = sel.value;
+  let label;
+  if (roleType === '__other__') {
+    const custom = document.getElementById('newRoleCustomText').value.trim();
+    if (!custom) return;
+    label = custom;
+    roleType = custom.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || ('role_' + Date.now());
+  } else {
+    label = ROLE_TYPE_CATALOG.find(r => r.value === roleType)?.label || roleType;
+  }
+  const count = Math.max(1, parseInt(countInput.value, 10) || 1);
+  const existing = pendingRoles.find(r => r.roleType === roleType);
+  if (existing) { existing.count = count; } else { pendingRoles.push({ roleType, label, count }); }
+  document.getElementById('newRoleCustomText').value = '';
+  countInput.value = '1';
+  renderPendingRoles();
+  validateNewEvent();
+}
+
+function removePendingRole(roleType) {
+  pendingRoles = pendingRoles.filter(r => r.roleType !== roleType);
+  renderPendingRoles();
+  validateNewEvent();
+}
+
+function renderPendingRoles() {
+  const el = document.getElementById('newRolesList');
+  if (!el) return;
+  el.innerHTML = pendingRoles.map(r =>
+    `<div class="role-chip"><span>${escHtml(r.label)} &times; ${r.count}</span><button type="button" onclick="removePendingRole('${r.roleType}')">&#10005;</button></div>`
+  ).join('') || '<div class="role-chip-empty">No roles added yet.</div>';
+}
 
 function openNewEventForm() {
   document.getElementById('newEventName').value = '';
+  document.getElementById('newEventDate').value = '';
   document.getElementById('newEventLoc').value = '';
   document.getElementById('newEventLat').value = '';
   document.getElementById('newEventLng').value = '';
@@ -3537,6 +3714,18 @@ function openNewEventForm() {
   document.getElementById('csvPreview').style.display = 'none';
   document.getElementById('geocodeResult').style.display = 'none';
   parsedCSVCards = [];
+  pendingRoles = [];
+  renderPendingRoles();
+
+  const typeSel = document.getElementById('newEventType');
+  typeSel.innerHTML = EVENT_TYPE_CATALOG.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+  const roleSel = document.getElementById('newRoleTypeSelect');
+  roleSel.innerHTML = ROLE_TYPE_CATALOG.map(r => `<option value="${r.value}">${r.label}</option>`).join('');
+  onRoleTypeSelectChange();
+
+  const tzLabel = document.getElementById('newEventTzLabel');
+  if (tzLabel) tzLabel.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
   validateNewEvent();
   document.getElementById('newEventScreen').classList.add('open');
 }
@@ -3547,24 +3736,54 @@ function closeNewEventForm() {
 
 function validateNewEvent() {
   const name = document.getElementById('newEventName').value.trim();
+  const date = document.getElementById('newEventDate').value;
+  const loc = document.getElementById('newEventLoc').value.trim();
+  const type = document.getElementById('newEventType').value;
   const btn = document.getElementById('createEventBtn');
-  btn.disabled = !name;
-  btn.style.opacity = name ? '1' : '.35';
+  const ok = !!(name && date && loc && type && pendingRoles.length);
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '.35';
+}
+
+function writeEventAudit(eventId, action, extra = {}) {
+  const key = 'ofcourse_state_' + eventId;
+  let s;
+  try { s = JSON.parse(localStorage.getItem(key)) || {}; } catch(e) { s = {}; }
+  s = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, tagsMeta: {}, obstacleCapacity: {}, obstacleCapacityMeta: {}, ...s };
+  const auth = _authUser();
+  s.audit.push({
+    ref: eventId, action,
+    user: auth?.user?.name || 'Unknown',
+    role: MANAGE_ACCT_ROLE_LABEL[auth?.user?.roleGroup] || '',
+    event: eventId,
+    ts: new Date().toISOString(),
+    ...extra,
+  });
+  localStorage.setItem(key, JSON.stringify(s));
+  _sPush('state_' + eventId, s, 0);
 }
 
 function createNewEvent() {
   if (!_isStaff()) { alert('Only CRUK Staff accounts can create events.'); return; }
-  const name = document.getElementById('newEventName').value.trim();
-  if (!name) return;
+  const name = document.getElementById('newEventName').value.trim().slice(0, 120);
+  const eventDate = document.getElementById('newEventDate').value;
   const loc = document.getElementById('newEventLoc').value.trim();
+  const eventType = document.getElementById('newEventType').value;
+  if (!name || !eventDate || !loc || !eventType || !pendingRoles.length) return;
   const lat = parseFloat(document.getElementById('newEventLat').value) || null;
   const lng = parseFloat(document.getElementById('newEventLng').value) || null;
   const id = 'evt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const nowIso = new Date().toISOString();
+  const auth = _authUser();
+  const eventTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const rolesRequired = pendingRoles.slice();
   const newEvt = {
     id, name, displayName: name, badge: 'Custom Event',
     location: loc, lat: lat || 54.5, lng: lng || -3.0,
-    createdAt: new Date().toISOString(), builtIn: false,
-    ownerId: _authUser()?.user?.id || '', ownerName: _authUser()?.user?.name || '',
+    eventDate, eventTimeZone, eventType, rolesRequired,
+    eventState: 'draft', deliverables: emptyDeliverables(),
+    createdAt: nowIso, builtIn: false,
+    ownerId: auth?.user?.id || '', ownerName: auth?.user?.name || '',
     assignedUserIds: [],
   };
   if (parsedCSVCards.length) {
@@ -3576,8 +3795,74 @@ function createNewEvent() {
   userEvents.push(newEvt);
   saveUserEvents();
   parsedCSVCards = [];
+  writeEventAudit(id, 'EventCreated', {
+    createdBy: auth?.user?.name || 'Unknown',
+    createdAt: nowIso,
+    basicDetails: { name, eventDate, eventTimeZone, location: loc, lat: newEvt.lat, lng: newEvt.lng, eventType, rolesRequired },
+  });
   closeNewEventForm();
   renderEventsList();
+  openEventHub(id);
+}
+
+// ── EVENT HUB ─────────────────────────────────────────────────────────────────
+function openEventHub(id) {
+  const evt = userEvents.find(e => e.id === id);
+  if (!evt) return;
+  renderEventHub(evt);
+  document.getElementById('eventHubScreen').classList.add('open');
+}
+
+function closeEventHub() {
+  document.getElementById('eventHubScreen').classList.remove('open');
+}
+
+function formatHubDate(dateStr, tz) {
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    const formatted = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    return tz ? `${formatted} (${tz})` : formatted;
+  } catch(e) { return dateStr; }
+}
+
+function renderEventHub(evt) {
+  document.getElementById('hubEventName').textContent = evt.displayName || evt.name;
+  const typeLabel = EVENT_TYPE_CATALOG.find(t => t.value === evt.eventType)?.label || evt.eventType || '';
+  document.getElementById('hubEventMeta').textContent = [
+    evt.eventDate ? formatHubDate(evt.eventDate, evt.eventTimeZone) : '',
+    evt.location || '', typeLabel,
+  ].filter(Boolean).join(' · ');
+
+  const stateBadge = document.getElementById('hubEventStateBadge');
+  const eventState = evt.eventState || 'draft';
+  stateBadge.textContent = EVENT_STATE_LABEL[eventState] || 'Draft';
+  stateBadge.className = 'hub-state-badge hub-state-' + eventState;
+
+  const deliverables = evt.deliverables || emptyDeliverables();
+  document.getElementById('hubDeliverableCards').innerHTML = DELIVERABLE_DEFS.map(d => {
+    const dState = (deliverables[d.key] && deliverables[d.key].state) || 'not_started';
+    return `<div class="hub-deliverable-card">
+      <div class="hub-deliverable-name">${d.label}${d.requiredToPublish ? '<span class="hub-required-flag">Required</span>' : ''}</div>
+      <div class="hub-deliverable-state hub-dstate-${dState}">${DELIVERABLE_STATE_LABEL[dState]}</div>
+    </div>`;
+  }).join('');
+
+  const requiredOk = DELIVERABLE_DEFS.filter(d => d.requiredToPublish).every(d => {
+    const s = (deliverables[d.key] && deliverables[d.key].state) || 'not_started';
+    return s === 'complete' || s === 'published';
+  });
+  const outstanding = DELIVERABLE_DEFS.filter(d => d.requiredToPublish).filter(d => {
+    const s = (deliverables[d.key] && deliverables[d.key].state) || 'not_started';
+    return !(s === 'complete' || s === 'published');
+  });
+  document.getElementById('hubPublishGate').innerHTML = requiredOk
+    ? '<div class="hub-gate-note">All required deliverables are Complete. Publishing isn\'t available in this build yet.</div>'
+    : `<div class="hub-gate-note">Outstanding before this event can publish: ${outstanding.map(d => escHtml(d.label)).join(', ')}.</div>`;
+
+  const roles = evt.rolesRequired || [];
+  document.getElementById('hubRolesSummary').innerHTML = roles.length
+    ? roles.map(r => `<div class="hub-role-row"><span>${escHtml(r.label)}</span><span class="hub-role-count">0 / ${r.count} filled</span></div>`).join('')
+    : '<div class="hub-role-empty">No roles defined.</div>';
 }
 
 async function doGeocode() {
@@ -7197,6 +7482,8 @@ function _buildLiveEvents() {
       desc = 'EC update added' + (e.label ? ': ' + e.label : ''); dotCls = 'live-feed-dot-edit';
     } else if (e.action === 'ec_thread_delete') {
       desc = 'EC thread deleted' + (e.label ? ': ' + e.label : ''); dotCls = 'live-feed-dot-undo';
+    } else if (e.action === 'EventCreated') {
+      desc = 'Event created' + (e.basicDetails?.name ? ': ' + e.basicDetails.name : ''); dotCls = 'live-feed-dot-edit';
     } else {
       desc = e.action;
     }
