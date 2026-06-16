@@ -2608,17 +2608,7 @@ a.w3w-link:active { opacity: 0.7; }
 <!-- LANDING SCREEN -->
 <div class="landing" id="landingScreen">
   <div class="landing-logo">ofCourse</div>
-  <div class="landing-tagline">Event Day Setup</div>
-  <div class="landing-form">
-    <div class="landing-field">
-      <label class="landing-label" for="inputName">Your Name</label>
-      <input class="landing-input" id="inputName" type="text" placeholder="e.g. Jamie Smith" autocomplete="name" oninput="onLandingInput()">
-    </div>
-    <div class="landing-field">
-      <label class="landing-label" for="inputRole">Role</label>
-      <input class="landing-input" id="inputRole" type="text" placeholder="e.g. Course Manager" autocomplete="organization-title" oninput="onLandingInput()">
-    </div>
-  </div>
+  <div class="landing-tagline" id="landingGreeting">Event Day Setup</div>
   <div class="landing-section-label">Your Events</div>
   <div class="events-list" id="eventsListContainer"></div>
   <button class="landing-add-btn" id="addNewEventBtn" onclick="openNewEventForm()">+ Add New Event</button>
@@ -3445,8 +3435,7 @@ async function submitLogin() {
 }
 
 function onLandingInput() {
-  const name = document.getElementById('inputName').value.trim();
-  const ready = name.length > 0 && selectedEventId.length > 0;
+  const ready = selectedEventId.length > 0;
   document.getElementById('landingBtn').classList.toggle('ready', ready);
 }
 
@@ -3457,9 +3446,10 @@ function selectEventById(id) {
 }
 
 function startSession() {
-  const name = document.getElementById('inputName').value.trim();
+  const auth = _authUser();
+  const name = auth?.user?.name || '';
   if (!name || !selectedEventId) return;
-  currentUser = { name, role: document.getElementById('inputRole').value.trim(), event: selectedEventId };
+  currentUser = { name, role: MANAGE_ACCT_ROLE_LABEL[auth.user.roleGroup] || '', event: selectedEventId };
   saveUser();
   activateEvent(selectedEventId);
   if (w3wApiKey) autoResolveW3WPins();
@@ -3531,8 +3521,9 @@ function showLanding() {
   const el = document.getElementById('landingScreen');
   el.style.display = 'flex';
   el.classList.remove('out');
-  if (currentUser.name) document.getElementById('inputName').value = currentUser.name;
-  if (currentUser.role) document.getElementById('inputRole').value = currentUser.role;
+  const auth = _authUser();
+  const greeting = document.getElementById('landingGreeting');
+  if (greeting) greeting.textContent = auth?.user?.name ? `Hi, ${auth.user.name}` : 'Event Day Setup';
   const addBtn = document.getElementById('addNewEventBtn');
   if (addBtn) addBtn.style.display = _isStaff() ? '' : 'none';
   renderEventsList();
