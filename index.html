@@ -2565,6 +2565,31 @@ a.w3w-link:active { opacity: 0.7; }
 </head>
 <body>
 
+<!-- LOGIN SCREEN -->
+<div class="landing" id="loginScreen" style="z-index:1000;display:none">
+  <div class="landing-logo">ofCourse</div>
+  <div class="landing-tagline">Sign In</div>
+  <div class="landing-form">
+    <div class="landing-field" id="loginNameField" style="display:none">
+      <label class="landing-label" for="loginName">Your Name</label>
+      <input class="landing-input" id="loginName" type="text" placeholder="e.g. Jamie Smith" autocomplete="name" oninput="onLoginInput()">
+    </div>
+    <div class="landing-field">
+      <label class="landing-label" for="loginUsername">Username</label>
+      <input class="landing-input" id="loginUsername" type="text" placeholder="e.g. jsmith" autocomplete="username" oninput="onLoginInput()">
+    </div>
+    <div class="landing-field">
+      <label class="landing-label" for="loginPassword">Password</label>
+      <input class="landing-input" id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password" oninput="onLoginInput()" onkeydown="if(event.key==='Enter')submitLogin()">
+    </div>
+  </div>
+  <div class="landing-section-label" id="loginError" style="display:none;color:#c0392b"></div>
+  <button class="landing-btn ready" id="loginBtn" onclick="submitLogin()">Log In &#8594;</button>
+  <div id="loginBootstrapHint" style="display:none;margin-top:16px;text-align:center;font-family:'DM Mono',monospace;font-size:10px;color:#666;max-width:360px">
+    No accounts exist yet — the account you create here becomes the first CRUK Staff admin.
+  </div>
+</div>
+
 <!-- LANDING SCREEN -->
 <div class="landing" id="landingScreen">
   <div class="landing-logo">ofCourse</div>
@@ -2581,7 +2606,7 @@ a.w3w-link:active { opacity: 0.7; }
   </div>
   <div class="landing-section-label">Your Events</div>
   <div class="events-list" id="eventsListContainer"></div>
-  <button class="landing-add-btn" onclick="openNewEventForm()">+ Add New Event</button>
+  <button class="landing-add-btn" id="addNewEventBtn" onclick="openNewEventForm()">+ Add New Event</button>
   <button class="landing-btn" id="landingBtn" onclick="startSession()">Let's Go →</button>
 </div>
 
@@ -2674,7 +2699,7 @@ a.w3w-link:active { opacity: 0.7; }
       </div>
       <div class="choice-option-arrow">&#8594;</div>
     </button>
-    <button class="choice-option" onclick="openConfigPanel(); hideChoiceScreen()">
+    <button class="choice-option" id="adminTileBtn" onclick="openConfigPanel(); hideChoiceScreen()" style="display:none">
       <div class="choice-option-icon">&#9881;</div>
       <div class="choice-option-body">
         <div class="choice-option-title">Administration</div>
@@ -3072,7 +3097,7 @@ function refreshAllCards() {
     ALLCARDS.push(activeCards[i]);
     ALL_RESOLVED_DISTS.push(resolvedDists[i]);
     const customs = (state.customCards || [])
-      .filter(c => c.parentRef === activeCards[i].ref)
+      .filter(c => c.parentRef === activeCards[i].ref && !c.deleted)
       .sort((a, b) => a.subIdx - b.subIdx);
     customs.forEach(c => {
       ALLCARDS.push(c);
@@ -3297,6 +3322,87 @@ function loadUser() {
 }
 function saveUser() { localStorage.setItem(USER_KEY, JSON.stringify(currentUser)); }
 
+// ── AUTH (role-based access) ──────────────────────────────────────────────────
+const AUTH_KEY = 'ofcourse_auth';
+let _loginMode = 'login';
+
+function _authUser() {
+  try { const s = localStorage.getItem(AUTH_KEY); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+}
+function _saveAuth(a) { localStorage.setItem(AUTH_KEY, JSON.stringify(a)); }
+function _clearAuth() { localStorage.removeItem(AUTH_KEY); }
+function _isStaff() { return _authUser()?.roleGroup === 'cruk_staff'; }
+function _canAdminister() { const r = _authUser()?.roleGroup; return r === 'cruk_staff' || r === 'cruk_freelancer'; }
+
+function logOut() {
+  _clearAuth();
+  location.reload();
+}
+
+async function initLoginGate() {
+  const el = document.getElementById('loginScreen');
+  const auth = _authUser();
+  if (auth) {
+    el.style.display = 'none';
+    // Opportunistic background re-validation only — never blocks app usage, since the app
+    // must keep working fully offline once a device has logged in at least once.
+    fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + auth.token } })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => { const a = _authUser(); if (a) { a.user = d.user; a.roleGroup = d.user.roleGroup; _saveAuth(a); } })
+      .catch(() => {});
+    return;
+  }
+  el.style.display = 'flex';
+  try {
+    const r = await fetch('/api/auth/bootstrap');
+    const d = await r.json();
+    _loginMode = d.empty ? 'bootstrap' : 'login';
+  } catch(e) {
+    _loginMode = 'login';
+  }
+  document.getElementById('loginNameField').style.display = _loginMode === 'bootstrap' ? '' : 'none';
+  document.getElementById('loginBtn').textContent = _loginMode === 'bootstrap' ? 'Create Admin Account →' : 'Log In →';
+  document.getElementById('loginBootstrapHint').style.display = _loginMode === 'bootstrap' ? '' : 'none';
+}
+
+function onLoginInput() {
+  document.getElementById('loginError').style.display = 'none';
+}
+
+async function submitLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const name = document.getElementById('loginName').value.trim();
+  const err = document.getElementById('loginError');
+  if (!username || !password || (_loginMode === 'bootstrap' && !name)) {
+    err.textContent = 'Please fill in all fields.'; err.style.display = 'block'; return;
+  }
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  try {
+    if (_loginMode === 'bootstrap') {
+      const r = await fetch('/api/auth/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, name, roleGroup: 'cruk_staff' }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Could not create account');
+    }
+    const r2 = await fetch('/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const d2 = await r2.json();
+    if (!r2.ok) throw new Error(d2.error || 'Login failed');
+    _saveAuth({ token: d2.token, user: d2.user, roleGroup: d2.user.roleGroup });
+    document.getElementById('loginScreen').style.display = 'none';
+  } catch(e) {
+    err.textContent = e.message || 'Something went wrong'; err.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function onLandingInput() {
   const name = document.getElementById('inputName').value.trim();
   const ready = name.length > 0 && selectedEventId.length > 0;
@@ -3342,6 +3448,8 @@ function showChoiceScreen() {
   } else {
     pill.style.display = 'none';
   }
+  const adminTile = document.getElementById('adminTileBtn');
+  if (adminTile) adminTile.style.display = _canAdminister() ? '' : 'none';
   const el = document.getElementById('choiceScreen');
   el.style.display = 'flex';
   el.classList.remove('out');
@@ -3384,6 +3492,8 @@ function showLanding() {
   el.classList.remove('out');
   if (currentUser.name) document.getElementById('inputName').value = currentUser.name;
   if (currentUser.role) document.getElementById('inputRole').value = currentUser.role;
+  const addBtn = document.getElementById('addNewEventBtn');
+  if (addBtn) addBtn.style.display = _isStaff() ? '' : 'none';
   renderEventsList();
   onLandingInput();
   history.replaceState({}, '', '/');
@@ -3418,6 +3528,7 @@ function validateNewEvent() {
 }
 
 function createNewEvent() {
+  if (!_isStaff()) { alert('Only CRUK Staff accounts can create events.'); return; }
   const name = document.getElementById('newEventName').value.trim();
   if (!name) return;
   const loc = document.getElementById('newEventLoc').value.trim();
@@ -3703,12 +3814,12 @@ function confirmDeleteEvent() {
 }
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, obstacleCapacity: {} };
+let state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, tagsMeta: {}, obstacleCapacity: {}, obstacleCapacityMeta: {} };
 
 function loadState() {
   try {
     const saved = localStorage.getItem(LS_KEY);
-    if (saved) state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, obstacleCapacity: {}, ...JSON.parse(saved) };
+    if (saved) state = { currentIndex: 0, completed: {}, notes: {}, noteMeta: {}, audit: [], customCards: [], cardEdits: {}, cardEditSummary: {}, reviewed: {}, tags: {}, tagsMeta: {}, obstacleCapacity: {}, obstacleCapacityMeta: {}, ...JSON.parse(saved) };
   } catch(e) {}
 }
 function saveState() {
@@ -3820,37 +3931,55 @@ function _mergeAudit(local, remote) {
   }).sort((a, b) => (a.ts > b.ts ? 1 : -1));
 }
 
-function _mergeControlLogs(local, remote) {
-  const byId = {};
-  [...(remote || []), ...(local || [])].forEach(e => { if (e && e.id) byId[e.id] = e; });
-  return Object.values(byId).sort((a, b) => (a.ts > b.ts ? 1 : -1));
+// Merge two arrays of objects keyed by `keyField`, keeping whichever side's entry
+// has the later modification timestamp. Entries are never dropped — deletions must
+// be represented as a `deleted:true` flag with a fresh timestamp, otherwise a stale
+// device re-pushing its old copy will resurrect anything actually removed.
+function _mergeByKeyTs(local, remote, keyField, modTsField, fallbackField) {
+  const byKey = {};
+  [...(remote || []), ...(local || [])].forEach(e => {
+    if (!e || !(keyField in e)) return;
+    const key = e[keyField];
+    const ts = e[modTsField] || e[fallbackField] || '';
+    const existing = byKey[key];
+    const exTs = existing ? (existing[modTsField] || existing[fallbackField] || '') : '';
+    if (!existing || ts >= exTs) byKey[key] = e;
+  });
+  return Object.values(byKey);
 }
 
 function _mergeMarshalBoard(local, remote) {
   const out = {};
   const codes = new Set([...Object.keys(local || {}), ...Object.keys(remote || {})]);
   codes.forEach(code => {
-    const byId = {};
-    [...(remote?.[code]?.slots || []), ...(local?.[code]?.slots || [])].forEach(s => {
-      if (!byId[s.id] || s.statusTs >= byId[s.id].statusTs) byId[s.id] = s;
-    });
-    out[code] = { slots: Object.values(byId) };
+    out[code] = { slots: _mergeByKeyTs(local?.[code]?.slots, remote?.[code]?.slots, 'id', 'statusTs', 'statusTs') };
   });
   return out;
 }
 
-function _mergeCustomCards(local, remote) {
-  const byRef = {};
-  [...(remote || []), ...(local || [])].forEach(c => { byRef[c.ref] = c; });
-  return Object.values(byRef);
-}
-
-function _mergeTags(local, remote) {
+// Last-modified-per-key timestamp maps (e.g. tagsMeta, obstacleCapacityMeta) — value is the ISO ts itself.
+function _mergeTsMap(local, remote) {
   const out = { ...(remote || {}) };
-  Object.entries(local || {}).forEach(([ref, tags]) => {
-    out[ref] = [...new Set([...(out[ref] || []), ...tags])];
+  Object.entries(local || {}).forEach(([k, v]) => {
+    if ((v || '') >= (out[k] || '')) out[k] = v;
   });
   return out;
+}
+
+// Merge two ref-keyed data objects using sibling *Meta timestamp maps to decide which
+// side's whole value wins per ref. Falls back to preferring local when neither side has
+// recorded a timestamp for that ref (legacy data written before *Meta existed).
+function _mergeMetaKeyed(localData, remoteData, localMeta, remoteMeta) {
+  const data = {};
+  const keys = new Set([...Object.keys(localData || {}), ...Object.keys(remoteData || {})]);
+  keys.forEach(k => {
+    const lts = localMeta?.[k] || '';
+    const rts = remoteMeta?.[k] || '';
+    if (!lts && !rts) data[k] = (k in (localData || {})) ? localData[k] : remoteData[k];
+    else if (lts >= rts) data[k] = localData[k];
+    else data[k] = remoteData[k];
+  });
+  return data;
 }
 
 function _mergeStateObj(local, remote) {
@@ -3861,6 +3990,8 @@ function _mergeStateObj(local, remote) {
     const rts = remote.noteMeta?.[ref]?.ts || '';
     if (lts >= rts) notes[ref] = local.notes[ref];
   });
+  const tagsMeta = _mergeTsMap(local.tagsMeta, remote.tagsMeta);
+  const obstacleCapacityMeta = _mergeTsMap(local.obstacleCapacityMeta, remote.obstacleCapacityMeta);
   return {
     ...local,
     completed:       _mergeUnion(local.completed, remote.completed),
@@ -3869,11 +4000,13 @@ function _mergeStateObj(local, remote) {
     noteMeta:        _mergeByRefTs(local.noteMeta, remote.noteMeta, v => v?.ts || ''),
     cardEdits:       _mergeByRefTs(local.cardEdits, remote.cardEdits, v => v?._ts || ''),
     cardEditSummary: _mergeByRefTs(local.cardEditSummary, remote.cardEditSummary, v => v?._ts || ''),
-    tags:            _mergeTags(local.tags, remote.tags),
-    obstacleCapacity: { ...(remote.obstacleCapacity || {}), ...(local.obstacleCapacity || {}) },
+    tags:            _mergeMetaKeyed(local.tags, remote.tags, local.tagsMeta, remote.tagsMeta),
+    tagsMeta,
+    obstacleCapacity: _mergeMetaKeyed(local.obstacleCapacity, remote.obstacleCapacity, local.obstacleCapacityMeta, remote.obstacleCapacityMeta),
+    obstacleCapacityMeta,
     audit:           _mergeAudit(local.audit, remote.audit),
-    customCards:     _mergeCustomCards(local.customCards, remote.customCards),
-    controlLogs:     _mergeControlLogs(local.controlLogs, remote.controlLogs),
+    customCards:     _mergeByKeyTs(local.customCards, remote.customCards, 'ref', '_modTs', 'createdAt'),
+    controlLogs:     _mergeByKeyTs(local.controlLogs, remote.controlLogs, 'id', '_modTs', 'ts'),
     ecConfig:        { ...(remote.ecConfig || {}), ...(local.ecConfig || {}) },
     marshalBoard:    _mergeMarshalBoard(local.marshalBoard, remote.marshalBoard),
     currentIndex:    local.currentIndex,
@@ -4291,7 +4424,7 @@ function startAddTagInNotes(cardRef) {
     if (tag) {
       if (!state.tags) state.tags = {};
       if (!state.tags[cardRef]) state.tags[cardRef] = [];
-      if (!state.tags[cardRef].includes(tag)) { state.tags[cardRef].push(tag); saveState(); }
+      if (!state.tags[cardRef].includes(tag)) { state.tags[cardRef].push(tag); _bumpTagsMeta(cardRef); saveState(); }
     }
     renderNotesTagRow(cardRef);
   };
@@ -6212,14 +6345,16 @@ function saveAddCardInline() {
   const letter = 'abcdefghijklmnopqrstuvwxyz'[existing.length] || String(existing.length + 1);
   const newRef = parentRef + letter;
 
+  const _now = new Date().toISOString();
   const newCard = {
     ref: newRef, parentRef, subIdx: existing.length,
     loc, description: desc, isCustom: true,
     netR: _inlineNetR, resR: 0,
     signs: getSelectedSigns('inlineadd'),
     obstacle: false, dist: '', w3w: '',
-    createdAt: new Date().toISOString(),
+    createdAt: _now,
     createdBy: currentUser.name || 'Unknown',
+    _modTs: _now,
   };
 
   if (!state.customCards) state.customCards = [];
@@ -6243,10 +6378,11 @@ function saveAddCardInline() {
 
 function deleteCustomCard(ref) {
   if (!confirm('Remove this field addition? This cannot be undone.')) return;
-  const idx = (state.customCards || []).findIndex(c => c.ref === ref);
-  if (idx === -1) return;
+  const card = (state.customCards || []).find(c => c.ref === ref);
+  if (!card) return;
   auditEntry(ref, 'field_addition_delete', {});
-  state.customCards.splice(idx, 1);
+  card.deleted = true;
+  card._modTs = new Date().toISOString();
   delete state.completed[ref];
   delete state.notes[ref];
   delete mapPins[ref];
@@ -6259,6 +6395,7 @@ function deleteCustomCard(ref) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
+initLoginGate();
 loadUser();
 loadUserEvents();
 loadW3WKey();
@@ -6543,6 +6680,10 @@ function _derivePosStatus(slots) {
   return 'assigned';
 }
 
+function _liveSlots(code) {
+  return (state.marshalBoard[code]?.slots || []).filter(s => !s.deleted);
+}
+
 function _getMarshalPositions() {
   const seen = new Set();
   const positions = [];
@@ -6572,7 +6713,7 @@ function renderMarshalBoard() {
   // Auto-derive overall progress from slot statuses
   let activePos = 0, inPosCount = 0;
   positions.forEach(({ code }) => {
-    const ps = _derivePosStatus(state.marshalBoard[code]?.slots);
+    const ps = _derivePosStatus(_liveSlots(code));
     if (ps !== null && ps !== 'stood_down') activePos++;
     if (ps === 'in_position') inPosCount++;
   });
@@ -6585,7 +6726,7 @@ function renderMarshalBoard() {
   // Roster: all named slots across all positions, sorted by sign-in time
   const roster = [];
   positions.forEach(({ code, loc }) => {
-    (state.marshalBoard[code]?.slots || []).forEach(slot => {
+    _liveSlots(code).forEach(slot => {
       if (slot.name) roster.push({ ...slot, code, loc });
     });
   });
@@ -6648,7 +6789,7 @@ function renderMarshalBoard() {
   }
 
   const positionsHtml = positions.map(({ code, loc }) => {
-    const slots = state.marshalBoard[code]?.slots || [];
+    const slots = _liveSlots(code);
     const activeSlots = slots.filter(s => s.status !== 'stood_down');
     const stoodDownSlots = slots.filter(s => s.status === 'stood_down');
     const isExpanded = _marshalExpandedStoodDown.has(code);
@@ -6787,6 +6928,7 @@ function marshalSubmitSignIn() {
   state.controlLogs.push({
     id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
     ts: now,
+    _modTs: now,
     from: 'Marshal',
     fromDetail: code,
     title: `${code} — ${name} signed in`,
@@ -6809,7 +6951,10 @@ function marshalToggleStoodDown(code) {
 
 function marshalRemoveSlot(code, slotId) {
   if (!state.marshalBoard?.[code]) return;
-  state.marshalBoard[code].slots = state.marshalBoard[code].slots.filter(s => s.id !== slotId);
+  const slot = state.marshalBoard[code].slots.find(s => s.id === slotId);
+  if (!slot) return;
+  slot.deleted = true;
+  slot.statusTs = new Date().toISOString();
   saveState();
   renderMarshalBoard();
 }
@@ -6826,10 +6971,12 @@ function marshalSetStatus(code, slotId, newStatus) {
   const loc = pos?.loc || '';
   const label = newStatus === 'in_position' ? 'In Position' : 'Stood Down';
   const nameLabel = slot.name ? ` (${slot.name})` : '';
+  const _logTs = new Date().toISOString();
   if (!state.controlLogs) state.controlLogs = [];
   state.controlLogs.push({
     id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-    ts: new Date().toISOString(),
+    ts: _logTs,
+    _modTs: _logTs,
     from: 'Marshal',
     fromDetail: code,
     title: `${code}${nameLabel} — ${label}`,
@@ -6902,6 +7049,7 @@ function submitEcEntry() {
   const entry = {
     id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
     ts,
+    _modTs: ts,
     from: fromType,
     fromDetail,
     title,
@@ -6922,9 +7070,12 @@ function deleteEcThread(rootId) {
   if (!confirm('Delete this thread and all its updates? This cannot be undone.')) return;
   const root = (state.controlLogs || []).find(e => e.id === rootId);
   const label = root ? (root.title || root.description || '').slice(0, 50) : '';
-  const threadIds = new Set((state.controlLogs || []).filter(e => e.id === rootId || e.parentId === rootId).map(e => e.id));
-  state.controlLogs = (state.controlLogs || []).filter(e => !threadIds.has(e.id));
-  auditEntry('ec', 'ec_thread_delete', { label, count: threadIds.size });
+  const now = new Date().toISOString();
+  let count = 0;
+  (state.controlLogs || []).forEach(e => {
+    if (e.id === rootId || e.parentId === rootId) { e.deleted = true; e._modTs = now; count++; }
+  });
+  auditEntry('ec', 'ec_thread_delete', { label, count });
   saveState();
   renderEcFeed();
 }
@@ -6932,7 +7083,7 @@ function deleteEcThread(rootId) {
 function renderEcFeed() {
   const feed = document.getElementById('ecFeed');
   if (!feed) return;
-  const logs = state.controlLogs || [];
+  const logs = (state.controlLogs || []).filter(e => !e.deleted);
   const roots = logs.filter(e => !e.parentId).sort((a, b) => new Date(b.ts) - new Date(a.ts));
   const byParent = {};
   logs.forEach(e => { if (e.parentId) (byParent[e.parentId] = byParent[e.parentId] || []).push(e); });
@@ -7130,30 +7281,114 @@ function shareLiveFeed() {
 let _adminSection = 'home';
 
 function adminShowSection(section) {
-  ['adminHome', 'adminAuditLog', 'adminConfigMenu', 'adminObstacleConfig', 'adminMenuConfig'].forEach(id => {
+  if (section === 'manageAccounts' && !_isStaff()) { alert('Manage Accounts is only available to CRUK Staff.'); return; }
+  ['adminHome', 'adminAuditLog', 'adminConfigMenu', 'adminObstacleConfig', 'adminMenuConfig', 'adminManageAccounts'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  const idMap = { home: 'adminHome', auditLog: 'adminAuditLog', configMenu: 'adminConfigMenu', obstacleConfig: 'adminObstacleConfig', menuConfig: 'adminMenuConfig' };
+  const idMap = { home: 'adminHome', auditLog: 'adminAuditLog', configMenu: 'adminConfigMenu', obstacleConfig: 'adminObstacleConfig', menuConfig: 'adminMenuConfig', manageAccounts: 'adminManageAccounts' };
   const target = document.getElementById(idMap[section] || 'adminHome');
   if (target) target.style.display = '';
-  const titles = { home: 'Administration', auditLog: 'Audit Log', configMenu: 'Configuration', obstacleConfig: 'Obstacle Configuration', menuConfig: 'Menu Configuration' };
+  const titles = { home: 'Administration', auditLog: 'Audit Log', configMenu: 'Configuration', obstacleConfig: 'Obstacle Configuration', menuConfig: 'Menu Configuration', manageAccounts: 'Manage Accounts' };
   const titleEl = document.getElementById('adminPanelTitle');
   if (titleEl) titleEl.textContent = titles[section] || 'Administration';
   const refreshBtn = document.getElementById('adminRefreshBtn');
   if (refreshBtn) refreshBtn.style.visibility = section === 'auditLog' ? 'visible' : 'hidden';
   _adminSection = section;
+  if (section === 'home') {
+    const tile = document.getElementById('adminAccountsTile');
+    if (tile) tile.style.display = _isStaff() ? '' : 'none';
+    const who = document.getElementById('adminLoggedInAs');
+    if (who) who.textContent = _authUser()?.user?.name || '';
+  }
   if (section === 'auditLog') renderLiveFeed();
   if (section === 'obstacleConfig') renderObstacleConfig();
   if (section === 'menuConfig') { renderEcConfig(); renderMapCacheSection(); }
+  if (section === 'manageAccounts') renderManageAccounts();
 }
 
 function adminBack() {
-  const parentMap = { auditLog: 'home', configMenu: 'home', obstacleConfig: 'configMenu', menuConfig: 'configMenu' };
+  const parentMap = { auditLog: 'home', configMenu: 'home', obstacleConfig: 'configMenu', menuConfig: 'configMenu', manageAccounts: 'home' };
   if (_adminSection === 'home') { closeConfigPanel(); } else { adminShowSection(parentMap[_adminSection] || 'home'); }
 }
 
+const MANAGE_ACCT_ROLE_LABEL = { cruk_staff: 'CRUK Staff', cruk_freelancer: 'CRUK Freelancer', volunteer: 'Volunteer / Event day staff' };
+
+async function renderManageAccounts() {
+  const el = document.getElementById('manageAccountsList');
+  if (!el) return;
+  el.innerHTML = '<div style="color:#888;font-family:\'DM Mono\',monospace;font-size:11px">Loading…</div>';
+  try {
+    const r = await fetch('/api/auth/users', { headers: { Authorization: 'Bearer ' + _authUser().token } });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Could not load accounts');
+    el.innerHTML = (d.users || []).map(u => `
+      <div class="ec-config-section" style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;color:#1a1a14">${escHtml(u.name)} <span style="color:#888;font-size:13px">@${escHtml(u.username)}</span></div>
+          </div>
+          <label style="font-family:'DM Mono',monospace;font-size:10px;color:#555;display:flex;align-items:center;gap:6px">
+            <input type="checkbox" ${u.active ? 'checked' : ''} onchange="setAccountActive('${u.id}', this.checked)"> Active
+          </label>
+        </div>
+        <select class="landing-input" style="margin-top:8px;height:38px" onchange="setAccountRole('${u.id}', this.value)">
+          ${Object.entries(MANAGE_ACCT_ROLE_LABEL).map(([v, label]) =>
+            `<option value="${v}" ${u.roleGroup === v ? 'selected' : ''}>${label}</option>`).join('')}
+        </select>
+      </div>`).join('') || '<div style="color:#888;font-family:\'DM Mono\',monospace;font-size:11px">No accounts yet.</div>';
+  } catch(e) {
+    el.innerHTML = '<div style="color:#c0392b;font-family:\'DM Mono\',monospace;font-size:11px">' + escHtml(e.message) + '</div>';
+  }
+}
+
+async function submitAddAccount() {
+  const name = document.getElementById('newAcctName').value.trim();
+  const username = document.getElementById('newAcctUsername').value.trim();
+  const password = document.getElementById('newAcctPassword').value;
+  const roleGroup = document.getElementById('newAcctRole').value;
+  const err = document.getElementById('manageAcctError');
+  err.style.display = 'none';
+  if (!name || !username || !password) {
+    err.textContent = 'Name, username and password are required.'; err.style.display = 'block'; return;
+  }
+  try {
+    const r = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + _authUser().token },
+      body: JSON.stringify({ name, username, password, roleGroup }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Could not create account');
+    document.getElementById('newAcctName').value = '';
+    document.getElementById('newAcctUsername').value = '';
+    document.getElementById('newAcctPassword').value = '';
+    renderManageAccounts();
+  } catch(e) {
+    err.textContent = e.message; err.style.display = 'block';
+  }
+}
+
+async function setAccountActive(id, active) {
+  await fetch('/api/auth/users/' + id, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + _authUser().token },
+    body: JSON.stringify({ active }),
+  });
+  renderManageAccounts();
+}
+
+async function setAccountRole(id, roleGroup) {
+  await fetch('/api/auth/users/' + id, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + _authUser().token },
+    body: JSON.stringify({ roleGroup }),
+  });
+  renderManageAccounts();
+}
+
 function openConfigPanel() {
+  if (!_canAdminister()) { alert('Administration is only available to CRUK Staff and Freelancer accounts.'); return; }
   _pushRoute('config');
   _updateConfigBreadcrumb();
   adminShowSection('home');
@@ -7184,6 +7419,8 @@ function getObstacleCapTotal(ref) {
 function _saveZones(ref, zones) {
   if (!zones.length) { delete state.obstacleCapacity[ref]; }
   else { state.obstacleCapacity[ref] = { zones }; }
+  if (!state.obstacleCapacityMeta) state.obstacleCapacityMeta = {};
+  state.obstacleCapacityMeta[ref] = new Date().toISOString();
   saveState();
 }
 
@@ -7632,12 +7869,18 @@ async function deleteCurrentPhoto() {
 }
 
 // Tags (card body)
+function _bumpTagsMeta(cardRef) {
+  if (!state.tagsMeta) state.tagsMeta = {};
+  state.tagsMeta[cardRef] = new Date().toISOString();
+}
+
 function removeTag(cardRef, i) {
   if (!state.tags) state.tags = {};
   const tags = state.tags[cardRef];
   if (!tags) return;
   tags.splice(i, 1);
   if (!tags.length) delete state.tags[cardRef];
+  _bumpTagsMeta(cardRef);
   saveState();
   const idx = ALLCARDS.findIndex(c => c.ref === cardRef);
   if (idx >= 0) renderCardMedia(idx);
@@ -7661,7 +7904,7 @@ function startAddTag(cardRef) {
     if (tag) {
       if (!state.tags) state.tags = {};
       if (!state.tags[cardRef]) state.tags[cardRef] = [];
-      if (!state.tags[cardRef].includes(tag)) { state.tags[cardRef].push(tag); saveState(); }
+      if (!state.tags[cardRef].includes(tag)) { state.tags[cardRef].push(tag); _bumpTagsMeta(cardRef); saveState(); }
     }
     const idx = ALLCARDS.findIndex(c => c.ref === cardRef);
     if (idx >= 0) renderCardMedia(idx);
@@ -7756,11 +7999,13 @@ function _routeFromPath() {
     syncAndRenderObstacles();
     if (sub) setTimeout(function() { openObstacleCheck(sub); }, 200);
   } else if (section === 'config') {
+    if (!_canAdminister()) { showChoiceScreen(); return; }
     cs.style.display = 'none';
     _updateConfigBreadcrumb();
     adminShowSection('home');
     document.getElementById('configPanel').classList.add('open');
   } else if (section === 'live') {
+    if (!_canAdminister()) { showChoiceScreen(); return; }
     cs.style.display = 'none';
     _updateConfigBreadcrumb();
     _applyLiveQueryParams();
@@ -7878,7 +8123,53 @@ if (currentUser.name && activeEventId) {
         </div>
         <div class="choice-option-arrow">&#8594;</div>
       </button>
+      <button class="choice-option" id="adminAccountsTile" onclick="adminShowSection('manageAccounts')" style="display:none">
+        <div class="choice-option-icon" style="color:#8855cc">&#128100;</div>
+        <div class="choice-option-body">
+          <div class="choice-option-title">Manage Accounts</div>
+          <div class="choice-option-desc">Create and edit Staff / Freelancer / Volunteer logins</div>
+        </div>
+        <div class="choice-option-arrow">&#8594;</div>
+      </button>
+      <button class="choice-option" onclick="logOut()">
+        <div class="choice-option-icon" style="color:#888">&#8594;|</div>
+        <div class="choice-option-body">
+          <div class="choice-option-title">Log Out</div>
+          <div class="choice-option-desc">Signed in as <span id="adminLoggedInAs"></span></div>
+        </div>
+      </button>
     </div>
+  </div>
+
+  <!-- Manage Accounts view (Staff only) -->
+  <div id="adminManageAccounts" class="config-body" style="display:none">
+    <div class="config-section-head">Add Account</div>
+    <div style="padding:0 16px">
+      <div class="landing-field">
+        <label class="landing-label" for="newAcctName">Name</label>
+        <input class="landing-input" id="newAcctName" type="text" placeholder="e.g. Jamie Smith">
+      </div>
+      <div class="landing-field">
+        <label class="landing-label" for="newAcctUsername">Username</label>
+        <input class="landing-input" id="newAcctUsername" type="text" placeholder="e.g. jsmith">
+      </div>
+      <div class="landing-field">
+        <label class="landing-label" for="newAcctPassword">Password</label>
+        <input class="landing-input" id="newAcctPassword" type="text" placeholder="Temporary password">
+      </div>
+      <div class="landing-field">
+        <label class="landing-label" for="newAcctRole">Role</label>
+        <select class="landing-input" id="newAcctRole">
+          <option value="volunteer">Volunteer / Event day staff</option>
+          <option value="cruk_freelancer">CRUK Freelancer</option>
+          <option value="cruk_staff">CRUK Staff</option>
+        </select>
+      </div>
+      <div class="landing-section-label" id="manageAcctError" style="display:none;color:#c0392b"></div>
+      <button class="landing-add-btn" style="width:100%;margin-bottom:24px" onclick="submitAddAccount()">+ Add Account</button>
+    </div>
+    <div class="config-section-head">Existing Accounts</div>
+    <div id="manageAccountsList" style="padding:0 16px 24px"></div>
   </div>
 
   <!-- Audit Log view -->
