@@ -1804,6 +1804,21 @@ a.w3w-link:active { opacity: 0.7; }
   cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 .event-delete-btn:hover { border-color: #c0392b; color: #c0392b; background: rgba(192,57,43,0.08); }
+.event-manage-btn {
+  flex-shrink: 0; margin-left: 8px; margin-top: 2px;
+  background: none; border: 1px solid #2a2a2a; border-radius: 8px;
+  color: #555; font-size: 14px; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.event-manage-btn:hover { border-color: #8855cc; color: #8855cc; background: rgba(136,85,204,0.08); }
+.event-mine-badge {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  color: var(--accent); background: rgba(229,90,0,0.08);
+  border: 1px solid rgba(229,90,0,0.2);
+  padding: 2px 8px; border-radius: 10px;
+  display: inline-block; margin-top: 5px; margin-right: 6px;
+}
 .delete-event-error {
   font-family: 'DM Mono', monospace; font-size: 10px;
   color: #c0392b; margin-top: 8px; display: none;
@@ -2900,6 +2915,19 @@ a.w3w-link:active { opacity: 0.7; }
   </div>
 </div>
 
+<!-- MANAGE EVENT ACCESS MODAL -->
+<div class="modal-backdrop" id="manageAccessModal" onclick="closeManageAccessModal()" style="z-index:1100">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Manage Access</div>
+    <div class="modal-sub" id="manageAccessModalSub">Choose who can see this event.</div>
+    <div id="manageAccessList" style="max-height:320px;overflow-y:auto;margin-top:10px"></div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closeManageAccessModal()">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- COURSE NOTES PANEL -->
 <div class="overview" id="courseNotesPanel">
   <div class="overview-head">
@@ -3199,6 +3227,13 @@ function loadUserEvents() {
 function saveUserEvents() { localStorage.setItem(EVENTS_LIST_KEY, JSON.stringify(userEvents)); _sPush('events', userEvents, 0); }
 function getAllEvents() { return [BUILTIN_EVENT_META, ...userEvents]; }
 
+function _eventsVisibleToCurrentUser() {
+  const all = getAllEvents();
+  if (_isStaff()) return all;
+  const uid = _authUser()?.user?.id;
+  return all.filter(evt => evt.builtIn || (evt.assignedUserIds || []).includes(uid));
+}
+
 function getActiveEventName() {
   const evt = getAllEvents().find(e => e.id === activeEventId);
   return evt ? (evt.name || evt.displayName || activeEventId) : (activeEventId || 'ofCourse');
@@ -3270,7 +3305,8 @@ function activateEvent(id) {
 function renderEventsList() {
   const container = document.getElementById('eventsListContainer');
   if (!container) return;
-  const all = getAllEvents();
+  const all = _eventsVisibleToCurrentUser();
+  const myId = _authUser()?.user?.id;
   container.innerHTML = all.map(evt => {
     const isSelected = selectedEventId === evt.id;
     let progressText = '';
@@ -3293,6 +3329,10 @@ function renderEventsList() {
     const safeName = name.replace(/'/g, "\\'");
     const deleteBtn = evt.builtIn ? '' :
       `<button class="event-delete-btn" title="Delete event" onclick="event.stopPropagation();openDeleteEventModal('${safeId}','${safeName}')">&#x2715;</button>`;
+    const manageBtn = (!evt.builtIn && _isStaff()) ?
+      `<button class="event-manage-btn" title="Manage access" onclick="event.stopPropagation();openManageAccessModal('${safeId}')">&#128101;</button>` : '';
+    const mineBadge = (_isStaff() && evt.ownerId && evt.ownerId === myId) ?
+      `<div class="event-mine-badge">Your Event</div>` : '';
     return `<div class="event-card${isSelected ? ' selected' : ''}" onclick="selectEventById('${evt.id}')">
       <div class="event-card-inner">
         <div class="event-card-info">
@@ -3300,8 +3340,9 @@ function renderEventsList() {
           <div class="event-name">${name}</div>
           ${detail ? `<div class="event-detail">${detail}</div>` : ''}
           ${progressText ? `<div class="event-progress">${progressText}</div>` : ''}
+          ${mineBadge}
         </div>
-        ${deleteBtn}
+        ${manageBtn}${deleteBtn}
       </div>
     </div>`;
   }).join('');
@@ -3539,6 +3580,8 @@ function createNewEvent() {
     id, name, displayName: name, badge: 'Custom Event',
     location: loc, lat: lat || 54.5, lng: lng || -3.0,
     createdAt: new Date().toISOString(), builtIn: false,
+    ownerId: _authUser()?.user?.id || '', ownerName: _authUser()?.user?.name || '',
+    assignedUserIds: [],
   };
   if (parsedCSVCards.length) {
     localStorage.setItem('ofcourse_cards_' + id, JSON.stringify(parsedCSVCards));
@@ -7385,6 +7428,54 @@ async function setAccountRole(id, roleGroup) {
     body: JSON.stringify({ roleGroup }),
   });
   renderManageAccounts();
+}
+
+let manageAccessEventId = null;
+
+async function openManageAccessModal(id) {
+  if (!_isStaff()) return;
+  manageAccessEventId = id;
+  const evt = userEvents.find(e => e.id === id);
+  const el = document.getElementById('manageAccessList');
+  document.getElementById('manageAccessModalSub').textContent =
+    'Choose which Freelancer / Volunteer accounts can see "' + (evt ? (evt.displayName || evt.name) : 'this event') + '".';
+  el.innerHTML = '<div style="color:#888;font-family:\'DM Mono\',monospace;font-size:11px">Loading…</div>';
+  document.getElementById('manageAccessModal').classList.add('open');
+  try {
+    const r = await fetch('/api/auth/users', { headers: { Authorization: 'Bearer ' + _authUser().token } });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Could not load accounts');
+    const assignable = (d.users || []).filter(u => u.roleGroup !== 'cruk_staff');
+    const assigned = (evt && evt.assignedUserIds) || [];
+    el.innerHTML = assignable.map(u => `
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #2a2a2a">
+        <input type="checkbox" ${assigned.includes(u.id) ? 'checked' : ''} onchange="toggleEventAssignment('${id}','${u.id}', this.checked)">
+        <div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;color:#1a1a14">${escHtml(u.name)}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:#888">@${escHtml(u.username)} &middot; ${MANAGE_ACCT_ROLE_LABEL[u.roleGroup] || u.roleGroup}</div>
+        </div>
+      </label>`).join('') || '<div style="color:#888;font-family:\'DM Mono\',monospace;font-size:11px">No Freelancer or Volunteer accounts exist yet.</div>';
+  } catch(e) {
+    el.innerHTML = '<div style="color:#c0392b;font-family:\'DM Mono\',monospace;font-size:11px">' + escHtml(e.message) + '</div>';
+  }
+}
+
+function closeManageAccessModal() {
+  document.getElementById('manageAccessModal').classList.remove('open');
+  manageAccessEventId = null;
+}
+
+function toggleEventAssignment(eventId, userId, checked) {
+  const evt = userEvents.find(e => e.id === eventId);
+  if (!evt) return;
+  evt.assignedUserIds = evt.assignedUserIds || [];
+  if (checked) {
+    if (!evt.assignedUserIds.includes(userId)) evt.assignedUserIds.push(userId);
+  } else {
+    evt.assignedUserIds = evt.assignedUserIds.filter(id => id !== userId);
+  }
+  saveUserEvents();
+  renderEventsList();
 }
 
 function openConfigPanel() {
