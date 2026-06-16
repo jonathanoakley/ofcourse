@@ -10,20 +10,20 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous" onerror="window._leafletFailed=true"></script>
 <style>
 :root {
-  --bg: #0d1209;
-  --surface: #141a10;
-  --card: #f5f0e3;
-  --card2: #ede8db;
-  --card3: #e5e0d3;
+  --bg: #f5f2eb;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --card2: #f5f2eb;
+  --card3: #ede9e1;
   --accent: #e55a00;
-  --accent-dim: rgba(229,90,0,0.15);
+  --accent-dim: rgba(229,90,0,0.12);
   --green: #2a7a3a;
-  --green-dim: rgba(42,122,58,0.15);
+  --green-dim: rgba(42,122,58,0.12);
   --blue: #1a5c8a;
-  --blue-dim: rgba(26,92,138,0.15);
+  --blue-dim: rgba(26,92,138,0.12);
   --text: #1a1a14;
   --muted: #6b6b5e;
-  --border: #1e2a1a;
+  --border: #ddd9d0;
   --r-high: #c0392b;
   --r-med: #e67e22;
   --r-low: #c8a400;
@@ -93,12 +93,12 @@ html, body {
   flex-shrink: 0;
   transition: background 0.15s, color 0.15s;
 }
-.header-btn:active { background: var(--border); color: #aaa; }
+.header-btn:active { background: #ede9e1; color: #555; }
 .sync-dot {
   position: fixed; top: 23px; right: 61px; z-index: 1200;
   width: 11px; height: 11px; border-radius: 50%;
   border: none; padding: 0; cursor: pointer;
-  background: #333; transition: background 0.4s;
+  background: #ccc; transition: background 0.4s;
 }
 .sync-dot.s-syncing { background: #c07800; animation: sync-pulse 1s ease-in-out infinite; }
 .sync-dot.s-synced  { background: #2a9a3a; }
@@ -121,7 +121,7 @@ html, body {
   position: absolute;
   bottom: 0; left: 0; right: 0;
   height: 140px;
-  background: linear-gradient(to top, rgba(0,0,0,0.55), transparent);
+  background: linear-gradient(to top, rgba(0,0,0,0.08), transparent);
   pointer-events: none;
   z-index: 15;
 }
@@ -137,7 +137,7 @@ html, body {
   position: absolute;
   inset: 0;
   border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
 }
 .card-behind-2 {
   position: absolute; inset: 0;
@@ -161,7 +161,7 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
   will-change: transform;
   touch-action: pan-y;
 }
@@ -270,7 +270,7 @@ html, body {
 .card-w3w {
   font-family: 'DM Mono', monospace;
   font-size: 9px;
-  color: #aaa;
+  color: #999;
   display: block;
   margin-top: 3px;
   letter-spacing: 0.5px;
@@ -357,7 +357,7 @@ html, body {
   font-family: 'Bebas Neue', cursive;
   font-size: 10px;
   letter-spacing: 2.5px;
-  color: #aaa;
+  color: #bbb;
   text-transform: uppercase;
   margin-bottom: 5px;
   display: flex; align-items: center; gap: 7px;
@@ -391,7 +391,7 @@ html, body {
 .mit-label {
   font-size: 9px;
   font-family: 'DM Mono', monospace;
-  color: #aaa;
+  color: #999;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-bottom: 1px;
@@ -446,7 +446,7 @@ html, body {
 }
 .complete-strip { display: none !important; }
 .card.is-done {
-  box-shadow: inset 0 0 0 5px #5adf7a, 0 16px 48px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: inset 0 0 0 5px #5adf7a, 0 8px 32px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
 }
 
 /* Residual risk row */
@@ -459,7 +459,7 @@ html, body {
 .res-risk-label {
   font-size: 10px;
   font-family: 'DM Mono', monospace;
-  color: #aaa;
+  color: #999;
   letter-spacing: 0.5px;
 }
 
@@ -498,8 +498,8 @@ html, body {
 .actions > * { pointer-events: auto; }
 .nav-btn {
   width: 42px; height: 42px;
-  background: var(--border);
-  border: 1px solid #2a3a26;
+  background: #ffffff;
+  border: 1px solid #d8d4cc;
   color: #666;
   border-radius: 50%;
   font-size: 18px;
@@ -510,7 +510,7 @@ html, body {
   transition: background 0.12s, color 0.12s;
   font-family: 'Bebas Neue', cursive;
 }
-.nav-btn:active { background: #2a3a26; color: #aaa; }
+.nav-btn:active { background: #ede9e1; color: #666; }
 .action-btn {
   flex: 1;
   max-width: 175px;
@@ -526,7 +526,7 @@ html, body {
   transition: transform 0.1s, filter 0.1s;
 }
 .action-btn:active { transform: scale(0.95); filter: brightness(1.1); }
-.action-btn, .nav-btn, .btn-add { box-shadow: 0 4px 16px rgba(0,0,0,0.45); }
+.action-btn, .nav-btn, .btn-add { box-shadow: 0 4px 16px rgba(0,0,0,0.14); }
 .btn-notes {
   background: #0e1e30;
   color: #5aabef;
@@ -546,7 +546,7 @@ html, body {
 /* ── MODAL ──────────────────────────────── */
 .modal-backdrop {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.78);
+  background: rgba(0,0,0,0.42);
   z-index: 200;
   display: flex;
   align-items: flex-end;
@@ -560,7 +560,7 @@ html, body {
   pointer-events: all;
 }
 .modal {
-  background: #141a10;
+  background: #ffffff;
   border-radius: 22px 22px 0 0;
   padding: 18px 18px 32px;
   width: 100%;
@@ -571,7 +571,7 @@ html, body {
 .modal-backdrop.open .modal { transform: translateY(0); }
 .modal-handle {
   width: 38px; height: 4px;
-  background: #333;
+  background: #d0ccc4;
   border-radius: 2px;
   margin: 0 auto 16px;
 }
@@ -584,18 +584,18 @@ html, body {
 }
 .modal-sub {
   font-size: 13px;
-  color: #666;
+  color: #888;
   font-family: 'DM Mono', monospace;
   margin-bottom: 14px;
 }
 .notes-area {
   width: 100%;
   min-height: 130px;
-  background: #0d1209;
-  border: 1.5px solid #2a3a26;
+  background: #faf8f5;
+  border: 1.5px solid #d8d4cc;
   border-radius: 12px;
   padding: 13px;
-  color: #d8d5c8;
+  color: #1a1a14;
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 17px;
   font-weight: 500;
@@ -616,9 +616,9 @@ html, body {
 }
 .modal-btn:active { filter: brightness(1.1); }
 .modal-btn.primary { background: var(--accent); color: white; }
-.modal-btn.secondary { background: #1e2a1a; color: #666; }
+.modal-btn.secondary { background: #f0ede8; color: #777; }
 .modal-btn.complete { background: var(--green); color: white; }
-.modal-btn.log-only { background: transparent; border: 1.5px solid #2a3a26; color: #aaa; }
+.modal-btn.log-only { background: transparent; border: 1.5px solid #d0ccc4; color: #888; }
 .modal-actions-stack { display: flex; flex-direction: column; gap: 8px; }
 .modal-cancel-link {
   background: none; border: none; color: #444;
@@ -666,11 +666,11 @@ html, body {
   align-items: center;
   gap: 11px;
   padding: 11px 16px;
-  border-bottom: 1px solid #141a10;
+  border-bottom: 1px solid #e8e4dc;
   cursor: pointer;
   transition: background 0.1s;
 }
-.ov-item:active, .ov-item.current { background: #141a10; }
+.ov-item:active, .ov-item.current { background: #f0ede8; }
 .ov-dot {
   width: 26px; height: 26px;
   border-radius: 50%;
@@ -680,7 +680,7 @@ html, body {
 .ov-dot.done { background: var(--green); color: white; }
 .ov-dot.has-note { background: var(--blue); color: white; }
 .ov-dot.current-item { background: var(--accent); color: white; }
-.ov-dot.pending { background: #1e2a1a; color: #444; font-size: 10px; font-family: 'DM Mono', monospace; }
+.ov-dot.pending { background: #e8e4dc; color: #888; font-size: 10px; font-family: 'DM Mono', monospace; }
 .ov-dot.pending-import { background: #2a1a3a; color: #c090f8; font-size: 12px; }
 .ov-dot.custom-card { background: #2e1a48; color: #a070d8; font-size: 14px; }
 .ov-ref.custom-ref { color: #a070d8; }
@@ -695,7 +695,7 @@ html, body {
 .ov-info { flex: 1; min-width: 0; }
 .ov-loc {
   font-size: 13px; font-weight: 600;
-  color: #ccc;
+  color: #1e1e18;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ov-dist {
@@ -735,8 +735,8 @@ html, body {
   position: relative;
   font-family: 'DM Mono', monospace;
   font-size: 11px;
-  background: rgba(0,0,0,0.25);
-  color: #aaa;
+  background: rgba(0,0,0,0.05);
+  color: #777;
   padding: 3px 10px;
   border-radius: 10px;
   white-space: nowrap;
@@ -771,7 +771,7 @@ html, body {
   transform: translate(-50%, -50%);
   width: 3px; height: 3px;
   border-radius: 50%;
-  background: #2a3a26;
+  background: #d8d4cc;
   pointer-events: none;
 }
 .dist-dot.obs { background: var(--accent); width: 4px; height: 4px; }
@@ -853,13 +853,13 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .map-nav-btn {
   width: 34px; height: 34px;
-  background: var(--border); border: 1px solid #2a3a26;
+  background: var(--border); border: 1px solid #d0ccc4;
   color: #666; border-radius: 50%; font-size: 16px;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; transition: background 0.1s, color 0.1s;
 }
 .map-nav-btn:disabled { opacity: 0.3; pointer-events: none; }
-.map-nav-btn:active { background: #2a3a26; color: #aaa; }
+.map-nav-btn:active { background: #ede9e1; color: #666; }
 .map-layer-bar { display: flex; gap: 5px; padding: 6px 12px 7px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; align-items: center; }
 .map-overlay-bar { display: flex; gap: 6px; padding: 4px 12px 5px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .map-overlay-btn {
@@ -882,10 +882,10 @@ a.w3w-link:active { opacity: 0.7; }
 .cache-status-row { display: flex; border-bottom: 1px solid var(--border); }
 .cache-stat { flex: 1; padding: 14px 12px; text-align: center; border-right: 1px solid var(--border); }
 .cache-stat:last-child { border-right: none; }
-.cache-stat-num { font-family: 'Bebas Neue', cursive; font-size: 28px; letter-spacing: 1px; color: #ddd; line-height: 1; }
+.cache-stat-num { font-family: 'Bebas Neue', cursive; font-size: 28px; letter-spacing: 1px; color: #1a1a14; line-height: 1; }
 .cache-stat-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; color: #555; margin-top: 3px; }
 .cache-progress-wrap { padding: 10px 16px 4px; }
-.cache-progress-track { height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+.cache-progress-track { height: 4px; background: rgba(0,0,0,0.08); border-radius: 2px; overflow: hidden; }
 .cache-progress-fill { height: 100%; background: #e55a00; border-radius: 2px; transition: width 0.15s; width: 0%; }
 .cache-progress-label { font-family: 'DM Mono', monospace; font-size: 10px; color: #555; margin-top: 5px; letter-spacing: 0.3px; }
 .cache-btns { display: flex; gap: 8px; padding: 12px 16px 10px; }
@@ -893,7 +893,7 @@ a.w3w-link:active { opacity: 0.7; }
 .cache-btn:disabled { opacity: 0.45; cursor: default; }
 .cache-btn-primary { border-color: rgba(229,90,0,0.35); background: rgba(229,90,0,0.08); color: #e55a00; }
 .cache-btn-primary:not(:disabled):active { background: rgba(229,90,0,0.2); }
-.cache-btn:not(.cache-btn-primary):active { background: rgba(255,255,255,0.05); }
+.cache-btn:not(.cache-btn-primary):active { background: rgba(0,0,0,0.04); }
 .cache-note { font-family: 'DM Mono', monospace; font-size: 9px; color: #3a3a34; letter-spacing: 0.3px; padding: 0 16px 14px; }
 .map-layer-btn { flex: 1; height: 28px; background: transparent; border: 1.5px solid var(--border); border-radius: 6px; color: #555; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.5px; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
 .map-layer-btn.active { background: rgba(229,90,0,0.1); color: var(--accent); border-color: rgba(229,90,0,0.35); }
@@ -1071,7 +1071,7 @@ a.w3w-link:active { opacity: 0.7; }
   cursor: pointer; white-space: nowrap;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.route-chip:active { background: rgba(255,255,255,0.05); }
+.route-chip:active { background: rgba(0,0,0,0.04); }
 .route-chip.active {
   background: rgba(229,90,0,0.12);
   color: var(--accent);
@@ -1079,8 +1079,8 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .route-chip-new {
   border-style: dashed;
-  color: #3a4a36;
-  border-color: #2a3a26;
+  color: #999;
+  border-color: #d0ccc4;
 }
 .route-chip-new:active { background: rgba(229,90,0,0.06); }
 .route-selector-empty {
@@ -1092,18 +1092,18 @@ a.w3w-link:active { opacity: 0.7; }
 /* ── ROUTE NAME MODAL ────────────────────── */
 .route-name-modal-input {
   width: 100%; height: 46px;
-  background: #0d1209;
-  border: 1.5px solid #2a3a26;
+  background: #faf8f5;
+  border: 1.5px solid #d8d4cc;
   border-radius: 12px;
   padding: 0 14px;
-  color: #d8d5c8;
+  color: #1a1a14;
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 18px; font-weight: 600;
   outline: none; margin-bottom: 13px;
   transition: border-color 0.15s;
 }
 .route-name-modal-input:focus { border-color: var(--accent); }
-.route-name-modal-input::placeholder { color: #333; }
+.route-name-modal-input::placeholder { color: #aaa; }
 
 /* ── ALL DONE ───────────────────────────── */
 .all-done-screen {
@@ -1165,7 +1165,7 @@ a.w3w-link:active { opacity: 0.7; }
 .choice-user-name {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 18px; font-weight: 600;
-  color: #ccc; letter-spacing: 0.5px;
+  color: #1e1e18; letter-spacing: 0.5px;
 }
 .choice-user-role {
   font-family: 'DM Mono', monospace;
@@ -1198,7 +1198,7 @@ a.w3w-link:active { opacity: 0.7; }
   transition: border-color 0.15s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.choice-option:active { background: #1a2414; }
+.choice-option:active { background: #ede9e1; }
 .choice-option-primary {
   border-color: rgba(229,90,0,0.35);
   background: rgba(229,90,0,0.05);
@@ -1212,7 +1212,7 @@ a.w3w-link:active { opacity: 0.7; }
 .choice-option-title {
   font-family: 'Bebas Neue', cursive;
   font-size: 26px; letter-spacing: 2px;
-  color: #ddd; line-height: 1;
+  color: #1a1a14; line-height: 1;
 }
 .choice-option-primary .choice-option-title { color: var(--accent); }
 .choice-option-desc {
@@ -1222,7 +1222,7 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .choice-option-arrow {
   font-family: 'Bebas Neue', cursive;
-  font-size: 22px; color: #2a3a26; flex-shrink: 0;
+  font-size: 22px; color: #c8c4bc; flex-shrink: 0;
 }
 .choice-option-primary .choice-option-arrow { color: rgba(229,90,0,0.45); }
 .choice-back-btn {
@@ -1239,7 +1239,7 @@ a.w3w-link:active { opacity: 0.7; }
   display: flex; align-items: center; gap: 10px; cursor: pointer;
   font-family: 'DM Mono', monospace; font-size: 11px;
   color: #444; letter-spacing: 0.5px;
-  border-top: 1px solid rgba(255,255,255,0.05); margin-top: 4px;
+  border-top: 1px solid rgba(0,0,0,0.07); margin-top: 4px;
 }
 .choice-config-btn:active { color: var(--accent); }
 
@@ -1272,9 +1272,9 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .live-dt-input {
   flex: 1; padding: 7px 10px;
-  font-family: 'DM Mono', monospace; font-size: 12px; color: #e8e4d8;
-  background: rgba(255,255,255,0.05); border: 1.5px solid var(--border);
-  border-radius: 7px; outline: none; color-scheme: dark;
+  font-family: 'DM Mono', monospace; font-size: 12px; color: #1a1a14;
+  background: rgba(0,0,0,0.03); border: 1.5px solid var(--border);
+  border-radius: 7px; outline: none; color-scheme: light;
 }
 .live-dt-input:focus { border-color: var(--accent); }
 .live-filter-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 1px; }
@@ -1316,7 +1316,7 @@ a.w3w-link:active { opacity: 0.7; }
   letter-spacing: 1px; color: #e55a00; line-height: 1;
 }
 .live-feed-desc {
-  font-size: 13px; font-weight: 600; color: #ddd;
+  font-size: 13px; font-weight: 600; color: #1a1a14;
   line-height: 1.35; margin-top: 1px;
 }
 .live-feed-meta {
@@ -1367,7 +1367,7 @@ a.w3w-link:active { opacity: 0.7; }
   letter-spacing: 1px; color: #e55a00; flex-shrink: 0; width: 44px;
 }
 .obs-config-name {
-  flex: 1; font-size: 13px; font-weight: 600; color: #e8e4d8;
+  flex: 1; font-size: 13px; font-weight: 600; color: #1a1a14;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
 .obs-config-cap-wrap {
@@ -1442,9 +1442,9 @@ a.w3w-link:active { opacity: 0.7; }
 /* Zone breakdown pills on the check screen */
 .obs-zones-display { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .obs-zone-pill {
-  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.1);
   border-radius: 20px; padding: 4px 12px;
-  font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa;
+  font-family: 'DM Mono', monospace; font-size: 11px; color: #888;
 }
 
 /* ── LANDING SCREEN ─────────────────────── */
@@ -1481,13 +1481,13 @@ a.w3w-link:active { opacity: 0.7; }
 .landing-input {
   width: 100%; height: 46px;
   background: var(--surface); border: 1.5px solid var(--border);
-  border-radius: 10px; color: #ddd;
+  border-radius: 10px; color: #1a1a14;
   font-family: 'Barlow Condensed', sans-serif; font-size: 17px;
   padding: 0 14px; outline: none;
   transition: border-color 0.15s;
 }
 .landing-input:focus { border-color: rgba(229,90,0,0.5); }
-.landing-input::placeholder { color: #333; }
+.landing-input::placeholder { color: #bbb; }
 .landing-section-label {
   font-family: 'DM Mono', monospace; font-size: 9px;
   letter-spacing: 2px; text-transform: uppercase;
@@ -1512,7 +1512,7 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .event-name {
   font-family: 'Bebas Neue', cursive;
-  font-size: 28px; letter-spacing: 3px; color: #ddd; line-height: 1;
+  font-size: 28px; letter-spacing: 3px; color: #1a1a14; line-height: 1;
 }
 .event-detail {
   font-family: 'DM Mono', monospace; font-size: 10px;
@@ -1532,7 +1532,7 @@ a.w3w-link:active { opacity: 0.7; }
 .menu-options { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .menu-option {
   width: 100%;
-  background: #141a10;
+  background: #ffffff;
   border: 1.5px solid var(--border);
   border-radius: 14px;
   padding: 16px 18px;
@@ -1541,17 +1541,17 @@ a.w3w-link:active { opacity: 0.7; }
   transition: background 0.15s, border-color 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.menu-option:active { background: #1e2a18; border-color: #3a4a36; }
-.menu-option-icon { font-size: 18px; flex-shrink: 0; width: 26px; text-align: center; line-height: 1; color: #666; }
+.menu-option:active { background: #ede9e1; border-color: #d0ccc4; }
+.menu-option-icon { font-size: 18px; flex-shrink: 0; width: 26px; text-align: center; line-height: 1; color: #888; }
 .menu-option-text {
   flex: 1;
   font-family: 'Bebas Neue', cursive;
   font-size: 24px; letter-spacing: 2px;
-  color: #ccc; line-height: 1;
+  color: #1a1a14; line-height: 1;
 }
 .menu-option-arrow {
   font-family: 'Bebas Neue', cursive;
-  font-size: 20px; color: #2a3a26;
+  font-size: 20px; color: #c8c4bc;
 }
 
 /* ── NOTES PANEL ────────────────────────── */
@@ -1562,7 +1562,7 @@ a.w3w-link:active { opacity: 0.7; }
 .note-row {
   display: flex; gap: 12px; align-items: flex-start;
   padding: 12px 16px;
-  border-bottom: 1px solid #141a10;
+  border-bottom: 1px solid #e8e4dc;
 }
 .note-ref-col { flex-shrink: 0; width: 46px; }
 .note-ref-tag {
@@ -1578,7 +1578,7 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .note-body-text {
   font-size: 14px; font-weight: 500;
-  color: #d8d5c8; line-height: 1.45;
+  color: #1a1a14; line-height: 1.45;
   white-space: pre-wrap;
 }
 .notes-empty {
@@ -1653,7 +1653,7 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .edit-field {
   padding: 12px 16px 10px;
-  border-bottom: 1px solid #141a10;
+  border-bottom: 1px solid #e8e4dc;
 }
 .edit-field-label {
   font-family: 'DM Mono', monospace; font-size: 9px;
@@ -1662,11 +1662,11 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .edit-textarea {
   width: 100%;
-  background: #0d1209;
-  border: 1.5px solid #1e2a1a;
+  background: #f8f6f1;
+  border: 1.5px solid #d0ccc4;
   border-radius: 8px;
   padding: 10px 12px;
-  color: #d8d5c8;
+  color: #1a1a14;
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 15px; font-weight: 500; line-height: 1.5;
   resize: vertical; outline: none;
@@ -1676,11 +1676,11 @@ a.w3w-link:active { opacity: 0.7; }
 .edit-textarea:focus { border-color: rgba(229,90,0,0.5); }
 .edit-input {
   width: 100%;
-  background: #0d1209;
-  border: 1.5px solid #1e2a1a;
+  background: #f8f6f1;
+  border: 1.5px solid #d0ccc4;
   border-radius: 8px;
   padding: 10px 12px;
-  color: #d8d5c8;
+  color: #1a1a14;
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 15px; font-weight: 500;
   outline: none;
@@ -1691,7 +1691,7 @@ a.w3w-link:active { opacity: 0.7; }
   display: flex; align-items: center; gap: 8px;
   padding: 8px 16px 10px;
   background: rgba(192,57,43,0.06);
-  border-bottom: 1px solid #141a10;
+  border-bottom: 1px solid #e8e4dc;
 }
 .edit-note-text {
   font-family: 'DM Mono', monospace; font-size: 10px;
@@ -1711,7 +1711,7 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .sign-card {
   display: flex; flex-direction: column; align-items: center;
-  background: #0d1209; border: 1.5px solid #1e2a1a;
+  background: #f8f6f1; border: 1.5px solid #d0ccc4;
   border-radius: 10px; padding: 8px 10px;
   min-width: 52px; cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
@@ -1780,8 +1780,8 @@ a.w3w-link:active { opacity: 0.7; }
 }
 .landing-add-btn {
   width: 100%; max-width: 360px; height: 44px;
-  background: transparent; border: 1.5px dashed #2a3a26;
-  border-radius: 12px; color: #3a4a36;
+  background: transparent; border: 1.5px dashed #d0ccc4;
+  border-radius: 12px; color: #aaa;
   font-family: 'Bebas Neue', cursive; font-size: 18px; letter-spacing: 2px;
   cursor: pointer; margin-bottom: 16px;
   transition: border-color 0.15s, color 0.15s;
@@ -2008,6 +2008,203 @@ a.w3w-link:active { opacity: 0.7; }
   -webkit-tap-highlight-color: transparent;
 }
 .ec-panel.open ~ .ec-fab, .ec-fab.visible { display: flex; }
+.ec-tab-bar {
+  display: flex; border-bottom: 1.5px solid var(--border);
+  background: var(--surface); flex-shrink: 0;
+}
+.ec-tab {
+  flex: 1; padding: 10px 0; border: none; background: none;
+  font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.3px;
+  color: #777; cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -1.5px; -webkit-tap-highlight-color: transparent;
+}
+.ec-tab.active { color: #5580cc; border-bottom-color: #5580cc; font-weight: 600; }
+.ec-marshal-board {
+  flex: 1; overflow-y: auto; padding: 12px 12px 100px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.ec-marshal-status-bar {
+  font-family: 'DM Mono', monospace; font-size: 12px; color: #888;
+  text-align: center; padding: 10px 16px; background: var(--surface);
+  border-radius: 10px; border: 1px solid var(--border);
+}
+.ec-marshal-status-bar.all-in {
+  color: #27ae60; border-color: rgba(39,174,96,0.35);
+  background: rgba(39,174,96,0.08);
+}
+.ec-marshal-position {
+  background: var(--card); border-radius: 14px; border: 1px solid var(--border);
+  overflow: hidden;
+}
+.ec-marshal-pos-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.ec-marshal-code {
+  font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 600;
+  color: #3a82f7; flex-shrink: 0;
+}
+.ec-marshal-loc {
+  font-size: 13px; color: var(--text); flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.marshal-pos-status-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.3px; padding: 3px 10px; border-radius: 20px;
+  flex-shrink: 0; border: 1px solid; white-space: nowrap;
+}
+.marshal-pos-status-badge.unset {
+  background: transparent; color: #bbb;
+  border-color: #ddd9d0; border-style: dashed;
+}
+.marshal-pos-status-badge.assigned {
+  background: rgba(0,0,0,0.04); color: #888; border-color: #d0ccc4;
+}
+.marshal-pos-status-badge.in-pos {
+  background: rgba(39,174,96,0.1); color: #27ae60;
+  border-color: rgba(39,174,96,0.3);
+}
+.marshal-pos-status-badge.stood-down {
+  background: rgba(0,0,0,0.04); color: #bbb; border-color: #ddd9d0;
+}
+.marshal-add-btn {
+  background: none; border: 1px solid #d0ccc4; border-radius: 8px;
+  color: #aaa; font-family: 'DM Mono', monospace; font-size: 10px;
+  padding: 4px 10px; cursor: pointer; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.marshal-add-btn:active { color: #5580cc; border-color: #5580cc; }
+.ec-marshal-slot-wrap {
+  position: relative; overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+.ec-marshal-slot-wrap:last-child { border-bottom: none; }
+.ec-marshal-reveal {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 600;
+  pointer-events: none;
+}
+.ec-marshal-reveal-right {
+  background: #1d6e40; color: #5adf7a; padding-left: 18px; justify-content: flex-start;
+}
+.ec-marshal-reveal-left {
+  background: #2a2a2a; color: #888; padding-right: 18px; justify-content: flex-end;
+}
+.ec-marshal-slot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px;
+  position: relative; z-index: 1; background: var(--card);
+  will-change: transform;
+}
+.ec-marshal-slot.snap-back { transition: transform 0.25s cubic-bezier(0.32,1,0.6,1); }
+.marshal-slot-num {
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #555;
+  flex-shrink: 0; width: 18px;
+}
+.marshal-slot-status {
+  font-family: 'DM Mono', monospace; font-size: 11px; flex-shrink: 0;
+}
+.marshal-slot-status.assigned { color: #888; }
+.marshal-slot-status.in-pos { color: #27ae60; }
+.marshal-slot-status.stood-down { color: #555; }
+.marshal-slot-time {
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #666;
+  flex-shrink: 0;
+}
+.marshal-swipe-hint {
+  font-size: 15px; opacity: 0.3; flex-shrink: 0; line-height: 1;
+}
+.marshal-slot-remove {
+  background: none; border: none; color: #444; font-size: 16px;
+  cursor: pointer; padding: 4px; flex-shrink: 0; line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+.marshal-slot-remove:active { color: #c0392b; }
+.marshal-no-slots {
+  padding: 10px 14px; font-family: 'DM Mono', monospace;
+  font-size: 11px; color: #555;
+}
+.marshal-stood-down-summary {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px; border-top: 1px solid var(--border);
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #888;
+}
+.marshal-stood-down-summary button {
+  background: none; border: 1px solid #d0ccc4; border-radius: 6px;
+  color: #888; font-family: 'DM Mono', monospace; font-size: 10px;
+  padding: 2px 8px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.marshal-slot-name {
+  font-size: 13px; color: var(--text); flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.marshal-slot-name.anon { color: #888; }
+/* Roster section */
+.marshal-roster-section {
+  background: var(--card); border-radius: 14px; border: 1px solid var(--border);
+  overflow: hidden; margin-bottom: 0;
+}
+.marshal-roster-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.marshal-roster-head-title {
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase;
+}
+.marshal-roster-signin-btn {
+  background: var(--accent); color: #fff; border: none; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 600;
+  padding: 5px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.marshal-roster-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border-bottom: 1px solid var(--border);
+}
+.marshal-roster-row:last-child { border-bottom: none; }
+.marshal-roster-name {
+  font-size: 13px; font-weight: 500; color: var(--text); flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.marshal-roster-code {
+  font-family: 'DM Mono', monospace; font-size: 11px; color: #3a82f7;
+  flex-shrink: 0; width: 30px;
+}
+.marshal-roster-empty {
+  padding: 14px; font-family: 'DM Mono', monospace;
+  font-size: 11px; color: #888; text-align: center;
+}
+/* Sign-in sheet */
+.ec-marshal-signin {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+  display: flex; align-items: flex-end; z-index: 20;
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+.ec-marshal-signin-inner {
+  background: var(--surface); border-radius: 20px 20px 0 0;
+  padding: 20px 20px 36px; width: 100%; box-shadow: 0 -4px 24px rgba(0,0,0,0.1);
+}
+.ec-marshal-signin-title {
+  font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 600;
+  color: var(--text); margin-bottom: 14px;
+}
+.ec-marshal-signin-inner input,
+.ec-marshal-signin-inner select {
+  width: 100%; box-sizing: border-box;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 11px 12px; font-family: inherit; font-size: 14px; color: var(--text);
+  margin-bottom: 10px; outline: none;
+  -webkit-appearance: none; appearance: none;
+}
+.ec-marshal-signin-inner input:focus,
+.ec-marshal-signin-inner select:focus { border-color: var(--accent); }
+.ec-marshal-signin-actions {
+  display: flex; gap: 10px; margin-top: 4px;
+}
+.ec-marshal-signin-actions .modal-btn { flex: 1; }
 .ec-compose-reply-ctx {
   font-family: 'DM Mono', monospace; font-size: 10px; color: #5580cc;
   margin-bottom: 12px; padding: 7px 10px;
@@ -2015,8 +2212,8 @@ a.w3w-link:active { opacity: 0.7; }
   border-left: 3px solid #5580cc; line-height: 1.4;
 }
 .ec-compose-select {
-  width: 100%; background: #0d1209; border: 1.5px solid #2a3a26;
-  border-radius: 12px; color: #d8d5c8; padding: 0 14px; height: 46px;
+  width: 100%; background: #f8f6f1; border: 1.5px solid #d0ccc4;
+  border-radius: 12px; color: #1a1a14; padding: 0 14px; height: 46px;
   font-family: 'DM Mono', monospace; font-size: 13px; margin-bottom: 10px;
   -webkit-appearance: none; appearance: none; box-sizing: border-box;
   transition: border-color 0.15s;
@@ -2045,8 +2242,8 @@ a.w3w-link:active { opacity: 0.7; }
   display: flex; gap: 7px; margin-bottom: 14px;
 }
 .ec-config-add-input {
-  flex: 1; background: #0d1209; border: 1.5px solid #2a3a26;
-  border-radius: 10px; color: #d8d5c8; padding: 8px 12px;
+  flex: 1; background: #f8f6f1; border: 1.5px solid #d0ccc4;
+  border-radius: 10px; color: #1a1a14; padding: 8px 12px;
   font-family: 'DM Mono', monospace; font-size: 12px; outline: none;
   transition: border-color 0.15s;
 }
@@ -3629,6 +3826,19 @@ function _mergeControlLogs(local, remote) {
   return Object.values(byId).sort((a, b) => (a.ts > b.ts ? 1 : -1));
 }
 
+function _mergeMarshalBoard(local, remote) {
+  const out = {};
+  const codes = new Set([...Object.keys(local || {}), ...Object.keys(remote || {})]);
+  codes.forEach(code => {
+    const byId = {};
+    [...(remote?.[code]?.slots || []), ...(local?.[code]?.slots || [])].forEach(s => {
+      if (!byId[s.id] || s.statusTs >= byId[s.id].statusTs) byId[s.id] = s;
+    });
+    out[code] = { slots: Object.values(byId) };
+  });
+  return out;
+}
+
 function _mergeCustomCards(local, remote) {
   const byRef = {};
   [...(remote || []), ...(local || [])].forEach(c => { byRef[c.ref] = c; });
@@ -3665,6 +3875,7 @@ function _mergeStateObj(local, remote) {
     customCards:     _mergeCustomCards(local.customCards, remote.customCards),
     controlLogs:     _mergeControlLogs(local.controlLogs, remote.controlLogs),
     ecConfig:        { ...(remote.ecConfig || {}), ...(local.ecConfig || {}) },
+    marshalBoard:    _mergeMarshalBoard(local.marshalBoard, remote.marshalBoard),
     currentIndex:    local.currentIndex,
   };
 }
@@ -3681,6 +3892,7 @@ async function _syncPullState() {
   refreshAllCards(); updateProgress(); renderCard(state.currentIndex);
   if (_adminSection === 'auditLog' && document.getElementById('configPanel')?.classList.contains('open')) renderLiveFeed();
   if (ecLogsChanged && document.getElementById('ecPanel')?.classList.contains('open')) renderEcFeed();
+  if (_ecActiveTab === 'marshals' && document.getElementById('ecPanel')?.classList.contains('open')) renderMarshalBoard();
 }
 
 async function _syncPullPins() {
@@ -6293,6 +6505,7 @@ function openEcPanel() {
   _pushRoute('ec');
   const el = document.getElementById('ecBreadcrumb');
   if (el) el.textContent = getActiveEventName() + ' / Event Control';
+  ecSwitchTab('log');
   renderEcFeed();
   document.getElementById('ecFab').classList.add('visible');
   document.getElementById('ecPanel').classList.add('open');
@@ -6303,6 +6516,334 @@ function closeEcPanel() {
   document.getElementById('ecFab').classList.remove('visible');
   showChoiceScreen();
 }
+
+// ── MARSHAL BOARD ─────────────────────────────────────────────────────────────
+
+let _ecActiveTab = 'log';
+
+function ecSwitchTab(tab) {
+  _ecActiveTab = tab;
+  document.getElementById('ecTabLog').classList.toggle('active', tab === 'log');
+  document.getElementById('ecTabMarshals').classList.toggle('active', tab === 'marshals');
+  document.getElementById('ecFeed').style.display = tab === 'log' ? '' : 'none';
+  document.getElementById('ecMarshalBoard').style.display = tab === 'marshals' ? '' : 'none';
+  marshalCloseSignIn();
+  // FAB only makes sense on the log tab
+  document.getElementById('ecFab').classList.toggle('visible', tab === 'log');
+  if (tab === 'marshals') renderMarshalBoard();
+}
+
+const _marshalExpandedStoodDown = new Set();
+
+function _derivePosStatus(slots) {
+  if (!slots?.length) return null;
+  const active = slots.filter(s => s.status !== 'stood_down');
+  if (!active.length) return 'stood_down';
+  if (active.every(s => s.status === 'in_position')) return 'in_position';
+  return 'assigned';
+}
+
+function _getMarshalPositions() {
+  const seen = new Set();
+  const positions = [];
+  ALLCARDS.forEach(card => {
+    if (!mapPins[card.ref]) return;
+    const code = _getMarshalCode(card);
+    if (code && !seen.has(code)) {
+      seen.add(code);
+      positions.push({ code, loc: effectiveCard(card).loc || '' });
+    }
+  });
+  positions.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+  return positions;
+}
+
+function renderMarshalBoard() {
+  const el = document.getElementById('ecMarshalBoard');
+  if (!el) return;
+  if (!state.marshalBoard) state.marshalBoard = {};
+
+  const positions = _getMarshalPositions();
+  if (!positions.length) {
+    el.innerHTML = '<div class="ec-empty">No marshal positions pinned on the map yet.<br>Pin cards with a marshal code (M1, M2…) on the map to populate this board.</div>';
+    return;
+  }
+
+  // Auto-derive overall progress from slot statuses
+  let activePos = 0, inPosCount = 0;
+  positions.forEach(({ code }) => {
+    const ps = _derivePosStatus(state.marshalBoard[code]?.slots);
+    if (ps !== null && ps !== 'stood_down') activePos++;
+    if (ps === 'in_position') inPosCount++;
+  });
+
+  const allInPos = activePos > 0 && inPosCount === activePos;
+  const statusBarHtml = allInPos
+    ? `<div class="ec-marshal-status-bar all-in">&#10003; All marshals in position</div>`
+    : `<div class="ec-marshal-status-bar">${inPosCount} / ${activePos} in position</div>`;
+
+  // Roster: all named slots across all positions, sorted by sign-in time
+  const roster = [];
+  positions.forEach(({ code, loc }) => {
+    (state.marshalBoard[code]?.slots || []).forEach(slot => {
+      if (slot.name) roster.push({ ...slot, code, loc });
+    });
+  });
+  roster.sort((a, b) => (a.signinTs || a.statusTs || '').localeCompare(b.signinTs || b.statusTs || ''));
+
+  const rosterRowsHtml = roster.length
+    ? roster.map(m => {
+        const _ts = m.signinTs || m.statusTs;
+        const signinTime = _ts ? new Date(_ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+        const stCls = m.status === 'in_position' ? 'in-pos' : m.status === 'assigned' ? 'assigned' : 'stood-down';
+        const stLabel = m.status === 'in_position' ? '&#9679; In Pos' : m.status === 'assigned' ? '&#9675; Assigned' : '&#10003; Stood Down';
+        return `<div class="marshal-roster-row">
+          <span class="marshal-roster-name">${escHtml(m.name)}</span>
+          <span class="marshal-roster-code">${escHtml(m.code)}</span>
+          <span class="marshal-slot-status ${stCls}">${stLabel}</span>
+          <span class="marshal-slot-time">${signinTime}</span>
+        </div>`;
+      }).join('')
+    : `<div class="marshal-roster-empty">No marshals signed in yet — tap Sign In to add.</div>`;
+
+  const rosterHtml = `<div class="marshal-roster-section">
+    <div class="marshal-roster-head">
+      <span class="marshal-roster-head-title">Signed In (${roster.length})</span>
+      <button class="marshal-roster-signin-btn" onclick="marshalOpenSignIn()">+ Sign In</button>
+    </div>
+    ${rosterRowsHtml}
+  </div>`;
+
+  // Position cards
+  function _renderSlot(slot, code) {
+    const time = slot.statusTs
+      ? new Date(slot.statusTs).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      : '';
+    const nameLabel = slot.name
+      ? `<span class="marshal-slot-name">${escHtml(slot.name)}</span>`
+      : `<span class="marshal-slot-name anon">${escHtml(code)} marshal</span>`;
+    const removeBtn = `<button class="marshal-slot-remove" onclick="marshalRemoveSlot('${escHtml(code)}','${slot.id}')" title="Remove">&#215;</button>`;
+    if (slot.status === 'assigned') {
+      return `<div class="ec-marshal-slot-wrap" data-code="${escHtml(code)}" data-slotid="${slot.id}" data-status="assigned">
+        <div class="ec-marshal-reveal ec-marshal-reveal-right">&#9679; In Position</div>
+        <div class="ec-marshal-slot">
+          ${nameLabel}
+          <span class="marshal-slot-status assigned">&#9675; Assigned</span>
+          <span class="marshal-swipe-hint">&#8250;</span>
+          ${removeBtn}
+        </div>
+      </div>`;
+    } else {
+      return `<div class="ec-marshal-slot-wrap" data-code="${escHtml(code)}" data-slotid="${slot.id}" data-status="in_position">
+        <div class="ec-marshal-reveal ec-marshal-reveal-left">&#10003; Stood Down</div>
+        <div class="ec-marshal-slot">
+          ${nameLabel}
+          <span class="marshal-swipe-hint">&#8249;</span>
+          <span class="marshal-slot-status in-pos">&#9679; In Position</span>
+          <span class="marshal-slot-time">${time}</span>
+          ${removeBtn}
+        </div>
+      </div>`;
+    }
+  }
+
+  const positionsHtml = positions.map(({ code, loc }) => {
+    const slots = state.marshalBoard[code]?.slots || [];
+    const activeSlots = slots.filter(s => s.status !== 'stood_down');
+    const stoodDownSlots = slots.filter(s => s.status === 'stood_down');
+    const isExpanded = _marshalExpandedStoodDown.has(code);
+
+    const activeSlotsHtml = activeSlots.map(slot => _renderSlot(slot, code)).join('');
+
+    let stoodDownHtml = '';
+    if (stoodDownSlots.length) {
+      const expandedRows = isExpanded ? stoodDownSlots.map(slot => {
+        const time = slot.statusTs
+          ? new Date(slot.statusTs).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+          : '';
+        const nameLabel = slot.name
+          ? `<span class="marshal-slot-name" style="opacity:0.5">${escHtml(slot.name)}</span>`
+          : `<span class="marshal-slot-name anon" style="opacity:0.5">${escHtml(code)} marshal</span>`;
+        return `<div class="ec-marshal-slot-wrap">
+          <div class="ec-marshal-slot">
+            ${nameLabel}
+            <span class="marshal-slot-status stood-down">&#10003; Stood Down</span>
+            <span class="marshal-slot-time">${time}</span>
+            <button class="marshal-slot-remove" onclick="marshalRemoveSlot('${escHtml(code)}','${slot.id}')" title="Remove">&#215;</button>
+          </div>
+        </div>`;
+      }).join('') : '';
+      stoodDownHtml = `<div class="marshal-stood-down-summary">
+        <span>&#10003; ${stoodDownSlots.length} stood down</span>
+        <button onclick="marshalToggleStoodDown('${escHtml(code)}')">${isExpanded ? 'hide' : 'show'}</button>
+      </div>${expandedRows}`;
+    }
+
+    const posStatus = _derivePosStatus(slots);
+    const psCls = !posStatus ? 'unset' : posStatus === 'assigned' ? 'assigned' : posStatus === 'in_position' ? 'in-pos' : 'stood-down';
+    const psLabel = !posStatus ? 'No marshals'
+      : posStatus === 'assigned' ? '&#9679; Assigned'
+      : posStatus === 'in_position' ? '&#9679; In Position'
+      : '&#10003; Stood Down';
+
+    return `<div class="ec-marshal-position">
+      <div class="ec-marshal-pos-head">
+        <span class="ec-marshal-code">${escHtml(code)}</span>
+        <span class="marshal-pos-status-badge ${psCls}">${psLabel}</span>
+        <span class="ec-marshal-loc">${escHtml(loc)}</span>
+        <button class="marshal-add-btn" onclick="marshalOpenSignIn('${escHtml(code)}')">+ Marshal</button>
+      </div>
+      ${activeSlotsHtml || (!stoodDownSlots.length ? '<div class="marshal-no-slots">No marshals assigned — tap + Marshal</div>' : '')}
+      ${stoodDownHtml}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = statusBarHtml + rosterHtml + positionsHtml;
+  el.querySelectorAll('.ec-marshal-slot-wrap[data-slotid]').forEach(wrap => _attachMarshalSwipe(wrap));
+}
+
+function _attachMarshalSwipe(wrap) {
+  const slot = wrap.querySelector('.ec-marshal-slot');
+  const code = wrap.dataset.code;
+  const slotId = wrap.dataset.slotid;
+  const status = wrap.dataset.status;
+  const THRESHOLD = 80, VELOCITY = 0.35;
+  let startX = null, startY = null, curX = 0, t0 = 0, axis = null;
+
+  function onStart(x, y) {
+    startX = x; startY = y; t0 = Date.now(); curX = 0; axis = null;
+    slot.classList.remove('snap-back');
+    slot.style.transition = 'none';
+  }
+
+  function onMove(x, y) {
+    if (startX === null) return;
+    const dx = x - startX, dy = y - startY;
+    if (!axis && (Math.abs(dx) > 8 || Math.abs(dy) > 8))
+      axis = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    if (axis !== 'h') return;
+    curX = dx;
+    if (status === 'assigned' && curX < 0) curX = 0;
+    if (status === 'in_position' && curX > 0) curX = 0;
+    slot.style.transform = `translateX(${curX}px)`;
+  }
+
+  function onEnd() {
+    if (startX === null) return;
+    const elapsed = Math.max(1, Date.now() - t0);
+    const triggered = Math.abs(curX) > THRESHOLD || Math.abs(curX) / elapsed > VELOCITY;
+    if (axis === 'h' && triggered) {
+      const newStatus = curX > 0 ? 'in_position' : 'stood_down';
+      slot.style.transition = 'transform 0.2s ease-in';
+      slot.style.transform = `translateX(${curX > 0 ? 110 : -110}%)`;
+      setTimeout(() => marshalSetStatus(code, slotId, newStatus), 180);
+    } else {
+      slot.classList.add('snap-back');
+      slot.style.transition = '';
+      slot.style.transform = '';
+    }
+    startX = null; startY = null; axis = null; curX = 0;
+  }
+
+  wrap.addEventListener('touchstart', e => onStart(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+  wrap.addEventListener('touchmove', e => {
+    if (axis === 'h') e.preventDefault();
+    onMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+  wrap.addEventListener('touchend', () => onEnd(), { passive: true });
+}
+
+function marshalOpenSignIn(presetCode) {
+  const positions = _getMarshalPositions();
+  const sel = document.getElementById('marshalSignInPos');
+  sel.innerHTML = '<option value="">Select position…</option>' +
+    positions.map(p => `<option value="${escHtml(p.code)}"${presetCode === p.code ? ' selected' : ''}>${escHtml(p.code)} — ${escHtml(p.loc)}</option>`).join('');
+  document.getElementById('marshalSignInName').value = '';
+  document.getElementById('ecMarshalSignIn').style.display = '';
+  setTimeout(() => document.getElementById('marshalSignInName').focus(), 100);
+}
+
+function marshalCloseSignIn() {
+  const el = document.getElementById('ecMarshalSignIn');
+  if (el) el.style.display = 'none';
+}
+
+function marshalSubmitSignIn() {
+  const name = (document.getElementById('marshalSignInName').value || '').trim();
+  const code = document.getElementById('marshalSignInPos').value;
+  if (!name || !code) return;
+  if (!state.marshalBoard) state.marshalBoard = {};
+  if (!state.marshalBoard[code]) state.marshalBoard[code] = { slots: [] };
+  const now = new Date().toISOString();
+  state.marshalBoard[code].slots.push({
+    id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    name,
+    status: 'assigned',
+    signinTs: now,
+    statusTs: now,
+  });
+  if (!state.controlLogs) state.controlLogs = [];
+  const pos = _getMarshalPositions().find(p => p.code === code);
+  state.controlLogs.push({
+    id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    ts: now,
+    from: 'Marshal',
+    fromDetail: code,
+    title: `${code} — ${name} signed in`,
+    description: pos?.loc || '',
+    user: currentUser.name || 'Unknown',
+    role: currentUser.role || '',
+    parentId: null,
+    isMarshalStatus: true,
+  });
+  saveState();
+  marshalCloseSignIn();
+  renderMarshalBoard();
+}
+
+function marshalToggleStoodDown(code) {
+  if (_marshalExpandedStoodDown.has(code)) _marshalExpandedStoodDown.delete(code);
+  else _marshalExpandedStoodDown.add(code);
+  renderMarshalBoard();
+}
+
+function marshalRemoveSlot(code, slotId) {
+  if (!state.marshalBoard?.[code]) return;
+  state.marshalBoard[code].slots = state.marshalBoard[code].slots.filter(s => s.id !== slotId);
+  saveState();
+  renderMarshalBoard();
+}
+
+function marshalSetStatus(code, slotId, newStatus) {
+  if (!state.marshalBoard?.[code]) return;
+  const slot = state.marshalBoard[code].slots.find(s => s.id === slotId);
+  if (!slot) return;
+  slot.status = newStatus;
+  slot.statusTs = new Date().toISOString();
+
+  // Auto-log the status change to the EC feed
+  const pos = _getMarshalPositions().find(p => p.code === code);
+  const loc = pos?.loc || '';
+  const label = newStatus === 'in_position' ? 'In Position' : 'Stood Down';
+  const nameLabel = slot.name ? ` (${slot.name})` : '';
+  if (!state.controlLogs) state.controlLogs = [];
+  state.controlLogs.push({
+    id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    ts: new Date().toISOString(),
+    from: 'Marshal',
+    fromDetail: code,
+    title: `${code}${nameLabel} — ${label}`,
+    description: loc,
+    user: currentUser.name || 'Unknown',
+    role: currentUser.role || '',
+    parentId: null,
+    isMarshalStatus: true,
+  });
+
+  saveState();
+  renderMarshalBoard();
+}
+
 
 function openEcCompose(replyToId) {
   _ecReplyToId = replyToId || null;
@@ -6326,19 +6867,20 @@ function openEcCompose(replyToId) {
   // Populate Staff roles from config
   document.getElementById('ecFromStaff').innerHTML =
     _ecGetStaffRoles().map(r => `<option value="${escHtml(r)}">${escHtml(r)}</option>`).join('');
-  // Reset from sub-selects
-  document.getElementById('ecFromType').value = '';
-  document.getElementById('ecFromMarshal').style.display = 'none';
-  document.getElementById('ecFromStaff').style.display = 'none';
   // Populate marshal list fresh
   const marshOpts = _getEcMarshalOptions();
   document.getElementById('ecFromMarshal').innerHTML = marshOpts.length
     ? marshOpts.map(o => `<option value="${escHtml(o.code)}">${escHtml(o.code)}${o.loc ? ' — ' + escHtml(o.loc) : ''}</option>`).join('')
     : '<option value="">No marshals pinned yet</option>';
+  // Default From to Staff / Event Control
+  document.getElementById('ecFromType').value = 'Staff';
+  onEcFromTypeChange();
+  const _now = new Date();
+  document.getElementById('ecTsInput').value = new Date(_now.getTime() - _now.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
   document.getElementById('ecTitleInput').value = '';
   document.getElementById('ecDescInput').value = '';
   document.getElementById('ecComposeModal').classList.add('open');
-  setTimeout(() => document.getElementById('ecFromType').focus(), 300);
+  setTimeout(() => document.getElementById('ecDescInput').focus(), 300);
 }
 
 function closeEcCompose() {
@@ -6352,12 +6894,14 @@ function submitEcEntry() {
   let fromDetail = '';
   if (fromType === 'marshal') fromDetail = document.getElementById('ecFromMarshal').value;
   else if (fromType === 'staff') fromDetail = document.getElementById('ecFromStaff').value;
+  const tsRaw = document.getElementById('ecTsInput').value;
+  const ts = tsRaw ? new Date(tsRaw).toISOString() : new Date().toISOString();
   const title       = document.getElementById('ecTitleInput').value.trim();
   const description = document.getElementById('ecDescInput').value.trim();
   if (!description) { document.getElementById('ecDescInput').focus(); return; }
   const entry = {
     id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-    ts: new Date().toISOString(),
+    ts,
     from: fromType,
     fromDetail,
     title,
@@ -7143,13 +7687,13 @@ function _eventSlug() {
 function _pushRoute(sub) {
   if (!activeEventId) return;
   const url = '/' + _eventSlug() + (sub ? '/' + sub : '');
-  if (location.pathname !== url) history.pushState({ r: sub || '' }, '', url);
+  try { if (location.pathname !== url) history.pushState({ r: sub || '' }, '', url); } catch (_) {}
 }
 
 function _replaceRoute(sub) {
   if (!activeEventId) return;
   const url = '/' + _eventSlug() + (sub ? '/' + sub : '');
-  history.replaceState({ r: sub || '' }, '', url);
+  try { history.replaceState({ r: sub || '' }, '', url); } catch (_) {}
 }
 
 function _updateObstBreadcrumb() {
@@ -7252,7 +7796,27 @@ if (currentUser.name && activeEventId) {
     </div>
     <div style="width:44px"></div>
   </div>
+  <div class="ec-tab-bar">
+    <button class="ec-tab active" id="ecTabLog" onclick="ecSwitchTab('log')">Log</button>
+    <button class="ec-tab" id="ecTabMarshals" onclick="ecSwitchTab('marshals')">Marshals</button>
+  </div>
   <div class="ec-feed" id="ecFeed"></div>
+  <div class="ec-marshal-board" id="ecMarshalBoard" style="display:none"></div>
+  <div class="ec-marshal-signin" id="ecMarshalSignIn" style="display:none" onclick="if(event.target===this)marshalCloseSignIn()">
+    <div class="ec-marshal-signin-inner">
+      <div class="ec-marshal-signin-title">Sign In Marshal</div>
+      <input id="marshalSignInName" type="text" placeholder="Name"
+        autocomplete="off" autocorrect="off" autocapitalize="words"
+        onkeydown="if(event.key==='Enter')document.getElementById('marshalSignInPos').focus()">
+      <select id="marshalSignInPos">
+        <option value="">Select position…</option>
+      </select>
+      <div class="ec-marshal-signin-actions">
+        <button class="modal-btn secondary" onclick="marshalCloseSignIn()">Cancel</button>
+        <button class="modal-btn primary" onclick="marshalSubmitSignIn()">Sign In</button>
+      </div>
+    </div>
+  </div>
 </div>
 <button class="ec-fab" id="ecFab" onclick="openEcCompose(null)">+</button>
 
@@ -7271,6 +7835,8 @@ if (currentUser.name && activeEventId) {
     </select>
     <select class="ec-compose-select" id="ecFromMarshal" style="display:none"></select>
     <select class="ec-compose-select" id="ecFromStaff" style="display:none"></select>
+    <input class="route-name-modal-input" id="ecTsInput" type="datetime-local" step="1"
+      style="font-family:inherit;font-size:14px;color-scheme:light">
     <input class="route-name-modal-input" id="ecTitleInput" type="text" placeholder="Title (optional)" maxlength="80"
       onkeydown="if(event.key==='Enter')document.getElementById('ecDescInput').focus()">
     <textarea class="route-name-modal-input" id="ecDescInput" placeholder="Description"
