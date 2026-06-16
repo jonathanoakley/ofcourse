@@ -2611,8 +2611,6 @@ a.w3w-link:active { opacity: 0.7; }
   <div class="landing-tagline" id="landingGreeting">Event Day Setup</div>
   <div class="landing-section-label">Your Events</div>
   <div class="events-list" id="eventsListContainer"></div>
-  <button class="landing-add-btn" id="addNewEventBtn" onclick="openNewEventForm()">+ Add New Event</button>
-  <button class="landing-btn" id="landingBtn" onclick="startSession()">Let's Go →</button>
 </div>
 
 <!-- NEW EVENT SCREEN -->
@@ -2861,6 +2859,10 @@ a.w3w-link:active { opacity: 0.7; }
         <span class="menu-option-icon" style="color:#555">&#8962;</span>
         <span class="menu-option-text" style="color:#888">Event Home</span>
         <span class="menu-option-arrow">&#8594;</span>
+      </button>
+      <button class="menu-option" onclick="closeMenu(); logOut()">
+        <span class="menu-option-icon" style="color:#888">&#8594;|</span>
+        <span class="menu-option-text" style="color:#888">Log Out</span>
       </button>
     </div>
   </div>
@@ -3434,15 +3436,9 @@ async function submitLogin() {
   }
 }
 
-function onLandingInput() {
-  const ready = selectedEventId.length > 0;
-  document.getElementById('landingBtn').classList.toggle('ready', ready);
-}
-
 function selectEventById(id) {
   selectedEventId = id;
-  renderEventsList();
-  onLandingInput();
+  startSession();
 }
 
 function startSession() {
@@ -3524,10 +3520,7 @@ function showLanding() {
   const auth = _authUser();
   const greeting = document.getElementById('landingGreeting');
   if (greeting) greeting.textContent = auth?.user?.name ? `Hi, ${auth.user.name}` : 'Event Day Setup';
-  const addBtn = document.getElementById('addNewEventBtn');
-  if (addBtn) addBtn.style.display = _isStaff() ? '' : 'none';
   renderEventsList();
-  onLandingInput();
   history.replaceState({}, '', '/');
 }
 
@@ -3585,14 +3578,6 @@ function createNewEvent() {
   parsedCSVCards = [];
   closeNewEventForm();
   renderEventsList();
-  selectEventById(id);
-  // Pre-resolve w3w pins so they're ready when user enters the event
-  if (w3wApiKey && newEvt.cardCount) {
-    activateEvent(id);
-    autoResolveW3WPins();
-    // Return to no active event — user hasn't started session yet
-    activeEventId = null;
-  }
 }
 
 async function doGeocode() {
@@ -3841,7 +3826,7 @@ function confirmDeleteEvent() {
   saveUserEvents();
 
   // If this was the selected event, reset selection
-  if (selectedEventId === id) { selectedEventId = ''; onLandingInput(); }
+  if (selectedEventId === id) { selectedEventId = ''; }
 
   closeDeleteEventModal();
   renderEventsList();
@@ -7332,6 +7317,8 @@ function adminShowSection(section) {
   if (section === 'home') {
     const tile = document.getElementById('adminAccountsTile');
     if (tile) tile.style.display = _isStaff() ? '' : 'none';
+    const addEventTile = document.getElementById('adminAddEventTile');
+    if (addEventTile) addEventTile.style.display = _isStaff() ? '' : 'none';
     const who = document.getElementById('adminLoggedInAs');
     if (who) who.textContent = _authUser()?.user?.name || '';
   }
@@ -8210,6 +8197,14 @@ if (currentUser.name && activeEventId) {
         <div class="choice-option-body">
           <div class="choice-option-title">Manage Accounts</div>
           <div class="choice-option-desc">Create and edit Staff / Freelancer / Volunteer logins</div>
+        </div>
+        <div class="choice-option-arrow">&#8594;</div>
+      </button>
+      <button class="choice-option" id="adminAddEventTile" onclick="openNewEventForm()" style="display:none">
+        <div class="choice-option-icon" style="color:#e55a00">&#43;</div>
+        <div class="choice-option-body">
+          <div class="choice-option-title">Add Event</div>
+          <div class="choice-option-desc">Create a new event, optionally from a risk CSV</div>
         </div>
         <div class="choice-option-arrow">&#8594;</div>
       </button>
